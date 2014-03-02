@@ -42,7 +42,7 @@ void ptrace_os_read_fxreg()
 {
 #ifdef PT_GETFPXREGS
 	_read_reg(PT_GETFPXREGS, PT_SETFPXREGS,
-		  &_target.fxreg, &_target.fxreg_rw,
+		  &_target.regs.fxreg, &_target.regs.fxreg_rw,
 		  &_target.fxreg_size);
 #endif
 }
@@ -50,7 +50,7 @@ void ptrace_os_read_fxreg()
 void ptrace_os_write_fxreg()
 {
 #ifdef PT_GETFPXREGS
-	_write_reg(PT_SETFPXREGS, _target.fxreg);
+	_write_reg(PT_SETFPXREGS, _target.regs.fxreg);
 #endif
 }
 

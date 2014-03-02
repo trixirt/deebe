@@ -144,7 +144,7 @@ void _print_greg()
 				uint64_t r64;
 			} r;
 			r.r64 = 0;
-			memcpy(&r, _target.reg + grll[c].off, grll[c].size);
+			memcpy(&r, _target.regs.reg + grll[c].off, grll[c].size);
 			DBG_PRINT("%s", rl[c].name);
 			s = max_name - strlen(rl[c].name);
 			while (s--) {
@@ -174,7 +174,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 	for (r = 0; r < rmax; r++) {
 		int i;
 		if (is_reg(r, &i, grll)) {
-			memcpy(gdb, _target.reg + grll[i].off, grll[i].size);
+			memcpy(gdb, _target.regs.reg + grll[i].off, grll[i].size);
 			memset(avail, 0xff, grll[i].size);
 			gdb += grll[i].size;
 			avail += grll[i].size;
@@ -188,7 +188,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 				ret   += diff;
 			}
 		} else if (is_reg(r, &i, frll)) {
-			memcpy(gdb, _target.freg + frll[i].off, frll[i].size);
+			memcpy(gdb, _target.regs.freg + frll[i].off, frll[i].size);
 			memset(avail, 0xff, frll[i].size);
 			gdb += frll[i].size;
 			avail += frll[i].size;
@@ -205,7 +205,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 		} else if (is_reg(r, &i, fxrll)) {
 			if ((fxrll[i].off + fxrll[i].size) <=
 			    _target.fxreg_size) {
-				memcpy(gdb, _target.fxreg + fxrll[i].off,
+				memcpy(gdb, _target.regs.fxreg + fxrll[i].off,
 				       fxrll[i].size);
 				memset(avail, 0xff, frll[i].size);
 				gdb   += fxrll[i].size;
@@ -440,11 +440,11 @@ bool _read_greg()
 {
 	bool ret = false;
 #ifdef PT_GETREGS
-	ret = _read_reg(PT_GETREGS, PT_SETREGS, &_target.reg,
-			&_target.reg_rw, &_target.reg_size);
+	ret = _read_reg(PT_GETREGS, PT_SETREGS, &_target.regs.reg,
+			&_target.regs.reg_rw, &_target.reg_size);
 #else
-	_target.reg = NULL;
-	_target.reg_rw = NULL;
+	_target.regs.reg = NULL;
+	_target.regs.reg_rw = NULL;
 	_target.reg_size = 0;
 #endif
 	return ret;
@@ -454,11 +454,11 @@ bool _read_freg()
 {
 	bool ret = false;
 #ifdef PT_GETFPREGS
-	ret = _read_reg(PT_GETFPREGS, PT_SETFPREGS, &_target.freg,
-			&_target.freg_rw, &_target.freg_size);
+	ret = _read_reg(PT_GETFPREGS, PT_SETFPREGS, &_target.regs.freg,
+			&_target.regs.freg_rw, &_target.freg_size);
 #else
-	_target.freg = NULL;
-	_target.freg_rw = NULL;
+	_target.regs.freg = NULL;
+	_target.regs.freg_rw = NULL;
 	_target.freg_size = 0;
 #endif
 	return ret;
@@ -483,21 +483,21 @@ bool _read_dbreg()
 void _write_greg()
 {
 #ifdef PT_SETREGS
-	_write_reg(PT_SETREGS, _target.reg);
+	_write_reg(PT_SETREGS, _target.regs.reg);
 #endif
 }
 
 void _write_freg()
 {
 #ifdef PT_SETFPREGS
-	_write_reg(PT_SETFPREGS, _target.freg);
+	_write_reg(PT_SETFPREGS, _target.regs.freg);
 #endif
 }
 
 void _write_dbreg()
 {
 #ifdef PT_GETDBREGS
-	_write_reg(PT_SETDBREGS, _target.dbreg);
+	_write_reg(PT_SETDBREGS, _target.regs.dbreg);
 #else
 	ptrace_arch_write_dbreg();
 #endif
@@ -812,7 +812,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 			}
 #endif
 			/* Success */
-			memcpy(data + s, _target.reg + grll[c].off,
+			memcpy(data + s, _target.regs.reg + grll[c].off,
 			       grll[c].size);
 			memset(avail + s, 0xff, grll[c].size);
 
@@ -832,7 +832,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 			if (frll[c].size > 0) {
 				size_t pad = 0;
 				/* Success */
-				memcpy(data, _target.freg + frll[c].off,
+				memcpy(data, _target.regs.freg + frll[c].off,
 				       frll[c].size);
 				memset(avail, 0xff, frll[c].size);
 				/* for parts of x86_64 */
@@ -860,7 +860,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 
 		if (fxrll[c].off < _target.fxreg_size) {
 			/* Success */
-			memcpy(data, _target.fxreg + fxrll[c].off,
+			memcpy(data, _target.regs.fxreg + fxrll[c].off,
 			       fxrll[c].size);
 			memset(avail, 0xff, fxrll[c].size);
 			*read_size = fxrll[c].size;
@@ -942,7 +942,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 				s = diff;
 			}
 #endif
-			memcpy(_target.reg + grll[c].off, data + s,
+			memcpy(_target.regs.reg + grll[c].off, data + s,
 			       grll[c].size);
 
 			_write_greg();
@@ -957,7 +957,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 		_read_freg(0x1000 /* XXX FIX */);
 		if (frll[c].off < _target.freg_size) {
 			/* Success */
-			memcpy(_target.freg + frll[c].off, data, frll[c].size);
+			memcpy(_target.regs.freg + frll[c].off, data, frll[c].size);
 			_write_freg();
 
 			ret = RET_OK;
@@ -985,7 +985,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 			/* Read at least partially succeeded */
 			if (fxrll[c].off < _target.fxreg_size) {
 				/* Success */
-				memcpy(_target.fxreg + fxrll[c].off,
+				memcpy(_target.regs.fxreg + fxrll[c].off,
 				       data, fxrll[c].size);
 				ptrace_arch_write_fxreg();
 
