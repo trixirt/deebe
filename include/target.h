@@ -64,14 +64,11 @@ struct _tstate {
 extern struct _tstate tstate;
 
 typedef struct target_reg_rec {
+	pid_t pid;
 	void *reg;
-	uint8_t *reg_rw;
 	void *freg;
-	uint8_t *freg_rw;
 	void *fxreg;
-	uint8_t *fxreg_rw;
 	void *dbreg;
-	uint8_t *dbreg_rw;
 } target_reg;
 
 typedef struct target_state_rec {
@@ -86,8 +83,20 @@ typedef struct target_state_rec {
 	size_t freg_size;
 	size_t fxreg_size;
 	size_t dbreg_size;
-	target_reg regs;
+	uint8_t *reg_rw;
+	uint8_t *freg_rw;
+	uint8_t *fxreg_rw;
+	uint8_t *dbreg_rw;
+	size_t number_regs;
+	size_t current_regs;
+	target_reg *regs;
 } target_state;
+
+#define TARGET_PID   _target.regs[_target.current_regs].pid
+#define TARGET_REG   _target.regs[_target.current_regs].reg
+#define TARGET_FREG  _target.regs[_target.current_regs].freg
+#define TARGET_FXREG _target.regs[_target.current_regs].fxreg
+#define TARGET_DBREG _target.regs[_target.current_regs].dbreg
 
 extern target_state _target;
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)
