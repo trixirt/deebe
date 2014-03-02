@@ -63,6 +63,17 @@ struct _tstate {
 
 extern struct _tstate tstate;
 
+typedef struct target_reg_rec {
+	void *reg;
+	uint8_t *reg_rw;
+	void *freg;
+	uint8_t *freg_rw;
+	void *fxreg;
+	uint8_t *fxreg_rw;
+	void *dbreg;
+	uint8_t *dbreg_rw;
+} target_reg;
+
 typedef struct target_state_rec {
 	int no_ack;
 	bool syscall_enter;
@@ -72,17 +83,10 @@ typedef struct target_state_rec {
 	int flag_attached_existing_process;
 	enum process_state ps;
 	size_t reg_size;
-	void *reg;
-	uint8_t *reg_rw;
 	size_t freg_size;
-	void *freg;
-	uint8_t *freg_rw;
 	size_t fxreg_size;
-	void *fxreg;
-	uint8_t *fxreg_rw;
 	size_t dbreg_size;
-	void *dbreg;
-	uint8_t *dbreg_rw;
+	target_reg regs;
 } target_state;
 
 extern target_state _target;

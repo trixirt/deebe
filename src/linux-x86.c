@@ -163,13 +163,13 @@ int ptrace_arch_gdb_greg_max()
 void ptrace_arch_get_pc(unsigned long *pc)
 {
 	_read_greg();
-	memcpy(pc, _target.reg + offsetof(struct user, regs.eip),
+	memcpy(pc, _target.regs.reg + offsetof(struct user, regs.eip),
 	       sizeof(unsigned long));
 }
 void ptrace_arch_set_pc(unsigned long pc)
 {
 	_read_greg();
-	memcpy(_target.reg + offsetof(struct user, regs.eip), &pc,
+	memcpy(_target.regs.reg + offsetof(struct user, regs.eip), &pc,
 	       sizeof(unsigned long));
 	_write_greg();
 }
@@ -205,16 +205,16 @@ void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
 	_read_greg();
-	memcpy(id, _target.reg + offsetof(struct user, regs.orig_eax),
+	memcpy(id, _target.regs.reg + offsetof(struct user, regs.orig_eax),
 	       sizeof(unsigned long));
-	memcpy(arg1, _target.reg + offsetof(struct user, regs.ebx),
+	memcpy(arg1, _target.regs.reg + offsetof(struct user, regs.ebx),
 	       sizeof(unsigned long));
-	memcpy(arg2, _target.reg + offsetof(struct user, regs.ecx),
+	memcpy(arg2, _target.regs.reg + offsetof(struct user, regs.ecx),
 	       sizeof(unsigned long));
-	memcpy(arg3, _target.reg + offsetof(struct user, regs.edx),
+	memcpy(arg3, _target.regs.reg + offsetof(struct user, regs.edx),
 	       sizeof(unsigned long));
-	memcpy(arg4, _target.reg + offsetof(struct user, regs.esi),
+	memcpy(arg4, _target.regs.reg + offsetof(struct user, regs.esi),
 	       sizeof(unsigned long));
-	memcpy(ret,  _target.reg + offsetof(struct user, regs.eax),
+	memcpy(ret,  _target.regs.reg + offsetof(struct user, regs.eax),
 	       sizeof(unsigned long));
 }
