@@ -55,15 +55,11 @@ enum process_state {
 	PS_SYSCALL_EXIT,
 };
 
-struct _tstate {
-	struct breakpoint *bpl;
-	struct process_info *pil;
-};
-
 extern struct _tstate tstate;
 
 typedef struct target_process_rec {
 	pid_t pid;
+	struct breakpoint *bpl;
 	void *reg;
 	void *freg;
 	void *fxreg;
@@ -73,6 +69,7 @@ typedef struct target_process_rec {
 typedef struct target_state_rec {
 	int no_ack;
 	int multiprocess;
+	struct process_info *pil;
 	bool syscall_enter;
 	int current_signal;
 	int current_gdb_signal;
@@ -94,6 +91,7 @@ typedef struct target_state_rec {
 
 #define TARGET_PID_GET()  _target.process[_target.current_process].pid
 #define TARGET_PID_SET(s) _target.process[_target.current_process].pid = s
+#define TARGET_BPL        _target.process[_target.current_process].bpl
 #define TARGET_REG        _target.process[_target.current_process].reg
 #define TARGET_FREG       _target.process[_target.current_process].freg
 #define TARGET_FXREG      _target.process[_target.current_process].fxreg

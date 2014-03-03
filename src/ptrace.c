@@ -43,7 +43,6 @@
 #include "global.h"
 #include "network.h"
 #include "os.h"
-#include "process_info.h"
 #include "util.h"
 #include "dsignal.h"
 #include "dptrace.h"
@@ -70,7 +69,6 @@ static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
 static bool _stop_verbose = false;
-static bool _attach_verbose = false;
 static bool _restart_verbose = false;
 static bool _detach_verbose = false;
 
@@ -566,34 +564,28 @@ int ptrace_attach(pid_t process_id)
 				/* Check that process stopped because of implied SIGSTOP */
 				if (WIFSTOPPED(status) &&
 				    (WSTOPSIG(status) == SIGSTOP)) {
-					/* Everything is as expected, store */
-					if (NULL == process_info_add(&tstate.pil, _attach_verbose, process_id)) {
-						if (_attach_verbose) {
-							/* Error */
-							DBG_PRINT("Error adding pid %u to process list\n", process_id);
-						}
-					} else {
-						/* Success */
-						void *try_process = NULL;
-						ret = RET_OK;
+					/* Success */
+					void *try_process = NULL;
+					ret = RET_OK;
 
-						/* Allocate registers for the process */
-						try_process = realloc(_target.process,
-								      (_target.number_processes + 1) *
-								      sizeof(struct target_process_rec));
-						if (try_process) {
-							_target.process = try_process;
-							_target.current_process = _target.number_processes;
-							TARGET_PID_SET(process_id);
-							TARGET_REG   = NULL;
-							TARGET_FREG  = NULL;
-							TARGET_FXREG = NULL;
-							TARGET_DBREG = NULL;
-							_target.number_processes++;
-						} else {
-							/* TODO : HANDLE ERROR */
-						}
+					/* Allocate registers for the process */
+					try_process = realloc(_target.process,
+							      (_target.number_processes + 1) *
+							      sizeof(struct target_process_rec));
+					if (try_process) {
+						_target.process = try_process;
+						_target.current_process = _target.number_processes;
+						TARGET_PID_SET(process_id);
+						TARGET_BPL   = NULL;
+						TARGET_REG   = NULL;
+						TARGET_FREG  = NULL;
+						TARGET_FXREG = NULL;
+						TARGET_DBREG = NULL;
+						_target.number_processes++;
+					} else {
+						/* TODO : HANDLE ERROR */
 					}
+
 				} else {
 					/* Unexpected */
 					DBG_PRINT("ptrace unexpected wait status\n");
@@ -635,11 +627,6 @@ static int _ptrace_detach(int gdb_sig)
 int ptrace_detach()
 {
 	int ret = _ptrace_detach(0);
-
-	if (ret == RET_OK) {
-		process_info_remove(&tstate.pil, _detach_verbose, TARGET_PID_GET());
-		ret = RET_OK;
-	}
 	return ret;
 }
 
@@ -702,38 +689,32 @@ int ptrace_restart(void)
 						 */
 						if (WIFSTOPPED(status) &&
 						    (WSTOPSIG(status) == SIGTRAP)) {
-							/* Everything is as expected */
-							if (NULL == process_info_add(&tstate.pil, _restart_verbose, try_child)) {
-								if (_restart_verbose) {
-									/* Error */
-									DBG_PRINT("Error adding pid %u to process list\n", try_child);
-								}
+
+							/* Success */
+							void *try_process = NULL;
+							ret = RET_OK;
+							
+							/* Allocate registers for the process */
+							try_process = realloc(_target.process,
+									      (_target.number_processes + 1) *
+									      sizeof(struct target_process_rec));
+							if (try_process) {
+								_target.process = try_process;
+								_target.current_process = _target.number_processes;
+								TARGET_PID_SET(try_child);
+								TARGET_BPL   = NULL;
+								TARGET_REG   = NULL;
+								TARGET_FREG  = NULL;
+								TARGET_FXREG = NULL;
+								TARGET_DBREG = NULL;
+								_target.number_processes++;
+								
+								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], TARGET_PID_GET());
+								fflush(stdout);
 							} else {
-								/* Success */
-								void *try_process = NULL;
-								ret = RET_OK;
-
-								/* Allocate registers for the process */
-								try_process = realloc(_target.process,
-										      (_target.number_processes + 1) *
-										      sizeof(struct target_process_rec));
-								if (try_process) {
-									_target.process = try_process;
-									_target.current_process = _target.number_processes;
-									TARGET_PID_SET(try_child);
-									TARGET_REG   = NULL;
-									TARGET_FREG  = NULL;
-									TARGET_FXREG = NULL;
-									TARGET_DBREG = NULL;
-									_target.number_processes++;
-
-									fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], TARGET_PID_GET());
-									fflush(stdout);
-								} else {
-									/* TODO : HANDLE ERROR */
-								}
-										   
+								/* TODO : HANDLE ERROR */
 							}
+
 						} else {
 							/* Unexpected */
 							if (_restart_verbose) {
@@ -1142,7 +1123,7 @@ int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 			 * adjuster.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_read_buffer(tstate.bpl,
+				breakpoint_adjust_read_buffer(TARGET_BPL,
 							      _read_mem_verbose,
 							      kb_addr + leading,
 							      size, data);
@@ -1254,7 +1235,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			 * and the code for the breakpoint insn should not change.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_write_buffer(tstate.bpl, _read_mem_verbose,
+				breakpoint_adjust_write_buffer(TARGET_BPL, _read_mem_verbose,
 							       kb_addr + leading,
 							       size, data);
 			}
@@ -1415,7 +1396,6 @@ void ptrace_kill(void)
 	} else {
 		ptrace_resume_from_current(0, SIGKILL);
 	}
-	process_info_remove(&tstate.pil, _detach_verbose, TARGET_PID_GET());
 }
 
 int ptrace_go_waiting(int gdb_sig)
@@ -1509,7 +1489,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		/* Add to general list first */
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_add(&tstate.bpl, _add_break_verbose,
+		bp = breakpoint_add(&TARGET_BPL, _add_break_verbose,
 				    kaddr, type, len);
 		if (bp) {
 			/* Get the arch specific break insn */
@@ -1534,14 +1514,14 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 						if (_add_break_verbose) {
 							DBG_PRINT("ERROR writing breakpoint at 0x%lx\n", kaddr);
 						}
-						breakpoint_remove(&tstate.bpl, _add_break_verbose, kaddr);
+						breakpoint_remove(&TARGET_BPL, _add_break_verbose, kaddr);
 					}
 				} else {
 					/* Failure */
 					if (_add_break_verbose) {
 						DBG_PRINT("ERROR reading data for breakpoint at 0x%lx\n", kaddr);
 					}
-					breakpoint_remove(&tstate.bpl,
+					breakpoint_remove(&TARGET_BPL,
 							  _add_break_verbose,
 							  kaddr);
 				}
@@ -1550,7 +1530,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 				if (_add_break_verbose) {
 					DBG_PRINT("INTERNAL ERROR with ARCH breakpoint at 0x%lx\n", kaddr);
 				}
-				breakpoint_remove(&tstate.bpl,
+				breakpoint_remove(&TARGET_BPL,
 						  _add_break_verbose, kaddr);
 			}
 		} else {
@@ -1600,7 +1580,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 		}
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_find(tstate.bpl, _remove_break_verbose, kaddr);
+		bp = breakpoint_find(TARGET_BPL, _remove_break_verbose, kaddr);
 		if (bp) {
 			/*
 			 * Only really remove the breakpoint if it's reference count
@@ -1611,7 +1591,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 							bp->data, bp->len,
 							false);
 				if (ret == RET_OK) {
-					breakpoint_remove(&tstate.bpl,
+					breakpoint_remove(&TARGET_BPL,
 							  _remove_break_verbose,
 							  kaddr);
 					if (_add_break_verbose) {
@@ -1625,7 +1605,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 				}
 			} else {
 				/* This just decrements the ref_count */
-				breakpoint_remove(&tstate.bpl,
+				breakpoint_remove(&TARGET_BPL,
 						  _remove_break_verbose, kaddr);
 				ret = RET_OK;
 			}
@@ -1735,7 +1715,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				/* Second guess the kernel */
 				if (s != SIGTRAP) {
 					if (pc) {
-						if (NULL != breakpoint_find(tstate.bpl, _wait_verbose, pc)) {
+						if (NULL != breakpoint_find(TARGET_BPL, _wait_verbose, pc)) {
 							s = SIGTRAP;
 						}
 					}
