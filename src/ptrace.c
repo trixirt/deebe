@@ -574,22 +574,22 @@ int ptrace_attach(pid_t process_id)
 						}
 					} else {
 						/* Success */
-						void *try_regs;
+						void *try_process = NULL;
 						ret = RET_OK;
 
 						/* Allocate registers for the process */
-						try_regs = realloc(_target.regs,
-								   (_target.number_regs + 1) *
-								   sizeof(struct target_reg_rec));
-						if (try_regs) {
-							_target.regs = try_regs;
-							_target.current_regs = _target.number_regs;
+						try_process = realloc(_target.process,
+								      (_target.number_processes + 1) *
+								      sizeof(struct target_process_rec));
+						if (try_process) {
+							_target.process = try_process;
+							_target.current_process = _target.number_processes;
 							TARGET_PID_SET(process_id);
 							TARGET_REG   = NULL;
 							TARGET_FREG  = NULL;
 							TARGET_FXREG = NULL;
 							TARGET_DBREG = NULL;
-							_target.number_regs++;
+							_target.number_processes++;
 						} else {
 							/* TODO : HANDLE ERROR */
 						}
@@ -710,22 +710,22 @@ int ptrace_restart(void)
 								}
 							} else {
 								/* Success */
-								void *try_regs;
+								void *try_process = NULL;
 								ret = RET_OK;
 
 								/* Allocate registers for the process */
-								try_regs = realloc(_target.regs,
-										   (_target.number_regs + 1) *
-										   sizeof(struct target_reg_rec));
-								if (try_regs) {
-									_target.regs = try_regs;
-									_target.current_regs = _target.number_regs;
+								try_process = realloc(_target.process,
+										      (_target.number_processes + 1) *
+										      sizeof(struct target_process_rec));
+								if (try_process) {
+									_target.process = try_process;
+									_target.current_process = _target.number_processes;
 									TARGET_PID_SET(try_child);
 									TARGET_REG   = NULL;
 									TARGET_FREG  = NULL;
 									TARGET_FXREG = NULL;
 									TARGET_DBREG = NULL;
-									_target.number_regs++;
+									_target.number_processes++;
 
 									fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], TARGET_PID_GET());
 									fflush(stdout);
