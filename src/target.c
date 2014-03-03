@@ -60,7 +60,7 @@ target_state _target = {
 	.freg_rw = NULL, /* TODO : FREE THIS */
 	.fxreg_rw = NULL, /* TODO : FREE THIS */
 	.dbreg_rw = NULL, /* TODO : FREE THIS */
-	.number_regs = 0,
-	.current_regs = 0,
-	.regs = NULL, /* TODO : FREE THIS */
+	.number_processes = 0,
+	.current_process = 0,
+	.process = NULL, /* TODO : FREE THIS */
 };
