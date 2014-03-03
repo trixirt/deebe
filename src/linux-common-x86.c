@@ -100,7 +100,7 @@ void ptrace_arch_read_dbreg()
 			long v;
 			unsigned long addr = offsetof(struct user, u_debugreg[r]);
 			errno = 0;
-			v = ptrace(PTRACE_PEEKUSER, tstate.cpid, addr, 0);
+			v = ptrace(PTRACE_PEEKUSER, TARGET_PID_GET(), addr, 0);
 			if (0 == errno) {
 				memcpy(&val[r], &v, sizeof(long));
 			} else {
@@ -117,7 +117,7 @@ void ptrace_arch_write_dbreg()
 		long *val = (long *)TARGET_DBREG;
 		for (r = 0; r < 8; r++) {
 			unsigned long addr = offsetof(struct user, u_debugreg[r]);
-			if (0 != ptrace(PTRACE_POKEUSER, tstate.cpid, addr, val[r])) {
+			if (0 != ptrace(PTRACE_POKEUSER, TARGET_PID_GET(), addr, val[r])) {
 				break;
 			}
 		}
