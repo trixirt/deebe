@@ -281,7 +281,7 @@ bool _read_reg(int GET, int SET,
 			memset(b, 0xee, buf_size);
 
 			errno = 0;
-			ptrace_status = PTRACE_GETSET(GET, tstate.cpid, 0, a);
+			ptrace_status = PTRACE_GETSET(GET, TARGET_PID_GET(), 0, a);
 			if (0 != ptrace_status) {
 				/* Failure */
 				if (_read_reg_verbose) {
@@ -294,7 +294,7 @@ bool _read_reg(int GET, int SET,
 				}
 			} else {
 
-				ptrace_status = PTRACE_GETSET(GET, tstate.cpid, 0, b);
+				ptrace_status = PTRACE_GETSET(GET, TARGET_PID_GET(), 0, b);
 				if (0 == ptrace_status) {
 					size_t i = 0;
 					for (i = buf_size; i > 0; i--) {
@@ -368,10 +368,10 @@ bool _read_reg(int GET, int SET,
 									/* Assume read write */
 									memset(*reg_rw, 0xff, *reg_size);
 									for (j = 0; j < *reg_size; j++) {
-										if (0 == PTRACE_GETSET(SET, tstate.cpid, 0, a)) {
+										if (0 == PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
 											/* Toggle current byte */
 											a[j] ^= 0xff;
-											if (0 != PTRACE_GETSET(SET, tstate.cpid, 0, a)) {
+											if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
 												/* Set byte to read only */
 												(*reg_rw)[j] = 0;
 												if (_read_reg_verbose) {
@@ -386,7 +386,7 @@ bool _read_reg(int GET, int SET,
 									 * Trailing restore
 									 * No point handling the error case
 									 */
-									if (0 != PTRACE_GETSET(SET, tstate.cpid, 0, a)) {
+									if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
 										if (_read_reg_verbose) {
 											DBG_PRINT("Error restoring registers\n");
 										}
@@ -428,7 +428,7 @@ bool _read_reg(int GET, int SET,
 #ifdef PT_SETREGS
 void _write_reg(long SET, void *reg)
 {
-	if (0 != PTRACE_GETSET(SET, tstate.cpid, 0, reg)) {
+	if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, reg)) {
 		if (_write_reg_verbose) {
 			DBG_PRINT("Error : Write register\n");
 		}
@@ -575,7 +575,6 @@ int ptrace_attach(pid_t process_id)
 					} else {
 						/* Success */
 						void *try_regs;
-						tstate.cpid = process_id;
 						ret = RET_OK;
 
 						/* Allocate registers for the process */
@@ -585,7 +584,7 @@ int ptrace_attach(pid_t process_id)
 						if (try_regs) {
 							_target.regs = try_regs;
 							_target.current_regs = _target.number_regs;
-							TARGET_PID   = process_id;
+							TARGET_PID_SET(process_id);
 							TARGET_REG   = NULL;
 							TARGET_FREG  = NULL;
 							TARGET_FXREG = NULL;
@@ -618,14 +617,14 @@ static int _ptrace_detach(int gdb_sig)
 		sig = 0;
 	}
 	if (cmdline_pid > 0) {
-		if (0 != ptrace(PT_DETACH, tstate.cpid, 0, sig)) {
+		if (0 != ptrace(PT_DETACH, TARGET_PID_GET(), 0, sig)) {
 			/* Failure */
 			if (_detach_verbose) {
-				DBG_PRINT("Error detaching from pid %d\n", tstate.cpid);
+				DBG_PRINT("Error detaching from pid %d\n", TARGET_PID_GET());
 			}
 		} else {
 			if (_detach_verbose) {
-				DBG_PRINT("OK detaching from pid %d\n", tstate.cpid);
+				DBG_PRINT("OK detaching from pid %d\n", TARGET_PID_GET());
 			}
 			ret = RET_OK;
 		}
@@ -638,8 +637,7 @@ int ptrace_detach()
 	int ret = _ptrace_detach(0);
 
 	if (ret == RET_OK) {
-		process_info_remove(&tstate.pil, _detach_verbose, tstate.cpid);
-		tstate.cpid = 0;
+		process_info_remove(&tstate.pil, _detach_verbose, TARGET_PID_GET());
 		ret = RET_OK;
 	}
 	return ret;
@@ -713,10 +711,7 @@ int ptrace_restart(void)
 							} else {
 								/* Success */
 								void *try_regs;
-								tstate.cpid = try_child;
 								ret = RET_OK;
-								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], tstate.cpid);
-								fflush(stdout);
 
 								/* Allocate registers for the process */
 								try_regs = realloc(_target.regs,
@@ -725,12 +720,15 @@ int ptrace_restart(void)
 								if (try_regs) {
 									_target.regs = try_regs;
 									_target.current_regs = _target.number_regs;
-									TARGET_PID   = try_child;
+									TARGET_PID_SET(try_child);
 									TARGET_REG   = NULL;
 									TARGET_FREG  = NULL;
 									TARGET_FXREG = NULL;
 									TARGET_DBREG = NULL;
 									_target.number_regs++;
+
+									fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], TARGET_PID_GET());
+									fflush(stdout);
 								} else {
 									/* TODO : HANDLE ERROR */
 								}
@@ -775,15 +773,15 @@ int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
 
 void ptrace_stop(void)
 {
-	if (kill(tstate.cpid, SIGINT)) {
+	if (kill(TARGET_PID_GET(), SIGINT)) {
 		/* Failure */
 		if (_stop_verbose) {
-			DBG_PRINT("ERROR sending SIGINT to %d\n", tstate.cpid);
+			DBG_PRINT("ERROR sending SIGINT to %d\n", TARGET_PID_GET());
 		}
 	} else {
 		/* Success */
 		if (_stop_verbose) {
-			DBG_PRINT("OK sending SIGINT to %d\n", tstate.cpid);
+			DBG_PRINT("OK sending SIGINT to %d\n", TARGET_PID_GET());
 		}
 	}
 }
@@ -1118,7 +1116,7 @@ int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 		for (i = 0; i < kbuf_size; i++) {
 			void *l = (void *)(kb_addr + i * tran_size);
 			errno = 0;
-			a[i] = ptrace(PT_READ_D, tstate.cpid, l, 0);
+			a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
 			if (errno) {
 				if (_read_mem_verbose) {
 					DBG_PRINT("Error with failed to read %p\n", l);
@@ -1221,7 +1219,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			i = 0;
 			l = (void *)(kb_addr + i * tran_size);
 			errno = 0;
-			a[i] = ptrace(PT_READ_D, tstate.cpid, l, 0);
+			a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
 			if (errno) {
 				if (_write_mem_verbose) {
 					DBG_PRINT("Error with reading data at %p\n", l);
@@ -1235,7 +1233,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			if (i || !leading) {
 				l = (void *)(kb_addr + i * tran_size);
 				errno = 0;
-				a[i] = ptrace(PT_READ_D, tstate.cpid, l, 0);
+				a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
 				if (errno) {
 					if (_write_mem_verbose) {
 						DBG_PRINT("Error with reading data at %p\n", l);
@@ -1264,7 +1262,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			for (i = 0; i < kbuf_size; i++) {
 				void *l = (void *)(kb_addr + i * tran_size);
 	
-				if (0 != ptrace(PT_WRITE_D, tstate.cpid,
+				if (0 != ptrace(PT_WRITE_D, TARGET_PID_GET(),
 						l, a[i])) {
 					if (_write_mem_verbose) {
 						DBG_PRINT("Error with write data at %p\n", l);
@@ -1316,13 +1314,13 @@ int ptrace_resume_from_current(int step, int gdb_sig)
 
 	if (step == 1) {
 
-		ptrace_arch_set_singlestep(tstate.cpid, &request);
+		ptrace_arch_set_singlestep(TARGET_PID_GET(), &request);
 	} else {
-		ptrace_arch_clear_singlestep(tstate.cpid);
+		ptrace_arch_clear_singlestep(TARGET_PID_GET());
 	}
 
 	/* TODO : Map sig to arg4 */
-	if (0 == PTRACE(request, tstate.cpid, 1, sig)) {
+	if (0 == PTRACE(request, TARGET_PID_GET(), 1, sig)) {
 		/* Success */
 		_target.current_signal = sig;
 		if (sig)
@@ -1350,7 +1348,7 @@ int ptrace_resume_with_syscall(void)
 	int ret = RET_ERR;
 #ifdef PT_SYSCALL
 	errno = 0;
-	if (0 == PTRACE(PT_SYSCALL, tstate.cpid, PT_SYSCALL_ARG3, 0)) {
+	if (0 == PTRACE(PT_SYSCALL, TARGET_PID_GET(), PT_SYSCALL_ARG3, 0)) {
 		/* Success */
 		_target.ps = PS_RUN;
 		ret = RET_OK;
@@ -1394,7 +1392,7 @@ int ptrace_resume_from_addr(int step, int gdb_sig, uint64_t addr)
 
 void ptrace_quick_kill(void)
 {
-	kill(tstate.cpid, SIGKILL);
+	kill(TARGET_PID_GET(), SIGKILL);
 }
 
 void ptrace_quick_signal(int gdb_sig)
@@ -1404,10 +1402,10 @@ void ptrace_quick_signal(int gdb_sig)
 	int sig;
 	sig = ptrace_arch_signal_from_gdb(gdb_sig);
 	if (sig > 0)
-		kill(tstate.cpid, sig);
+		kill(TARGET_PID_GET(), sig);
 #endif
 	/* But be blunt */
-	kill(tstate.cpid, SIGTRAP);
+	kill(TARGET_PID_GET(), SIGTRAP);
 }
 
 void ptrace_kill(void)
@@ -1417,8 +1415,7 @@ void ptrace_kill(void)
 	} else {
 		ptrace_resume_from_current(0, SIGKILL);
 	}
-	process_info_remove(&tstate.pil, _detach_verbose, tstate.cpid);
-	tstate.cpid = 0;
+	process_info_remove(&tstate.pil, _detach_verbose, TARGET_PID_GET());
 }
 
 int ptrace_go_waiting(int gdb_sig)
@@ -1492,7 +1489,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_add_watchpoint(tstate.cpid,
+			if (ptrace_arch_add_watchpoint(TARGET_PID_GET(),
 						       type, addr, len)) {
 				ret = RET_OK;
 				if (_add_break_verbose) {
@@ -1585,7 +1582,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_remove_watchpoint(tstate.cpid, type, addr, len)) {
+			if (ptrace_arch_remove_watchpoint(TARGET_PID_GET(), type, addr, len)) {
 				ret = RET_OK;
 				if (_remove_break_verbose) {
 					DBG_PRINT("OK removing watchpoint at 0x%lx\n", kaddr);
@@ -1668,16 +1665,16 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		for (errs = 0; errs < errs_max; errs++) {
 			/* Sleep for a msec */
 			usleep(100);
-			pid = waitpid(tstate.cpid, &status, WNOHANG);
-			if (pid == tstate.cpid) {
+			pid = waitpid(TARGET_PID_GET(), &status, WNOHANG);
+			if (pid == TARGET_PID_GET()) {
 				break;
 			} else {
 				/* failure */
 				if (errs + 2 < errs_max)
-					kill(tstate.cpid,
+					kill(TARGET_PID_GET(),
 					     _target.current_signal);
 				else
-					kill(tstate.cpid, SIGTRAP);
+					kill(TARGET_PID_GET(), SIGTRAP);
 				usleep(100);
 			}
 		}
@@ -1690,7 +1687,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		pid = wait(&status);
 	}
 
-	if (pid == tstate.cpid) {
+	if (pid == TARGET_PID_GET()) {
 
 		uint8_t g = 0;
 
@@ -1717,7 +1714,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			}
 
 			/* Check for syscall */
-			if (ptrace_arch_check_syscall(tstate.cpid, &s)) {
+			if (ptrace_arch_check_syscall(TARGET_PID_GET(), &s)) {
 				/* sycall entry or exit */
 				if (_target.syscall_enter) {
 					/* This assumes no breakpoints etc.. */
@@ -1750,7 +1747,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				}
 
 				/* Fill out the status string */
-				if (ptrace_arch_hit_watchpoint(tstate.cpid, &watchpoint_addr)) {
+				if (ptrace_arch_hit_watchpoint(TARGET_PID_GET(), &watchpoint_addr)) {
 					/* A watchpoint was hit */
 					snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
 				} else {
@@ -1827,7 +1824,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		/* Failure */
 		if (_wait_verbose) {
 			DBG_PRINT("%s wait returned unexpect pid %x vs %x\n",
-				  __func__, pid, tstate.cpid);
+				  __func__, pid, TARGET_PID_GET());
 		}
 		_target.ps = PS_ERR;
 	}
@@ -1859,6 +1856,17 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		strcat(out_buf, str);
 		c += strlen(str);
 	}
+
+#if 0
+	/* Support multi process extensions */
+	sprintf(str, "multiprocess+;");
+	if (((strlen(str)) + c) < out_buf_size) {
+		strcat(out_buf, str);
+		c += strlen(str);
+		_target.multiprocess = 1;
+	}
+#endif
+
 #if 0
 	sprintf(str, "QPassSignals+;");
 	if (((strlen(str)) + c) < out_buf_size) {
@@ -1977,7 +1985,7 @@ enum process_state ptrace_get_process_state(void)
 
 void ptrace_option_set_syscall()
 {
-	ptrace_arch_option_set_syscall(tstate.cpid);
+	ptrace_arch_option_set_syscall(TARGET_PID_GET());
 }
 
 void ptrace_get_syscall(void *id, void *arg1, void *arg2,

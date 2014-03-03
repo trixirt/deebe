@@ -56,7 +56,6 @@ enum process_state {
 };
 
 struct _tstate {
-	pid_t cpid;
 	struct breakpoint *bpl;
 	struct process_info *pil;
 };
@@ -73,6 +72,7 @@ typedef struct target_reg_rec {
 
 typedef struct target_state_rec {
 	int no_ack;
+	int multiprocess;
 	bool syscall_enter;
 	int current_signal;
 	int current_gdb_signal;
@@ -92,11 +92,12 @@ typedef struct target_state_rec {
 	target_reg *regs;
 } target_state;
 
-#define TARGET_PID   _target.regs[_target.current_regs].pid
-#define TARGET_REG   _target.regs[_target.current_regs].reg
-#define TARGET_FREG  _target.regs[_target.current_regs].freg
-#define TARGET_FXREG _target.regs[_target.current_regs].fxreg
-#define TARGET_DBREG _target.regs[_target.current_regs].dbreg
+#define TARGET_PID_GET()  _target.regs[_target.current_regs].pid
+#define TARGET_PID_SET(s) _target.regs[_target.current_regs].pid = s
+#define TARGET_REG        _target.regs[_target.current_regs].reg
+#define TARGET_FREG       _target.regs[_target.current_regs].freg
+#define TARGET_FXREG      _target.regs[_target.current_regs].fxreg
+#define TARGET_DBREG      _target.regs[_target.current_regs].dbreg
 
 extern target_state _target;
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)

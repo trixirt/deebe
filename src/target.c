@@ -41,13 +41,13 @@
 #include "target.h"
 
 struct _tstate tstate = {
-	.cpid = 0,
 	.bpl  = NULL,
 	.pil  = NULL,
 };
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
+	.multiprocess = 0, /* default to not supporting multiple processes */
 	.syscall_enter = false,
 	.current_signal = SIGTRAP,
 	.flag_attached_existing_process = 1,
