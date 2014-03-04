@@ -211,10 +211,10 @@ struct gdb_target_s {
 	/*============== Thread Control ===============================*/
 
 	/* Set generic thread */
-	int (*set_gen_thread)(gdb_thread_ref *thread);
+	int (*set_gen_thread)(int64_t process_id, int64_t thread_id);
 
 	/* Set control thread */
-	int (*set_ctrl_thread)(gdb_thread_ref *thread);
+	int (*set_ctrl_thread)(int64_t process_id, int64_t thread_id);
 
 	/* Get thread status */
 	int (*is_thread_alive)(gdb_thread_ref *thread, int *alive);

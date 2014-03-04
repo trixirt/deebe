@@ -56,15 +56,15 @@ int ptrace_threadextrainfo_query(gdb_thread_ref *thread,
 	return RET_NOSUPP;
 }
 
-int ptrace_set_gen_thread(gdb_thread_ref *thread)
+int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id)
 {
-	_gdb_state.gen_thread = *thread;
+	/* noop */
 	return RET_OK;
 }
 
-int ptrace_set_ctrl_thread(gdb_thread_ref *thread)
+int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id)
 {
-	_gdb_state.ctrl_thread = *thread;
+	/* noop */
 	return RET_OK;
 }
 
