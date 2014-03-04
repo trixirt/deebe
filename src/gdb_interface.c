@@ -724,6 +724,30 @@ void handle_search_memory_command(char *in_buf,
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
 }
 
+static int _decode_thread_id(const char *in_buf, int64_t *process_id, int64_t *thread_id) {
+	int ret = 0; /* assume ok */
+	const char *in;
+	*process_id = 0; /* Any process */
+	*thread_id  = 0; /* Any thread */
+	/* Check for 'p' for input in the form 'p<pid>.<tid>' */
+	if (in_buf[0] == 'p') {
+		in = &in_buf[1];
+		if (!gdb_decode_int64(&in, process_id, '.')) {
+			ret = 1;
+		} else {
+			if (!gdb_decode_int64(&in, thread_id, '\0')) {
+				ret = 1;
+			}
+		}
+	} else {
+		in = &in_buf[0];
+		if (!gdb_decode_int64(&in, process_id, '\0')) {
+			ret = 1;
+		}
+	}
+	return ret;
+}
+
 void handle_thread_commands(char * const in_buf,
 			    int in_len,
 			    char *out_buf,
@@ -731,7 +755,6 @@ void handle_thread_commands(char * const in_buf,
 			    gdb_target *target)
 {
 	int ret;
-	const char *in;
 	if (in_len == 1) {
 		/* Either short or an obsolete form */
 		return;
@@ -739,30 +762,10 @@ void handle_thread_commands(char * const in_buf,
 	
 	if ((in_buf[1] == 'c') ||
 	    (in_buf[1] == 'g')) {
-		int64_t p = 0; /* Any process */
-		int64_t t = 0; /* Any thread */
 		int cmd_type = cmd_type = in_buf[1];
-		int err = 0;
-
-		/* Check for 'p' for input in the form 'p<pid>.<tid>' */
-		if (in_buf[2] == 'p') {
-			in = &in_buf[3];
-			if (!gdb_decode_int64(&in, &p, '.')) {
-				err = 1;
-			} else {
-				if (!gdb_decode_int64(&in, &t, '\0')) {
-					err = 1;
-				}
-			}
-		} else {
-			in = &in_buf[2];
-			if (!gdb_decode_int64(&in, &p, '\0')) {
-				err = 1;
-			}
-		}
-		
-		if (err) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
+		int64_t p, t;
+		if (_decode_thread_id(&in_buf[1], &p, &t)) {
+			gdb_interface_write_retval(RET_ERR, out_buf);		
 		} else {
 			/* Thread is ignored for now */
 			if (cmd_type == 'c') {
@@ -772,7 +775,6 @@ void handle_thread_commands(char * const in_buf,
 			}
 			gdb_interface_write_retval(ret, out_buf);
 		}
-
 	} else {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
@@ -1082,6 +1084,8 @@ void handle_write_memory_command(char * const in_buf,
 	ret = t->write_mem(addr, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
+
+
 
 void handle_running_commands(char * const in_buf,
 			     int in_len,
