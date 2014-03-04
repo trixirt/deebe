@@ -162,13 +162,13 @@ int ptrace_arch_gdb_greg_max()
 void ptrace_arch_get_pc(unsigned long *pc)
 {
 	_read_greg();
-	memcpy(pc, _target.reg + offsetof(struct reg, r_eip),
+	memcpy(pc, TARGET_REG + offsetof(struct reg, r_eip),
 	       sizeof(unsigned long));
 }
 void ptrace_arch_set_pc(unsigned long pc)
 {
 	_read_greg();
-	memcpy(_target.reg + offsetof(struct reg, r_eip), &pc,
+	memcpy(TARGET_REG + offsetof(struct reg, r_eip), &pc,
 	       sizeof(unsigned long));
 	_write_greg();
 }
@@ -177,7 +177,7 @@ void ptrace_arch_read_fxreg()
 {
 #ifdef PT_GETXMMREGS
 	_read_reg(PT_GETXMMREGS, PT_SETXMMREGS,
-		  &_target.fxreg, &_target.fxreg_rw,
+		  &TARGET_FXREG, &_target.fxreg_rw,
 		  &_target.fxreg_size);
 #endif
 }
@@ -185,7 +185,7 @@ void ptrace_arch_read_fxreg()
 void ptrace_arch_write_fxreg()
 {
 #ifdef PT_GETXMMREGS
-	_write_reg(PT_SETXMMREGS, _target.fxreg);
+	_write_reg(PT_SETXMMREGS, TARGET_FXREG);
 #endif
 }
 
@@ -217,15 +217,15 @@ void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
 {
 	_read_greg();
 	unsigned long sp;
-	memcpy(&sp, _target.reg + offsetof(struct reg, r_esp),
+	memcpy(&sp, TARGET_REG + offsetof(struct reg, r_esp),
 	       sizeof(unsigned long));
 
-	memcpy(id,   _target.reg + offsetof(struct reg, r_eax),
+	memcpy(id, TARGET_REG + offsetof(struct reg, r_eax),
 	       sizeof(unsigned long));
 	_ptrace_read_mem(sp + 4, arg1, 4, NULL, false);
 	_ptrace_read_mem(sp + 8, arg2, 4, NULL, false);
 	_ptrace_read_mem(sp + 12, arg3, 4, NULL, false);
 	_ptrace_read_mem(sp + 16, arg4, 4, NULL, false);
-	memcpy(ret,  _target.reg + offsetof(struct reg, r_eax),
+	memcpy(ret,  TARGET_REG + offsetof(struct reg, r_eax),
 	       sizeof(unsigned long));
 }
