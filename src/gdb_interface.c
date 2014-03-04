@@ -728,42 +728,55 @@ void handle_thread_commands(char * const in_buf,
 			    int in_len,
 			    char *out_buf,
 			    int out_buf_len,
-			    gdb_target *t)
+			    gdb_target *target)
 {
 	int ret;
-	gdb_thread_ref ref;
 	const char *in;
-
 	if (in_len == 1) {
 		/* Either short or an obsolete form */
 		return;
 	}
+	
+	if ((in_buf[1] == 'c') ||
+	    (in_buf[1] == 'g')) {
+		int64_t p = 0; /* Any process */
+		int64_t t = 0; /* Any thread */
+		int cmd_type = cmd_type = in_buf[1];
+		int err = 0;
 
-	/* Set thread */
-	switch (in_buf[1]) {
-	case 'c':
-		in = &in_buf[2];
-		if (!gdb_decode_int64(&in, &ref.val, '\0')) {
+		/* Check for 'p' for input in the form 'p<pid>.<tid>' */
+		if (in_buf[2] == 'p') {
+			in = &in_buf[3];
+			if (!gdb_decode_int64(&in, &p, '.')) {
+				err = 1;
+			} else {
+				if (!gdb_decode_int64(&in, &t, '\0')) {
+					err = 1;
+				}
+			}
+		} else {
+			in = &in_buf[2];
+			if (!gdb_decode_int64(&in, &p, '\0')) {
+				err = 1;
+			}
+		}
+		
+		if (err) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
-			break;
+		} else {
+			/* Thread is ignored for now */
+			if (cmd_type == 'c') {
+				ret = target->set_ctrl_thread(p, t);
+			} else { /* 'g' */
+				ret = target->set_gen_thread(p, t);
+			}
+			gdb_interface_write_retval(ret, out_buf);
 		}
 
-		ret = t->set_ctrl_thread(&ref);
-		gdb_interface_write_retval(ret, out_buf);
-		break;
-	case 'g':
-		in = &in_buf[2];
-		if (!gdb_decode_int64(&in, &ref.val, '\0')) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			break;
-		}
-		ret = t->set_gen_thread(&ref);
-		gdb_interface_write_retval(ret, out_buf);
-		break;
-	default:
+	} else {
+		gdb_interface_write_retval(RET_ERR, out_buf);
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
 				  ": Bad H command");
-		break;
 	}
 }
 
@@ -2932,7 +2945,7 @@ static int gdb_decode_int64(char const **in, int64_t *val, char break_char)
 	}
 	if (**in)
 		(*in)++;
-	*val = tmp;
+	*val = sign * tmp;
 	return  TRUE;
 }
 
