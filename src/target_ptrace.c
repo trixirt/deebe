@@ -68,10 +68,12 @@ int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id)
 	return RET_OK;
 }
 
-int ptrace_is_thread_alive(/*@unused@*/gdb_thread_ref *thread,
-			   /*@unused@*/int *alive)
+int ptrace_is_thread_alive(int64_t process_id, int64_t thread_id,
+			   int *alive)
 {
-	return RET_NOSUPP;
+	/* XXX Lie */
+	*alive = 1;
+	return RET_OK;
 }
 
 int ptrace_process_query(unsigned int *mask, gdb_thread_ref *arg,
