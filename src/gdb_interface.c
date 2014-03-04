@@ -1263,36 +1263,30 @@ int handle_kill_command(char * const in_buf,
 	return  TRUE;
 }
 
-int handle_thread_alive_command(char * const in_buf,
-				int in_len,
-				char *out_buf,
-				int out_buf_len,
-				gdb_target *t)
+void handle_thread_alive_command(char * const in_buf,
+				 int in_len,
+				 char *out_buf,
+				 int out_buf_len,
+				 gdb_target *target)
 {
 	int ret;
 	int alive;
-	gdb_thread_ref ref;
 	const char *in;
 
 	/* Is thread alive? */
 	/* This is a deprecated feature of the remote debug protocol */
 	in = &in_buf[1];
-	ret = gdb_decode_int64(&in, &ref.val, '\0');
-	if (!ret) {
-		gdb_interface_write_retval(RET_ERR, out_buf);
-		return  TRUE;
-	}
-
-	ret = t->is_thread_alive(&ref, &alive);
-	if (ret != RET_OK) {
-		gdb_interface_write_retval(ret, out_buf);
+	int64_t p, t;
+	if (_decode_thread_id(&in_buf[1], &p, &t)) {
+		gdb_interface_write_retval(RET_ERR, out_buf);		
 	} else {
-		if (alive)
-			gdb_interface_write_retval(RET_OK, out_buf);
-		else
+		ret = target->is_thread_alive(p, t, &alive);
+		if ((ret != RET_OK) || !alive) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
+		} else {
+			gdb_interface_write_retval(RET_OK, out_buf);
+		}
 	}
-	return  TRUE;
 }
 
 int handle_restart_target_command(char * const in_buf,
