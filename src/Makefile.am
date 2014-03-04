@@ -9,7 +9,6 @@ deebe_SOURCES = \
 	main.c \
 	network.c \
 	ptrace.c \
-	process_info.c \
 	signal.c \
 	target.c \
 	util.c \
