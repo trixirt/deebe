@@ -377,6 +377,9 @@ struct gdb_target_s {
 
 	/* If it is ok not to ack / nak */
 	int (*no_ack)();
+
+	/* If the multiprocess extensions are supported 0 = no, 1 = yes */
+	int (*support_multiprocess)();
 };
 
 

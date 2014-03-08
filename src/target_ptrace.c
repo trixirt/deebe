@@ -128,6 +128,10 @@ static int ptrace_query_current_signal(int *s)
 	return ret;
 }
 
+static int ptrace_support_multiprocess() {
+	return _target.multiprocess;
+}
+
 
 gdb_target ptrace_target = {
 	.next                     = NULL,
@@ -174,6 +178,7 @@ gdb_target ptrace_target = {
 	.query_current_signal     = ptrace_query_current_signal,
 	.general_set              = ptrace_general_set,
 	.no_ack                   = ptrace_no_ack,
+	.support_multiprocess     = ptrace_support_multiprocess,
 };
 
 void target_init(struct gdb_target_s **target)

@@ -1864,7 +1864,7 @@ static int handle_v_command(char * const in_buf,
 			    int in_len,
 			    char *out_buf,
 			    int out_buf_len,
-			    gdb_target *t)
+			    gdb_target *target)
 {
 	int ret = RET_ERR;
 	char str[128];
@@ -1893,8 +1893,15 @@ static int handle_v_command(char * const in_buf,
 			 *
 			 * sprintf (out_buf, "vCont;c;C;s;S");
 			 * handled = true;
+			 *
+			 * If multiprocess is support, vCont must be supported
 			 */
-			handled = false;
+			if (target->support_multiprocess()) {
+				sprintf (out_buf, "vCont;c;C;s;S");
+				handled = true;
+			} else {
+				handled = false;
+			}
 		} else if (n[0] == ';') {
 			n++;
 
@@ -1911,10 +1918,10 @@ static int handle_v_command(char * const in_buf,
 			}
 
 			if (!err) {
-				ret = t->resume_from_current(step, sig);
+				ret = target->resume_from_current(step, sig);
 				if (RET_OK == ret) {
-					if (t->wait) {
-						ret = t->wait(out_buf,
+					if (target->wait) {
+						ret = target->wait(out_buf,
 							      out_buf_len);
 
 						handled = true;

@@ -1837,15 +1837,14 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 
-#if 0
-	/* Support multi process extensions */
-	sprintf(str, "multiprocess+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-		_target.multiprocess = 1;
+	if (_target.multiprocess) {
+		/* Support multi process extensions */
+		sprintf(str, "multiprocess+;");
+		if (((strlen(str)) + c) < out_buf_size) {
+			strcat(out_buf, str);
+			c += strlen(str);
+		}
 	}
-#endif
 
 #if 0
 	sprintf(str, "QPassSignals+;");
