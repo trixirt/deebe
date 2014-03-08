@@ -55,10 +55,9 @@ enum process_state {
 	PS_SYSCALL_EXIT,
 };
 
-extern struct _tstate tstate;
-
 typedef struct target_process_rec {
 	pid_t pid;
+	pid_t tid;
 	struct breakpoint *bpl;
 	void *reg;
 	void *freg;
@@ -69,7 +68,6 @@ typedef struct target_process_rec {
 typedef struct target_state_rec {
 	int no_ack;
 	int multiprocess;
-	struct process_info *pil;
 	bool syscall_enter;
 	int current_signal;
 	int current_gdb_signal;

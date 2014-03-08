@@ -54,7 +54,7 @@
 #include "gdb_interface.h"
 #include "dptrace.h"
 
-extern int ptrace_current_thread_query(gdb_thread_ref *thread);
+extern int ptrace_current_thread_query(int64_t *process_id, int64_t *thread_id);
 extern int ptrace_is_thread_alive(int64_t process_id, int64_t thread_id,
 				  /*@unused@*/int *alive);
 extern int ptrace_list_query(int first, gdb_thread_ref *arg,

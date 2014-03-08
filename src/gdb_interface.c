@@ -759,12 +759,11 @@ void handle_thread_commands(char * const in_buf,
 		/* Either short or an obsolete form */
 		return;
 	}
-	
 	if ((in_buf[1] == 'c') ||
 	    (in_buf[1] == 'g')) {
 		int cmd_type = cmd_type = in_buf[1];
 		int64_t p, t;
-		if (_decode_thread_id(&in_buf[1], &p, &t)) {
+		if (_decode_thread_id(&in_buf[2], &p, &t)) {
 			gdb_interface_write_retval(RET_ERR, out_buf);		
 		} else {
 			/* Thread is ignored for now */
@@ -1388,6 +1387,7 @@ void handle_query_command(char * const in_buf,
 			  gdb_target *t)
 {
 	int  ret;
+	int64_t process, thread;
 	gdb_thread_ref ref;
 	rp_thread_info info;
 	unsigned int mask;
@@ -1686,10 +1686,10 @@ void handle_query_command(char * const in_buf,
 	switch (in_buf[1]) {
 	case 'C':
 		/* Current thread query */
-		ret = t->current_thread_query(&ref);
+		ret = t->current_thread_query(&process, &thread);
 
 		if (ret == RET_OK)
-			sprintf(out_buf, "QC%"PRIu64"x", ref.val);
+			sprintf(out_buf, "QC%"PRIx64".%"PRIx64, process, thread);
 		else
 			gdb_interface_write_retval(ret, out_buf);
 		break;

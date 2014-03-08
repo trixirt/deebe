@@ -58,8 +58,26 @@ int ptrace_threadextrainfo_query(gdb_thread_ref *thread,
 
 int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id)
 {
-	/* noop */
-	return RET_OK;
+	int found = 0;
+	int ret = RET_ERR;
+	if ((process_id != 0) ||
+	    (process_id != -1)) {
+		size_t p;
+		for (p = 0; p < _target.number_processes; p++) {
+			if (process_id == _target.process[p].pid) {
+				found = 1;
+				_target.current_process = p;
+			}
+		}
+
+	} else {
+		found = 1;
+	}
+	
+	if (found)
+		ret = RET_OK;
+
+	return ret;
 }
 
 int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id)
@@ -89,9 +107,11 @@ int ptrace_list_query(int first, gdb_thread_ref *arg,
 	return RET_ERR;
 }
 
-int ptrace_current_thread_query(gdb_thread_ref *thread)
+int ptrace_current_thread_query(int64_t *process_id, int64_t *thread_id)
 {
-	return RET_ERR;
+	*process_id = TARGET_PID_GET();
+	*thread_id = 0; /* XXX NOT YET SUPPORTED */
+	return RET_OK;
 }
 
 static int ptrace_query_current_signal(int *s)

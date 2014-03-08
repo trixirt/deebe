@@ -338,7 +338,7 @@ struct gdb_target_s {
 			  int *done);
 
 	/* Query current thread id */
-	int (*current_thread_query)(gdb_thread_ref *thread);
+	int (*current_thread_query)(int64_t *process, int64_t *thread);
 
 	/* Query offset of major sections in memory */
 	int (*offsets_query)(uint64_t *text, uint64_t *data, uint64_t *bss);
