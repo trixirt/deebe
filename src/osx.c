@@ -66,6 +66,7 @@ int osx_read_registers(uint8_t *data, uint8_t *avail,
 	 * Assumes single threaded
 	 */
 	int ret = RET_ERR;
+#if 0
 	task_t task = 0;
 	kern_return_t kret;
 
@@ -114,7 +115,7 @@ int osx_read_registers(uint8_t *data, uint8_t *avail,
 		osx_report_kernel_error(stderr, kret);
 		fprintf(stderr, "\n");
 	}
-
+#endif
 	return ret;
 }
 
