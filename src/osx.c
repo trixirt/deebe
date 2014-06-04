@@ -132,3 +132,12 @@ int osx_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 {
 	return RET_NOSUPP;
 }
+
+/* Define stubs for now */
+void ptrace_arch_read_dbreg()
+{
+}
+
+void ptrace_arch_write_dbreg()
+{
+}
