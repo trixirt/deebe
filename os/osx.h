@@ -64,4 +64,7 @@ extern int osx_write_single_register(unsigned int gdb, uint8_t *data,
 				     size_t size);
 bool osx_arch_read_registers(thread_act_t tid);
 
+/* OSX ptrace returns int */
+#define ptrace_return_t int
+
 #endif
