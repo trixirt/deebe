@@ -776,8 +776,8 @@ int ptrace_read_registers(uint8_t *data, uint8_t *avail,
 	uint8_t *ga = avail;
 	size_t s = 0;
 
-	if (_read_greg(buf_size)) {
-		if (_read_freg(buf_size)) {
+	if (_read_greg()) {
+		if (_read_freg()) {
 			ptrace_arch_read_fxreg(buf_size);
 		} else {
 			if (_read_reg_verbose) {
@@ -815,7 +815,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 	int c = 0;
 	if (is_reg(gdb, &c, &grll[0])) {
 
-		_read_greg(0x1000 /* XXX FIX */);
+		_read_greg();
 
 		if (grll[c].off < _target.reg_size) {
 			size_t s = 0;
@@ -842,7 +842,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 		}
 
 	} else if (is_reg(gdb, &c, &frll[0])) {
-		_read_freg(0x1000 /* XXX FIX */);
+		_read_freg();
 
 		if (frll[c].off < _target.freg_size) {
 			if (frll[c].size > 0) {
@@ -946,7 +946,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 	int c = 0;
 	if (is_reg(gdb, &c, &grll[0])) {
 
-		_read_greg(0x1000 /* XXX FIX */);
+		_read_greg();
 
 		if (grll[c].off < _target.reg_size) {
 			/* Success */
@@ -970,7 +970,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 		}
 
 	} else if (is_reg(gdb, &c, &frll[0])) {
-		_read_freg(0x1000 /* XXX FIX */);
+		_read_freg();
 		if (frll[c].off < _target.freg_size) {
 			/* Success */
 			memcpy(TARGET_FREG + frll[c].off, data, frll[c].size);
@@ -984,7 +984,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 
 	} else if (is_reg(gdb, &c, &fxrll[0])) {
 
-		ptrace_arch_read_fxreg(0x1000 /* XXX FIX */);
+		ptrace_arch_read_fxreg();
 		/*
 		 * It is possible for the fx reg read to fail
 		 * because the registers are not supported or
