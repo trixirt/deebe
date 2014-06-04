@@ -56,19 +56,17 @@ int osx_threadextrainfo_query(gdb_thread_ref *thread,
 	return RET_NOSUPP;
 }
 
-int osx_set_gen_thread(gdb_thread_ref *thread)
+int osx_set_gen_thread(int64_t process_id, int64_t thread_id)
 {
-	_gdb_state.gen_thread = *thread;
-	return RET_OK;
+	return RET_NOSUPP;
 }
 
-int osx_set_ctrl_thread(gdb_thread_ref *thread)
+int osx_set_ctrl_thread(int64_t process_id, int64_t thread_id)
 {
-	_gdb_state.ctrl_thread = *thread;
-	return RET_OK;
+	return RET_NOSUPP;
 }
 
-int osx_is_thread_alive(/*@unused@*/gdb_thread_ref *thread,
+int osx_is_thread_alive(int64_t process_id, int64_t thread_id,
 			/*@unused@*/int *alive)
 {
 	return RET_NOSUPP;
@@ -87,7 +85,7 @@ int osx_list_query(int first, gdb_thread_ref *arg,
 	return RET_ERR;
 }
 
-int osx_current_thread_query(gdb_thread_ref *thread)
+int osx_current_thread_query(int64_t *process_id, int64_t *thread_id)
 {
 	return RET_ERR;
 }
