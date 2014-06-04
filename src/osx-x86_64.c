@@ -35,7 +35,6 @@
 #include "os.h"
 #include "global.h"
 #include "dptrace.h"
-#include <mach/x86_64/thread_act.h>
 
 struct reg_location_list grll[] = {
 	{0},
@@ -169,6 +168,7 @@ void ptrace_arch_get_syscall(void *id, void *arg1,
 bool osx_arch_read_registers(thread_act_t tid)
 {
 	bool ret = false;
+#if 0
 	if (0 == _target.reg_size) {
 		_target.reg = malloc(sizeof(x86_thread_state64_t));
 		if (_target.reg)
@@ -196,5 +196,6 @@ bool osx_arch_read_registers(thread_act_t tid)
 			fprintf(stderr, "\n");
 		}
 	}
+#endif
 	return ret;
 }
