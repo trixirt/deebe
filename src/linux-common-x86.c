@@ -64,7 +64,7 @@ bool x86_read_debug_reg(pid_t pid, size_t reg, void *val)
 		_read_dbreg();
 		size_t addr = reg * sizeof(unsigned int);
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(val, TARGET_DBREG + addr, sizeof(unsigned int));
+			memcpy(val, _target.dbreg + addr, sizeof(unsigned int));
 			ret = true;
 		}
 	}
@@ -78,7 +78,7 @@ bool x86_write_debug_reg(pid_t pid, size_t reg, void *val)
 		_read_dbreg();
 		unsigned long addr = reg * sizeof(unsigned int);
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(TARGET_DBREG + addr, val, sizeof(unsigned int));
+			memcpy(_target.dbreg + addr, val, sizeof(unsigned int));
 			_write_dbreg();
 			ret = true;
 		}
@@ -89,18 +89,18 @@ bool x86_write_debug_reg(pid_t pid, size_t reg, void *val)
 void ptrace_arch_read_dbreg()
 {
 	_target.dbreg_size = 8 * sizeof(long);
-	if (NULL == TARGET_DBREG) {
-		TARGET_DBREG = malloc(8 * sizeof(long));
+	if (NULL == _target.dbreg) {
+		_target.dbreg = malloc(8 * sizeof(long));
 	}
 
-	if (NULL != TARGET_DBREG) {
+	if (NULL != _target.dbreg) {
 		size_t r;
-		long *val = (long *)TARGET_DBREG;
+		long *val = (long *)_target.dbreg;
 		for (r = 0; r < 8; r++) {
 			long v;
 			unsigned long addr = offsetof(struct user, u_debugreg[r]);
 			errno = 0;
-			v = ptrace(PTRACE_PEEKUSER, TARGET_PID_GET(), addr, 0);
+			v = ptrace(PTRACE_PEEKUSER, CURRENT_PROCESS_TID, addr, 0);
 			if (0 == errno) {
 				memcpy(&val[r], &v, sizeof(long));
 			} else {
@@ -112,12 +112,12 @@ void ptrace_arch_read_dbreg()
 
 void ptrace_arch_write_dbreg()
 {
-	if (NULL != TARGET_DBREG) {
+	if (NULL != _target.dbreg) {
 		size_t r;
-		long *val = (long *)TARGET_DBREG;
+		long *val = (long *)_target.dbreg;
 		for (r = 0; r < 8; r++) {
 			unsigned long addr = offsetof(struct user, u_debugreg[r]);
-			if (0 != ptrace(PTRACE_POKEUSER, TARGET_PID_GET(), addr, val[r])) {
+			if (0 != ptrace(PTRACE_POKEUSER, CURRENT_PROCESS_TID, addr, val[r])) {
 				break;
 			}
 		}

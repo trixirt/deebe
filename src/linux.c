@@ -41,9 +41,9 @@
 void ptrace_os_read_fxreg()
 {
 #ifdef PT_GETFPXREGS
-	if (NULL != TARGET_FXREG) {
+	if (NULL != _target.fxreg) {
 		_read_reg(PT_GETFPXREGS, PT_SETFPXREGS,
-			  &TARGET_FXREG, &_target.fxreg_rw,
+			  &_target.fxreg, &_target.fxreg_rw,
 			  &_target.fxreg_size);
 	}
 #endif
@@ -52,8 +52,8 @@ void ptrace_os_read_fxreg()
 void ptrace_os_write_fxreg()
 {
 #ifdef PT_GETFPXREGS
-	if (NULL != TARGET_FXREG) {
-		_write_reg(PT_SETFPXREGS, TARGET_FXREG);
+	if (NULL != _target.fxreg) {
+		_write_reg(PT_SETFPXREGS, _target.fxreg);
 	}
 #endif
 }

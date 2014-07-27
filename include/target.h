@@ -59,10 +59,6 @@ typedef struct target_process_rec {
 	pid_t pid;
 	pid_t tid;
 	struct breakpoint *bpl;
-	void *reg;
-	void *freg;
-	void *fxreg;
-	void *dbreg;
 } target_process;
 
 typedef struct target_state_rec {
@@ -82,18 +78,22 @@ typedef struct target_state_rec {
 	uint8_t *freg_rw;
 	uint8_t *fxreg_rw;
 	uint8_t *dbreg_rw;
+	void *reg;
+	void *freg;
+	void *fxreg;
+	void *dbreg;
 	size_t number_processes;
 	size_t current_process;
 	target_process *process;
 } target_state;
 
-#define TARGET_PID_GET()  _target.process[_target.current_process].pid
-#define TARGET_PID_SET(s) _target.process[_target.current_process].pid = s
-#define TARGET_BPL        _target.process[_target.current_process].bpl
-#define TARGET_REG        _target.process[_target.current_process].reg
-#define TARGET_FREG       _target.process[_target.current_process].freg
-#define TARGET_FXREG      _target.process[_target.current_process].fxreg
-#define TARGET_DBREG      _target.process[_target.current_process].dbreg
+#define PROCESS_PID(n)   _target.process[n].pid
+#define PROCESS_TID(n)   _target.process[n].tid
+#define PROCESS_BPL(n)   _target.process[n].bpl
+
+#define CURRENT_PROCESS_PID        PROCESS_PID(_target.current_process)
+#define CURRENT_PROCESS_TID        PROCESS_TID(_target.current_process)
+#define CURRENT_PROCESS_BPL        PROCESS_BPL(_target.current_process)
 
 extern target_state _target;
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)

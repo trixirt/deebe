@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -142,7 +142,7 @@ void _print_greg()
 				uint64_t r64;
 			} r;
 			r.r64 = 0;
-			memcpy(&r, TARGET_REG + grll[c].off, grll[c].size);
+			memcpy(&r, _target.reg + grll[c].off, grll[c].size);
 			DBG_PRINT("%s", rl[c].name);
 			s = max_name - strlen(rl[c].name);
 			while (s--) {
@@ -172,7 +172,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 	for (r = 0; r < rmax; r++) {
 		int i;
 		if (is_reg(r, &i, grll)) {
-			memcpy(gdb, TARGET_REG + grll[i].off, grll[i].size);
+			memcpy(gdb, _target.reg + grll[i].off, grll[i].size);
 			memset(avail, 0xff, grll[i].size);
 			gdb += grll[i].size;
 			avail += grll[i].size;
@@ -186,7 +186,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 				ret   += diff;
 			}
 		} else if (is_reg(r, &i, frll)) {
-			memcpy(gdb, TARGET_FREG + frll[i].off, frll[i].size);
+			memcpy(gdb, _target.freg + frll[i].off, frll[i].size);
 			memset(avail, 0xff, frll[i].size);
 			gdb += frll[i].size;
 			avail += frll[i].size;
@@ -203,7 +203,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 		} else if (is_reg(r, &i, fxrll)) {
 			if ((fxrll[i].off + fxrll[i].size) <=
 			    _target.fxreg_size) {
-				memcpy(gdb, TARGET_FXREG + fxrll[i].off,
+				memcpy(gdb, _target.fxreg + fxrll[i].off,
 				       fxrll[i].size);
 				memset(avail, 0xff, frll[i].size);
 				gdb   += fxrll[i].size;
@@ -279,7 +279,7 @@ bool _read_reg(int GET, int SET,
 			memset(b, 0xee, buf_size);
 
 			errno = 0;
-			ptrace_status = PTRACE_GETSET(GET, TARGET_PID_GET(), 0, a);
+			ptrace_status = PTRACE_GETSET(GET, CURRENT_PROCESS_TID, 0, a);
 			if (0 != ptrace_status) {
 				/* Failure */
 				if (_read_reg_verbose) {
@@ -292,7 +292,7 @@ bool _read_reg(int GET, int SET,
 				}
 			} else {
 
-				ptrace_status = PTRACE_GETSET(GET, TARGET_PID_GET(), 0, b);
+				ptrace_status = PTRACE_GETSET(GET, CURRENT_PROCESS_TID, 0, b);
 				if (0 == ptrace_status) {
 					size_t i = 0;
 					for (i = buf_size; i > 0; i--) {
@@ -366,10 +366,10 @@ bool _read_reg(int GET, int SET,
 									/* Assume read write */
 									memset(*reg_rw, 0xff, *reg_size);
 									for (j = 0; j < *reg_size; j++) {
-										if (0 == PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
+										if (0 == PTRACE_GETSET(SET, CURRENT_PROCESS_TID, 0, a)) {
 											/* Toggle current byte */
 											a[j] ^= 0xff;
-											if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
+											if (0 != PTRACE_GETSET(SET, CURRENT_PROCESS_TID, 0, a)) {
 												/* Set byte to read only */
 												(*reg_rw)[j] = 0;
 												if (_read_reg_verbose) {
@@ -384,7 +384,7 @@ bool _read_reg(int GET, int SET,
 									 * Trailing restore
 									 * No point handling the error case
 									 */
-									if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, a)) {
+									if (0 != PTRACE_GETSET(SET, CURRENT_PROCESS_TID, 0, a)) {
 										if (_read_reg_verbose) {
 											DBG_PRINT("Error restoring registers\n");
 										}
@@ -426,7 +426,7 @@ bool _read_reg(int GET, int SET,
 #ifdef PT_SETREGS
 void _write_reg(long SET, void *reg)
 {
-	if (0 != PTRACE_GETSET(SET, TARGET_PID_GET(), 0, reg)) {
+	if (0 != PTRACE_GETSET(SET, CURRENT_PROCESS_TID, 0, reg)) {
 		if (_write_reg_verbose) {
 			DBG_PRINT("Error : Write register\n");
 		}
@@ -438,10 +438,10 @@ bool _read_greg()
 {
 	bool ret = false;
 #ifdef PT_GETREGS
-	ret = _read_reg(PT_GETREGS, PT_SETREGS, &TARGET_REG,
+	ret = _read_reg(PT_GETREGS, PT_SETREGS, &_target.reg,
 			&_target.reg_rw, &_target.reg_size);
 #else
-	TARGET_REG = NULL;
+	_target.reg = NULL;
 	_target.reg_rw = NULL;
 	_target.reg_size = 0;
 #endif
@@ -452,10 +452,10 @@ bool _read_freg()
 {
 	bool ret = false;
 #ifdef PT_GETFPREGS
-	ret = _read_reg(PT_GETFPREGS, PT_SETFPREGS, &TARGET_FREG,
+	ret = _read_reg(PT_GETFPREGS, PT_SETFPREGS, &_target.freg,
 			&_target.freg_rw, &_target.freg_size);
 #else
-	TARGET_FREG = NULL;
+	_target.freg = NULL;
 	_target.freg_rw = NULL;
 	_target.freg_size = 0;
 #endif
@@ -467,7 +467,7 @@ bool _read_dbreg()
 	bool ret = false;
 #ifdef PT_GETDBREGS
 	ret = _read_reg(PT_GETDBREGS, PT_SETDBREGS,
-			&TARGET_DBREG, &_target.dbreg_rw,
+			&_target.dbreg, &_target.dbreg_rw,
 			&_target.dbreg_size);
 #else
 	ptrace_arch_read_dbreg();
@@ -481,21 +481,21 @@ bool _read_dbreg()
 void _write_greg()
 {
 #ifdef PT_SETREGS
-	_write_reg(PT_SETREGS, TARGET_REG);
+	_write_reg(PT_SETREGS, _target.reg);
 #endif
 }
 
 void _write_freg()
 {
 #ifdef PT_SETFPREGS
-	_write_reg(PT_SETFPREGS, TARGET_FREG);
+	_write_reg(PT_SETFPREGS, _target.freg);
 #endif
 }
 
 void _write_dbreg()
 {
 #ifdef PT_GETDBREGS
-	_write_reg(PT_SETDBREGS, TARGET_DBREG);
+	_write_reg(PT_SETDBREGS, _target.dbreg);
 #else
 	ptrace_arch_write_dbreg();
 #endif
@@ -575,12 +575,9 @@ int ptrace_attach(pid_t process_id)
 					if (try_process) {
 						_target.process = try_process;
 						_target.current_process = _target.number_processes;
-						TARGET_PID_SET(process_id);
-						TARGET_BPL   = NULL;
-						TARGET_REG   = NULL;
-						TARGET_FREG  = NULL;
-						TARGET_FXREG = NULL;
-						TARGET_DBREG = NULL;
+						CURRENT_PROCESS_PID   = process_id;
+						CURRENT_PROCESS_TID   = process_id;
+						CURRENT_PROCESS_BPL   = NULL;
 						_target.number_processes++;
 					} else {
 						/* TODO : HANDLE ERROR */
@@ -609,14 +606,14 @@ static int _ptrace_detach(int gdb_sig)
 		sig = 0;
 	}
 	if (cmdline_pid > 0) {
-		if (0 != ptrace(PT_DETACH, TARGET_PID_GET(), 0, sig)) {
+		if (0 != ptrace(PT_DETACH, CURRENT_PROCESS_TID, 0, sig)) {
 			/* Failure */
 			if (_detach_verbose) {
-				DBG_PRINT("Error detaching from pid %d\n", TARGET_PID_GET());
+				DBG_PRINT("Error detaching from pid %d\n", CURRENT_PROCESS_TID);
 			}
 		} else {
 			if (_detach_verbose) {
-				DBG_PRINT("OK detaching from pid %d\n", TARGET_PID_GET());
+				DBG_PRINT("OK detaching from pid %d\n", CURRENT_PROCESS_TID);
 			}
 			ret = RET_OK;
 		}
@@ -701,15 +698,23 @@ int ptrace_restart(void)
 							if (try_process) {
 								_target.process = try_process;
 								_target.current_process = _target.number_processes;
-								TARGET_PID_SET(try_child);
-								TARGET_BPL   = NULL;
-								TARGET_REG   = NULL;
-								TARGET_FREG  = NULL;
-								TARGET_FXREG = NULL;
-								TARGET_DBREG = NULL;
+								CURRENT_PROCESS_PID   = try_child;
+								CURRENT_PROCESS_TID   = try_child;
+								CURRENT_PROCESS_BPL   = NULL;
 								_target.number_processes++;
+
+								/* DEV THREAD */
+								{
+								  if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, 
+										  NULL, PTRACE_O_TRACECLONE)) {
+								    fprintf(stderr, "error settingn PTRACE_O_TRACECLONE\n");
+								  } else {
+								    fprintf(stderr, "OK settingn PTRACE_O_TRACECLONE\n");
+								  }
+
+								}
 								
-								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], TARGET_PID_GET());
+								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
 								fflush(stdout);
 							} else {
 								/* TODO : HANDLE ERROR */
@@ -754,15 +759,15 @@ int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
 
 void ptrace_stop(void)
 {
-	if (kill(TARGET_PID_GET(), SIGINT)) {
+	if (kill(CURRENT_PROCESS_PID, SIGINT)) {
 		/* Failure */
 		if (_stop_verbose) {
-			DBG_PRINT("ERROR sending SIGINT to %d\n", TARGET_PID_GET());
+			DBG_PRINT("ERROR sending SIGINT to %d\n", CURRENT_PROCESS_PID);
 		}
 	} else {
 		/* Success */
 		if (_stop_verbose) {
-			DBG_PRINT("OK sending SIGINT to %d\n", TARGET_PID_GET());
+			DBG_PRINT("OK sending SIGINT to %d\n", CURRENT_PROCESS_PID);
 		}
 	}
 }
@@ -828,7 +833,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 			}
 #endif
 			/* Success */
-			memcpy(data + s, TARGET_REG + grll[c].off,
+			memcpy(data + s, _target.reg + grll[c].off,
 			       grll[c].size);
 			memset(avail + s, 0xff, grll[c].size);
 
@@ -848,7 +853,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 			if (frll[c].size > 0) {
 				size_t pad = 0;
 				/* Success */
-				memcpy(data, TARGET_FREG + frll[c].off,
+				memcpy(data, _target.freg + frll[c].off,
 				       frll[c].size);
 				memset(avail, 0xff, frll[c].size);
 				/* for parts of x86_64 */
@@ -876,7 +881,7 @@ int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
 
 		if (fxrll[c].off < _target.fxreg_size) {
 			/* Success */
-			memcpy(data, TARGET_FXREG + fxrll[c].off,
+			memcpy(data, _target.fxreg + fxrll[c].off,
 			       fxrll[c].size);
 			memset(avail, 0xff, fxrll[c].size);
 			*read_size = fxrll[c].size;
@@ -958,7 +963,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 				s = diff;
 			}
 #endif
-			memcpy(TARGET_REG + grll[c].off, data + s,
+			memcpy(_target.reg + grll[c].off, data + s,
 			       grll[c].size);
 
 			_write_greg();
@@ -973,7 +978,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 		_read_freg();
 		if (frll[c].off < _target.freg_size) {
 			/* Success */
-			memcpy(TARGET_FREG + frll[c].off, data, frll[c].size);
+			memcpy(_target.freg + frll[c].off, data, frll[c].size);
 			_write_freg();
 
 			ret = RET_OK;
@@ -1001,7 +1006,7 @@ int ptrace_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
 			/* Read at least partially succeeded */
 			if (fxrll[c].off < _target.fxreg_size) {
 				/* Success */
-				memcpy(TARGET_FXREG + fxrll[c].off,
+				memcpy(_target.fxreg + fxrll[c].off,
 				       data, fxrll[c].size);
 				ptrace_arch_write_fxreg();
 
@@ -1097,7 +1102,7 @@ int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 		for (i = 0; i < kbuf_size; i++) {
 			void *l = (void *)(kb_addr + i * tran_size);
 			errno = 0;
-			a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
+			a[i] = ptrace(PT_READ_D, CURRENT_PROCESS_PID, l, 0);
 			if (errno) {
 				if (_read_mem_verbose) {
 					DBG_PRINT("Error with failed to read %p\n", l);
@@ -1123,7 +1128,7 @@ int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 			 * adjuster.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_read_buffer(TARGET_BPL,
+				breakpoint_adjust_read_buffer(CURRENT_PROCESS_BPL,
 							      _read_mem_verbose,
 							      kb_addr + leading,
 							      size, data);
@@ -1200,7 +1205,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			i = 0;
 			l = (void *)(kb_addr + i * tran_size);
 			errno = 0;
-			a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
+			a[i] = ptrace(PT_READ_D, CURRENT_PROCESS_PID, l, 0);
 			if (errno) {
 				if (_write_mem_verbose) {
 					DBG_PRINT("Error with reading data at %p\n", l);
@@ -1214,7 +1219,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			if (i || !leading) {
 				l = (void *)(kb_addr + i * tran_size);
 				errno = 0;
-				a[i] = ptrace(PT_READ_D, TARGET_PID_GET(), l, 0);
+				a[i] = ptrace(PT_READ_D, CURRENT_PROCESS_PID, l, 0);
 				if (errno) {
 					if (_write_mem_verbose) {
 						DBG_PRINT("Error with reading data at %p\n", l);
@@ -1235,7 +1240,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			 * and the code for the breakpoint insn should not change.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_write_buffer(TARGET_BPL, _read_mem_verbose,
+				breakpoint_adjust_write_buffer(CURRENT_PROCESS_BPL, _read_mem_verbose,
 							       kb_addr + leading,
 							       size, data);
 			}
@@ -1243,7 +1248,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			for (i = 0; i < kbuf_size; i++) {
 				void *l = (void *)(kb_addr + i * tran_size);
 	
-				if (0 != ptrace(PT_WRITE_D, TARGET_PID_GET(),
+				if (0 != ptrace(PT_WRITE_D, CURRENT_PROCESS_PID,
 						l, a[i])) {
 					if (_write_mem_verbose) {
 						DBG_PRINT("Error with write data at %p\n", l);
@@ -1295,13 +1300,13 @@ int ptrace_resume_from_current(int step, int gdb_sig)
 
 	if (step == 1) {
 
-		ptrace_arch_set_singlestep(TARGET_PID_GET(), &request);
+		ptrace_arch_set_singlestep(CURRENT_PROCESS_PID, &request);
 	} else {
-		ptrace_arch_clear_singlestep(TARGET_PID_GET());
+		ptrace_arch_clear_singlestep(CURRENT_PROCESS_PID);
 	}
 
 	/* TODO : Map sig to arg4 */
-	if (0 == PTRACE(request, TARGET_PID_GET(), 1, sig)) {
+	if (0 == PTRACE(request, CURRENT_PROCESS_PID, 1, sig)) {
 		/* Success */
 		_target.current_signal = sig;
 		if (sig)
@@ -1329,7 +1334,7 @@ int ptrace_resume_with_syscall(void)
 	int ret = RET_ERR;
 #ifdef PT_SYSCALL
 	errno = 0;
-	if (0 == PTRACE(PT_SYSCALL, TARGET_PID_GET(), PT_SYSCALL_ARG3, 0)) {
+	if (0 == PTRACE(PT_SYSCALL, CURRENT_PROCESS_PID, PT_SYSCALL_ARG3, 0)) {
 		/* Success */
 		_target.ps = PS_RUN;
 		ret = RET_OK;
@@ -1373,7 +1378,7 @@ int ptrace_resume_from_addr(int step, int gdb_sig, uint64_t addr)
 
 void ptrace_quick_kill(void)
 {
-	kill(TARGET_PID_GET(), SIGKILL);
+	kill(CURRENT_PROCESS_PID, SIGKILL);
 }
 
 void ptrace_quick_signal(int gdb_sig)
@@ -1383,10 +1388,10 @@ void ptrace_quick_signal(int gdb_sig)
 	int sig;
 	sig = ptrace_arch_signal_from_gdb(gdb_sig);
 	if (sig > 0)
-		kill(TARGET_PID_GET(), sig);
+		kill(CURRENT_PROCESS_PID, sig);
 #endif
 	/* But be blunt */
-	kill(TARGET_PID_GET(), SIGTRAP);
+	kill(CURRENT_PROCESS_PID, SIGTRAP);
 }
 
 void ptrace_kill(void)
@@ -1469,7 +1474,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_add_watchpoint(TARGET_PID_GET(),
+			if (ptrace_arch_add_watchpoint(CURRENT_PROCESS_PID,
 						       type, addr, len)) {
 				ret = RET_OK;
 				if (_add_break_verbose) {
@@ -1489,7 +1494,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		/* Add to general list first */
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_add(&TARGET_BPL, _add_break_verbose,
+		bp = breakpoint_add(&CURRENT_PROCESS_BPL, _add_break_verbose,
 				    kaddr, type, len);
 		if (bp) {
 			/* Get the arch specific break insn */
@@ -1514,14 +1519,14 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 						if (_add_break_verbose) {
 							DBG_PRINT("ERROR writing breakpoint at 0x%lx\n", kaddr);
 						}
-						breakpoint_remove(&TARGET_BPL, _add_break_verbose, kaddr);
+						breakpoint_remove(&CURRENT_PROCESS_BPL, _add_break_verbose, kaddr);
 					}
 				} else {
 					/* Failure */
 					if (_add_break_verbose) {
 						DBG_PRINT("ERROR reading data for breakpoint at 0x%lx\n", kaddr);
 					}
-					breakpoint_remove(&TARGET_BPL,
+					breakpoint_remove(&CURRENT_PROCESS_BPL,
 							  _add_break_verbose,
 							  kaddr);
 				}
@@ -1530,7 +1535,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 				if (_add_break_verbose) {
 					DBG_PRINT("INTERNAL ERROR with ARCH breakpoint at 0x%lx\n", kaddr);
 				}
-				breakpoint_remove(&TARGET_BPL,
+				breakpoint_remove(&CURRENT_PROCESS_BPL,
 						  _add_break_verbose, kaddr);
 			}
 		} else {
@@ -1562,7 +1567,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_remove_watchpoint(TARGET_PID_GET(), type, addr, len)) {
+			if (ptrace_arch_remove_watchpoint(CURRENT_PROCESS_PID, type, addr, len)) {
 				ret = RET_OK;
 				if (_remove_break_verbose) {
 					DBG_PRINT("OK removing watchpoint at 0x%lx\n", kaddr);
@@ -1580,7 +1585,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 		}
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_find(TARGET_BPL, _remove_break_verbose, kaddr);
+		bp = breakpoint_find(CURRENT_PROCESS_BPL, _remove_break_verbose, kaddr);
 		if (bp) {
 			/*
 			 * Only really remove the breakpoint if it's reference count
@@ -1591,7 +1596,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 							bp->data, bp->len,
 							false);
 				if (ret == RET_OK) {
-					breakpoint_remove(&TARGET_BPL,
+					breakpoint_remove(&CURRENT_PROCESS_BPL,
 							  _remove_break_verbose,
 							  kaddr);
 					if (_add_break_verbose) {
@@ -1605,7 +1610,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 				}
 			} else {
 				/* This just decrements the ref_count */
-				breakpoint_remove(&TARGET_BPL,
+				breakpoint_remove(&CURRENT_PROCESS_BPL,
 						  _remove_break_verbose, kaddr);
 				ret = RET_OK;
 			}
@@ -1623,6 +1628,20 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 	}
 
 	return ret;
+}
+
+static bool _check_thread(pid_t pid, int status) {
+  bool ret = false;
+
+  int s = WSTOPSIG(status);
+  if (s == SIGTRAP) {
+    int e = (status >> 16) & 0xff;
+    if (e == PTRACE_EVENT_CLONE) {
+      ret = true;
+    }
+  }
+
+  return ret;
 }
 
 int ptrace_wait(char *status_string, size_t status_string_len)
@@ -1645,16 +1664,16 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		for (errs = 0; errs < errs_max; errs++) {
 			/* Sleep for a msec */
 			usleep(100);
-			pid = waitpid(TARGET_PID_GET(), &status, WNOHANG);
-			if (pid == TARGET_PID_GET()) {
+			pid = waitpid(CURRENT_PROCESS_PID, &status, WNOHANG);
+			if (pid == CURRENT_PROCESS_PID) {
 				break;
 			} else {
 				/* failure */
 				if (errs + 2 < errs_max)
-					kill(TARGET_PID_GET(),
+					kill(CURRENT_PROCESS_PID,
 					     _target.current_signal);
 				else
-					kill(TARGET_PID_GET(), SIGTRAP);
+					kill(CURRENT_PROCESS_PID, SIGTRAP);
 				usleep(100);
 			}
 		}
@@ -1667,7 +1686,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		pid = wait(&status);
 	}
 
-	if (pid == TARGET_PID_GET()) {
+	if (pid == CURRENT_PROCESS_PID) {
 
 		uint8_t g = 0;
 
@@ -1693,8 +1712,41 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				}
 			}
 
-			/* Check for syscall */
-			if (ptrace_arch_check_syscall(TARGET_PID_GET(), &s)) {
+			/* DEV THREAD */
+			if (_check_thread(CURRENT_PROCESS_PID, status)) {
+			  unsigned long new_tid = 0;
+			  if (0 != ptrace(PTRACE_GETEVENTMSG, CURRENT_PROCESS_PID, 0, &new_tid)) {
+			    fprintf(stderr, "ptrace error with new thread id\n");
+			  } else {
+			    void *try_process = NULL;
+
+			    /* Allocate registers for the process */
+			    try_process = realloc(_target.process,
+						  (_target.number_processes + 1) *
+						  sizeof(struct target_process_rec));
+			    if (try_process) {
+			      _target.process = try_process;
+			      _target.current_process = _target.number_processes;
+			      PROCESS_PID(_target.number_processes) = CURRENT_PROCESS_PID;
+			      PROCESS_TID(_target.number_processes) = new_tid;
+			      PROCESS_BPL(_target.number_processes) = NULL;
+			      _target.number_processes++;
+
+			      snprintf(status_string, status_string_len,
+				       "T%02xthread:%lx;",
+				       ptrace_arch_signal_to_gdb(s),
+				       new_tid);
+
+			    } else {
+			      /* TODO : HANDLE ERROR */
+			    }
+
+			    fprintf(stderr, "new thread id %lu\n", new_tid);
+			  }
+
+			} else if (ptrace_arch_check_syscall(CURRENT_PROCESS_PID, &s)) {
+			  /* Check for syscall */
+
 				/* sycall entry or exit */
 				if (_target.syscall_enter) {
 					/* This assumes no breakpoints etc.. */
@@ -1715,7 +1767,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				/* Second guess the kernel */
 				if (s != SIGTRAP) {
 					if (pc) {
-						if (NULL != breakpoint_find(TARGET_BPL, _wait_verbose, pc)) {
+						if (NULL != breakpoint_find(CURRENT_PROCESS_BPL, _wait_verbose, pc)) {
 							s = SIGTRAP;
 						}
 					}
@@ -1727,7 +1779,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				}
 
 				/* Fill out the status string */
-				if (ptrace_arch_hit_watchpoint(TARGET_PID_GET(), &watchpoint_addr)) {
+				if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_PID, &watchpoint_addr)) {
 					/* A watchpoint was hit */
 					snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
 				} else {
@@ -1804,7 +1856,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		/* Failure */
 		if (_wait_verbose) {
 			DBG_PRINT("%s wait returned unexpect pid %x vs %x\n",
-				  __func__, pid, TARGET_PID_GET());
+				  __func__, pid, CURRENT_PROCESS_PID);
 		}
 		_target.ps = PS_ERR;
 	}
@@ -1910,7 +1962,7 @@ int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
 		size_t i;
 
 		/* Initialize */
-		for (i = 0; i < TARGET_PTRACE_SIGNAL_MAX; i++) {
+		for (i = 0; i < CURRENT_PROCESS_PTRACE_SIGNAL_MAX; i++) {
 			pass_sig[i] = i;
 		}
 #endif
@@ -1930,7 +1982,7 @@ int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
 		size_t i;
 
 		/* Initialize */
-		for (i = 0; i < TARGET_PTRACE_SIGNAL_MAX; i++) {
+		for (i = 0; i < CURRENT_PROCESS_PTRACE_SIGNAL_MAX; i++) {
 			program_sig[i] = i;
 		}
 		/* Parse and update */
@@ -1964,7 +2016,7 @@ enum process_state ptrace_get_process_state(void)
 
 void ptrace_option_set_syscall()
 {
-	ptrace_arch_option_set_syscall(TARGET_PID_GET());
+	ptrace_arch_option_set_syscall(CURRENT_PROCESS_PID);
 }
 
 void ptrace_get_syscall(void *id, void *arg1, void *arg2,
