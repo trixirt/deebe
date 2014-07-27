@@ -1270,11 +1270,9 @@ void handle_thread_alive_command(char * const in_buf,
 {
 	int ret;
 	int alive;
-	const char *in;
 
 	/* Is thread alive? */
 	/* This is a deprecated feature of the remote debug protocol */
-	in = &in_buf[1];
 	int64_t p, t;
 	if (_decode_thread_id(&in_buf[1], &p, &t)) {
 		gdb_interface_write_retval(RET_ERR, out_buf);		
