@@ -197,14 +197,14 @@ int ptrace_arch_gdb_greg_max()
 void ptrace_arch_get_pc(unsigned long *pc)
 {
 	_read_greg();
-	memcpy(pc, _target.reg + offsetof(struct user, regs.rip),
+	memcpy(pc, TARGET_REG + offsetof(struct user, regs.rip),
 	       sizeof(unsigned long));
 }
 
 void ptrace_arch_set_pc(unsigned long pc)
 {
 	_read_greg();
-	memcpy(_target.reg + offsetof(struct user, regs.rip), &pc,
+	memcpy(TARGET_REG + offsetof(struct user, regs.rip), &pc,
 	       sizeof(unsigned long));
 	_write_greg();
 }
