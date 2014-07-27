@@ -109,7 +109,7 @@ int ptrace_list_query(int first, gdb_thread_ref *arg,
 
 int ptrace_current_thread_query(int64_t *process_id, int64_t *thread_id)
 {
-	*process_id = TARGET_PID_GET();
+  *process_id = CURRENT_PROCESS_PID;
 	*thread_id = 0; /* XXX NOT YET SUPPORTED */
 	return RET_OK;
 }
