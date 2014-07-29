@@ -59,6 +59,7 @@ typedef struct target_process_rec {
 	pid_t pid;
 	pid_t tid;
 	struct breakpoint *bpl;
+  bool alive;
 } target_process;
 
 typedef struct target_state_rec {
@@ -90,10 +91,12 @@ typedef struct target_state_rec {
 #define PROCESS_PID(n)   _target.process[n].pid
 #define PROCESS_TID(n)   _target.process[n].tid
 #define PROCESS_BPL(n)   _target.process[n].bpl
+#define PROCESS_ALIVE(n) _target.process[n].alive
 
 #define CURRENT_PROCESS_PID        PROCESS_PID(_target.current_process)
 #define CURRENT_PROCESS_TID        PROCESS_TID(_target.current_process)
 #define CURRENT_PROCESS_BPL        PROCESS_BPL(_target.current_process)
+#define CURRENT_PROCESS_ALIVE      PROCESS_ALIVE(_target.current_process)
 
 extern target_state _target;
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)

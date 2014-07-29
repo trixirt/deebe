@@ -578,6 +578,7 @@ int ptrace_attach(pid_t process_id)
 						CURRENT_PROCESS_PID   = process_id;
 						CURRENT_PROCESS_TID   = process_id;
 						CURRENT_PROCESS_BPL   = NULL;
+						CURRENT_PROCESS_ALIVE = true;
 						_target.number_processes++;
 					} else {
 						/* TODO : HANDLE ERROR */
@@ -701,17 +702,16 @@ int ptrace_restart(void)
 								CURRENT_PROCESS_PID   = try_child;
 								CURRENT_PROCESS_TID   = try_child;
 								CURRENT_PROCESS_BPL   = NULL;
+								CURRENT_PROCESS_ALIVE = true;
 								_target.number_processes++;
 
 								/* DEV THREAD */
 								{
 								  if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, 
 										  NULL, PTRACE_O_TRACECLONE)) {
+								    /* TODO : HANDLE ERROR */
 								    fprintf(stderr, "error settingn PTRACE_O_TRACECLONE\n");
-								  } else {
-								    fprintf(stderr, "OK settingn PTRACE_O_TRACECLONE\n");
 								  }
-
 								}
 								
 								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
@@ -1730,11 +1730,12 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			      PROCESS_PID(_target.number_processes) = CURRENT_PROCESS_PID;
 			      PROCESS_TID(_target.number_processes) = new_tid;
 			      PROCESS_BPL(_target.number_processes) = NULL;
+			      PROCESS_ALIVE(_target.number_processes) = true;
 			      _target.number_processes++;
 
 			      snprintf(status_string, status_string_len,
-				       "T%02xthread:%lx;",
-				       ptrace_arch_signal_to_gdb(s),
+				       "T%02xthread:%lx;", 
+				       0 /* silence the SIG_TRAP */, 
 				       new_tid);
 
 			    } else {
