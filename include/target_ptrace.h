@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -64,7 +64,7 @@ extern int ptrace_process_query(unsigned int *mask, gdb_thread_ref *arg,
 				rp_thread_info *info);
 extern int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id);
 extern int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id);
-extern int ptrace_threadextrainfo_query(gdb_thread_ref *thread,
+extern int ptrace_threadextrainfo_query(int64_t thread_id,
 					char *out_buf, size_t out_buf_size);
 
 #endif

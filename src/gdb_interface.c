@@ -132,8 +132,6 @@ static char status_string[RP_PARAM_INOUTBUF_SIZE];
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
 
-static int rp_target_running = FALSE;
-
 static void gdb_interface_log_local(int level, const char *fmt, ...)
 {
 	va_list args;
@@ -440,6 +438,7 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 					pkt_len = 0;
 					state = 1;
 				} else if (c == '\3') {
+
 					/* A control C */
 					gdb_interface_log(
 						GDB_INTERFACE_LOGLEVEL_DEBUG,
@@ -1157,10 +1156,6 @@ void handle_running_commands(char * const in_buf,
 		return;
 	}
 
-	/* Now we have to wait for the target */
-	rp_target_running = TRUE;
-	rp_target_out_valid = TRUE;
-
 	/* Try a partial wait first */
 	ret = t->wait_partial(TRUE,
 			      status_string,
@@ -1169,8 +1164,6 @@ void handle_running_commands(char * const in_buf,
 			      &more);
 	if (ret != RET_OK) {
 		gdb_interface_write_retval(ret, out_buf);
-		rp_target_out_valid = FALSE;
-		rp_target_running = FALSE;
 		return;
 	}
 	if (!implemented) {
@@ -1191,8 +1184,6 @@ void handle_running_commands(char * const in_buf,
 		} else {
 			gdb_interface_write_retval(ret, out_buf);
 		}
-		rp_target_out_valid = FALSE;
-		rp_target_running = FALSE;
 		return;
 	}
 	if (!more) {
@@ -1200,8 +1191,6 @@ void handle_running_commands(char * const in_buf,
 		/* Cast to size_t to make compiler happy */
 		ASSERT(strlen(status_string) < (size_t) status_string_len);
 		strcpy(out_buf, status_string);
-		rp_target_out_valid = FALSE;
-		rp_target_running = FALSE;
 	}
 }
 
@@ -1468,6 +1457,7 @@ void handle_query_command(char * const in_buf,
 	if (strncmp(in_buf + 1, "ThreadExtraInfo,", 16) == 0) {
 		char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
 		const char *in;
+		int64_t thread_id;
 
 		if (t->threadextrainfo_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
@@ -1475,14 +1465,14 @@ void handle_query_command(char * const in_buf,
 		}
 
 		in = &in_buf[17];
-		ret = gdb_decode_int64(&in, &ref.val, '\0');
+		ret = gdb_decode_int64(&in, &thread_id, '\0');
 		if (!ret) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		}
 
 		ret = t->threadextrainfo_query(
-			&ref, data_buf,
+			thread_id, data_buf,
 			GDB_INTERFACE_PARAM_DATABYTES_MAX);
 		switch (ret) {
 		case RET_OK:
@@ -1893,13 +1883,12 @@ static int handle_v_command(char * const in_buf,
 			 * handled = true;
 			 *
 			 * If multiprocess is support, vCont must be supported
+			 *
+			 * If threading is supported, (it is), vCont must be supported
 			 */
-			if (target->support_multiprocess()) {
-				sprintf (out_buf, "vCont;c;C;s;S");
-				handled = true;
-			} else {
-				handled = false;
-			}
+		  sprintf (out_buf, "vCont;c;C;s;S");
+		  handled = true;
+
 		} else if (n[0] == ';') {
 			n++;
 
@@ -1918,12 +1907,12 @@ static int handle_v_command(char * const in_buf,
 			if (!err) {
 				ret = target->resume_from_current(step, sig);
 				if (RET_OK == ret) {
-					if (target->wait) {
-						ret = target->wait(out_buf,
-							      out_buf_len);
-
-						handled = true;
-					}
+				    if (target->wait) {
+				      ret = target->wait(out_buf,
+							 out_buf_len);
+				      
+				      handled = true;
+				  }
 				}
 			}
 		}

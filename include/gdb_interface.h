@@ -363,8 +363,7 @@ struct gdb_target_s {
 	int (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
 
 	/* Query thread extra info */
-	int (*threadextrainfo_query)(gdb_thread_ref *thread, char *out_buf,
-				     size_t out_buf_size);
+  int (*threadextrainfo_query)(int64_t thread, char *out_buf, size_t out_buf_size);
 
 	/* Query Supported features */
 	int (*supported_features_query)(char *out_buf, size_t out_buf_size);

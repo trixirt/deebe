@@ -41,60 +41,57 @@ static const RCMD_TABLE ptrace_remote_commands[] = {
 	{0, 0, 0}     /* sentinel, end of table marker */
 };
 
-# if 0
-gdb_state _gdb_state = {
-	.gen_thread = {
-		.val = 0,
-	},
-	.ctrl_thread = {
-		 .val = 0,
-	 },
-};
-#endif
-
-int ptrace_threadextrainfo_query(gdb_thread_ref *thread,
-				 char *out_buf, size_t out_buf_size)
+int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
 {
-  fprintf(stdout, "%s", __PRETTY_FUNCTION__); 
-
-	return RET_NOSUPP;
+  /* 
+   * Sends gdb something extra to print out
+   * Nothing yet to say, so return no support
+   */
+  return RET_NOSUPP;
 }
 
-int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id)
+static int ptrace_support_multiprocess() {
+	return _target.multiprocess;
+}
+
+int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 {
-	int found = 0;
 	int ret = RET_ERR;
-	fprintf(stdout, "%s %ld:%ld\n", __PRETTY_FUNCTION__, process_id, thread_id); 
+	int index;
+	int64_t key;
 
-	if ((process_id != 0) ||
-	    (process_id != -1)) {
-		size_t p;
-		for (p = 0; p < _target.number_processes; p++) {
-			if (process_id == _target.process[p].pid) {
-				found = 1;
-				_target.current_process = p;
-			}
-		}
-
+	if (ptrace_support_multiprocess()) {
+	  /* pid and tid are valid */
+	  key = tid;
 	} else {
-		found = 1;
+	  /* only pid is valid, but it is really tid */
+	  key = pid;
 	}
-	
-	if (found)
-		ret = RET_OK;
 
+	if ((key == 0) ||
+	    (key == -1)) {
+	  /* TODO HANDLE */
+	  ret = RET_OK;
+	} else {
+	  /* Normal case */
+	  for (index = 0; index < _target.number_processes; index++) {
+	    if (PROCESS_TID(index) == key) {
+	      bool alive = PROCESS_ALIVE(index);
+	      if (alive) {
+		_target.current_process = index;
+		ret = RET_OK;
+	      }
+	      break;
+	    }
+	  }
+	} 
 	return ret;
 }
 
 int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id)
 {
-  fprintf(stdout, "%s %ld:%ld\n", __PRETTY_FUNCTION__, process_id, thread_id);
-	/* noop */
-	return RET_OK;
-}
-
-static int ptrace_support_multiprocess() {
-	return _target.multiprocess;
+  /* Nothing here yet */
+  return RET_NOSUPP;
 }
 
 int ptrace_is_thread_alive(int64_t pid, int64_t tid,
@@ -124,8 +121,8 @@ int ptrace_is_thread_alive(int64_t pid, int64_t tid,
 int ptrace_process_query(unsigned int *mask, gdb_thread_ref *arg,
 			 rp_thread_info *info)
 {
-  fprintf(stdout, "%s\n", __PRETTY_FUNCTION__); 
-	return RET_ERR;
+  /* Similar to qThreadExtraInfo, nothing to add here */
+  return RET_NOSUPP;
 }
 
 int ptrace_list_query(int first, gdb_thread_ref *arg,
@@ -137,8 +134,6 @@ int ptrace_list_query(int first, gdb_thread_ref *arg,
 
 int ptrace_current_thread_query(int64_t *pid, int64_t *tid)
 {
-  fprintf(stdout, "%s %ld:%ld\n", __PRETTY_FUNCTION__, *pid, *tid); 
-
   *pid = CURRENT_PROCESS_PID;
   *tid = CURRENT_PROCESS_TID;
   return RET_OK;
