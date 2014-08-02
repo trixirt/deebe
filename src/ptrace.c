@@ -1698,18 +1698,68 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		pid = wait(&current_status);
 	  */
 	  bool is_ok = false;
-	  while (!is_ok) {
-	    int index;
-	    pid = waitpid(-1, &current_status, __WALL);
-	    /* Ingnore non children, because the clone returns before the parent */
-	    for (index = 0; index < _target.number_processes; index++) {
-	      if (PROCESS_TID(index) == pid) {
-		is_ok = true;
+	  int index;
+	  
+	  pid = waitpid(-1, &current_status, __WALL);
+	  /* Ingnore non children, because the clone returns before the parent */
+	  for (index = 0; index < _target.number_processes; index++) {
+	    if (PROCESS_TID(index) == pid) {
+	      is_ok = true;
+	      break;
+	    }
+	  }
+	  /* Handle case of a child pid showing up before the parent */
+	  if (!is_ok) {
+	    pid_t new_tid = pid;
+	    int errs_max = 5;
+	    int errs = 0;
+	    for (errs = 0; errs < errs_max; errs++) {
+	      /* Sleep for a 1 msec */
+	      usleep(1000);
+	      pid = waitpid(CURRENT_PROCESS_TID, &current_status, WNOHANG);
+	      if (pid == CURRENT_PROCESS_TID) {
 		break;
 	      }
 	    }
-	  } /* while ! ok */
+	    if (errs == errs_max) {
+	      void *try_process = NULL;
+	      /* child pid without a parent */
 
+	      /* Since the parent is not known, use a valid, if incorrect value */
+	      pid_t current_process_pid = CURRENT_PROCESS_PID;
+	      
+	      /* re-Allocate per process state */
+	      try_process = realloc(_target.process,
+				    (_target.number_processes + 1) *
+				    sizeof(struct target_process_rec));
+	      if (try_process) {
+
+		_target.process = try_process;
+		_target.current_process = _target.number_processes; /* this one */
+		_target.number_processes++;
+		
+		CURRENT_PROCESS_PID   = current_process_pid;
+		CURRENT_PROCESS_TID   = new_tid;
+		CURRENT_PROCESS_BPL   = NULL;
+		CURRENT_PROCESS_ALIVE = true;
+
+		/* Success */
+		snprintf(status_string, status_string_len,
+			 "T%02xthread:%x;", 
+			 0 /* silence the SIG_TRAP */, 
+			 new_tid);
+		
+		ret = RET_OK;
+		return ret;
+
+		/* TODO REWORK THIS FLOW */
+
+	      } else {
+		/* TODO : HANDLE ERROR */
+	      }
+
+	    }
+	  }
 	}
 	
 
