@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Juniper Networks, Inc.
+ * Copyright (c) 2013-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -93,6 +93,7 @@ void ptrace_arch_write_fxreg();
 void ptrace_arch_read_dbreg();
 void ptrace_arch_write_dbreg();
 void ptrace_arch_option_set_syscall(pid_t pid);
+void ptrace_arch_option_set_thread(pid_t pid);
 void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
 			     void *arg4, void *ret);
 

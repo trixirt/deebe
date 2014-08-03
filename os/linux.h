@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -76,6 +76,7 @@
 void ptrace_os_read_fxreg();
 void ptrace_os_write_fxreg();
 void ptrace_os_option_set_syscall(pid_t pid);
+void ptrace_os_option_set_thread(pid_t pid);
 bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig);
 
 #ifndef PT_GETREGS

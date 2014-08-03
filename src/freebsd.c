@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -51,5 +51,9 @@ void ptrace_os_clear_singlestep(pid_t pid)
 }
 
 void ptrace_os_option_set_syscall(pid_t pid)
+{
+}
+
+void ptrace_os_option_set_thread(pid_t pid)
 {
 }

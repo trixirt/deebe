@@ -218,3 +218,8 @@ void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
 	memcpy(ret,  _target.reg + offsetof(struct user, regs.eax),
 	       sizeof(unsigned long));
 }
+
+void ptrace_arch_option_set_thread(pid_t pid)
+{
+	ptrace_os_option_set_thread(pid);
+}
