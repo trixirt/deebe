@@ -96,6 +96,8 @@ void ptrace_arch_option_set_syscall(pid_t pid);
 void ptrace_arch_option_set_thread(pid_t pid);
 void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
 			     void *arg4, void *ret);
+bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status);
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 
 /* Internal functions used by arch's */
 bool _read_reg(int GET, int SET, void **reg, uint8_t **reg_rw,

@@ -78,6 +78,8 @@ void ptrace_os_write_fxreg();
 void ptrace_os_option_set_syscall(pid_t pid);
 void ptrace_os_option_set_thread(pid_t pid);
 bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig);
+bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status);
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 
 #ifndef PT_GETREGS
 #define PT_GETREGS PTRACE_GETREGS

@@ -57,3 +57,16 @@ void ptrace_os_option_set_syscall(pid_t pid)
 void ptrace_os_option_set_thread(pid_t pid)
 {
 }
+
+bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
+{
+    /* Not handled */
+    return false;
+}
+
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+    /* Not handled */
+    return false;
+}
+

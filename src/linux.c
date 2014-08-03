@@ -97,3 +97,128 @@ void ptrace_os_option_set_thread(pid_t pid)
     }
 #endif
 }
+
+bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
+{
+    bool ret = false;
+    bool is_old = false;
+    int index;
+    pid_t pid;
+	  
+    pid = waitpid(-1, &current_status, __WALL);
+    /* Ingnore non children, because the clone returns before the parent */
+    for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_TID(index) == pid) {
+	    is_old = true;
+	    break;
+	}
+    }
+    /* Handle case of a child pid showing up before the parent */
+    if (!is_old) {
+	pid_t new_tid = pid;
+	int errs_max = 5;
+	int errs = 0;
+	for (errs = 0; errs < errs_max; errs++) {
+	    /* Sleep for a 1 msec */
+	    usleep(1000);
+	    pid = waitpid(CURRENT_PROCESS_TID, &current_status, WNOHANG);
+	    if (pid == CURRENT_PROCESS_TID) {
+		break;
+	    }
+	}
+	if (errs == errs_max) {
+	    void *try_process = NULL;
+	    /* child pid without a parent */
+	    
+	    /* Since the parent is not known, use a valid, if incorrect value */
+	    pid_t current_process_pid = CURRENT_PROCESS_PID;
+	    
+	    /* re-Allocate per process state */
+	    try_process = realloc(_target.process,
+				  (_target.number_processes + 1) *
+				  sizeof(struct target_process_rec));
+	    if (try_process) {
+		
+		_target.process = try_process;
+		_target.current_process = _target.number_processes; /* this one */
+		_target.number_processes++;
+		
+		CURRENT_PROCESS_PID   = current_process_pid;
+		CURRENT_PROCESS_TID   = new_tid;
+		CURRENT_PROCESS_BPL   = NULL;
+		CURRENT_PROCESS_ALIVE = true;
+
+		if (out_pid)
+		    *out_pid = new_tid;
+		if (out_status)
+		    *out_status = current_status;
+
+		ret = true;
+		} else {
+		DBG_PRINT("Allocation of proccess failed\n");
+	    }
+	}
+    }
+
+    if (!ret) {
+		if (out_pid)
+		    *out_pid = new_tid;
+		if (out_status)
+		    *out_status = current_status;
+    }
+
+return ret;
+}
+
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+  bool ret = false;
+
+  int s = WSTOPSIG(status);
+  if (s == SIGTRAP) {
+    int e = (status >> 16) & 0xff;
+    if (e == PTRACE_EVENT_CLONE) {
+
+	unsigned long new_tid = 0;
+	if (0 != ptrace(PTRACE_GETEVENTMSG, CURRENT_PROCESS_TID, 0, &new_tid)) {
+	    DBG_PRINT("ptrace error with new thread id\n");
+	} else {
+	    void *try_process = NULL;
+	    int thread_status;
+	    pid_t wait_pid;
+	    
+	    /* Wait for all children, to catch the thread */
+	    wait_pid = waitpid(-1, &thread_status, __WALL);
+	    if ((new_tid == wait_pid) && 
+		(WIFSTOPPED(thread_status) &&
+		 (WSTOPSIG(thread_status) == SIGSTOP))) {
+
+		pid_t current_process_pid = CURRENT_PROCESS_PID;
+			      
+		/* re-Allocate per process state */
+		try_process = realloc(_target.process,
+				      (_target.number_processes + 1) *
+				      sizeof(struct target_process_rec));
+		if (try_process) {
+		    
+		    _target.process = try_process;
+		    _target.current_process = _target.number_processes; /* this one */
+		    _target.number_processes++;
+		    
+		    CURRENT_PROCESS_PID   = current_process_pid;
+		    CURRENT_PROCESS_TID   = new_tid;
+		    CURRENT_PROCESS_BPL   = NULL;
+		    CURRENT_PROCESS_ALIVE = true;
+
+		    if (out_pid)
+			*out_pid = new_pid;
+		    ret = true;
+		} else {
+		    DBG_PRINT("Allocation of proccess failed\n");
+		}
+	    }
+	}
+    }
+  }
+  return ret;
+}
