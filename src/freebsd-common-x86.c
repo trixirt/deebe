@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013-2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -72,7 +72,7 @@ bool x86_read_debug_reg(pid_t pid, size_t reg, void *val)
 		_read_dbreg();
 		size_t addr = reg * sizeof(unsigned int);
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(val, TARGET_DBREG + addr, sizeof(unsigned int));
+			memcpy(val, _target.dbreg + addr, sizeof(unsigned int));
 			ret = true;
 		}
 	}
@@ -88,7 +88,7 @@ bool x86_write_debug_reg(pid_t pid, size_t reg, void *val)
 		_read_dbreg();
 		unsigned long addr = reg * sizeof(unsigned int);
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(TARGET_DBREG + addr, val, sizeof(unsigned int));
+			memcpy(_target.dbreg + addr, val, sizeof(unsigned int));
 			_write_dbreg();
 			ret = true;
 		}
