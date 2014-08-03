@@ -248,3 +248,13 @@ void ptrace_arch_option_set_thread(pid_t pid)
 {
 	ptrace_os_option_set_thread(pid);
 }
+
+bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
+{
+    return ptrace_os_wait_new_thread(out_pid, out_status);
+}
+
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+    return ptrace_os_check_new_thread(pid, status, out_pid);
+}
