@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -86,4 +86,14 @@ bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig)
 		ret = true;
 	}
 	return ret;
+}
+
+void ptrace_os_option_set_thread(pid_t pid)
+{
+#ifdef PTRACE_O_TRACECLONE
+    if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, 
+		    NULL, PTRACE_O_TRACECLONE)) {
+	DBG_PRINT("error setting PTRACE_O_TRACECLONE\n");
+    }
+#endif
 }

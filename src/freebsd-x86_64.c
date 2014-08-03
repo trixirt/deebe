@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Juniper Networks, Inc.
+ * Copyright (c) 2013-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -239,4 +239,9 @@ void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
 			     void *arg4, void *ret)
 {
 	_read_greg();
+}
+
+void ptrace_arch_option_set_thread(pid_t pid)
+{
+	ptrace_os_option_set_thread(pid);
 }

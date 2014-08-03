@@ -581,16 +581,8 @@ int ptrace_attach(pid_t process_id)
 						CURRENT_PROCESS_ALIVE = true;
 						_target.number_processes++;
 
-						/* DEV THREAD */
-						{
-						  if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, 
-								  NULL, PTRACE_O_TRACECLONE)) {
-						    /* TODO : HANDLE ERROR */
-						    if (_restart_verbose) {
-						      DBG_PRINT("error setting PTRACE_O_TRACECLONE\n");
-						    }
-						  }
-						}
+						ptrace_arch_option_set_thread(process_id);
+
 					} else {
 						/* TODO : HANDLE ERROR */
 					}
@@ -716,17 +708,8 @@ int ptrace_restart(void)
 								CURRENT_PROCESS_ALIVE = true;
 								_target.number_processes++;
 
-								/* DEV THREAD */
-								{
-								  if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, 
-										  NULL, PTRACE_O_TRACECLONE)) {
-								    /* TODO : HANDLE ERROR */
-								    if (_restart_verbose) {
-								      DBG_PRINT("error setting PTRACE_O_TRACECLONE\n");
-								    }
-								  }
-								}
-								
+								ptrace_arch_option_set_thread(try_child);
+
 								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
 								fflush(stdout);
 							} else {
