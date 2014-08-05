@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Juniper Networks, Inc.
+ * Copyright (c) 2013-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -99,6 +99,15 @@ typedef struct target_state_rec {
 #define CURRENT_PROCESS_ALIVE      PROCESS_ALIVE(_target.current_process)
 
 extern target_state _target;
+
+bool target_new_thread(pid_t pid, pid_t tid);
+int target_number_threads();
+pid_t target_get_pid();
+bool target_dead_thread(pid_t tid);
+void target_all_dead_thread();
+bool target_alive_thread(pid_t tid);
+bool target_is_tid(pid_t tid);
+
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)
 
 struct reg_location_list {
