@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013-2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -59,3 +59,102 @@ target_state _target = {
 	.current_process = 0,
 	.process = NULL, /* TODO : FREE THIS */
 };
+
+bool target_new_thread(pid_t pid, pid_t tid)
+{
+    bool ret = false;
+    void *try_process = NULL;
+    
+    /* Allocate registers for the process */
+    try_process = realloc(_target.process,
+			  (_target.number_processes + 1) *
+			  sizeof(struct target_process_rec));
+    if (try_process) {
+	_target.process = try_process;
+	_target.current_process = _target.number_processes;
+	CURRENT_PROCESS_PID   = pid;
+	CURRENT_PROCESS_TID   = tid;
+	CURRENT_PROCESS_BPL   = NULL;
+	CURRENT_PROCESS_ALIVE = true;
+	_target.number_processes++;
+	
+	ret = true;
+	
+    } else {
+	/* TODO : HANDLE ERROR */
+    }
+
+    return ret;
+}
+
+int target_number_threads()
+{
+    int ret = 0;
+    int index;
+    
+    for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_ALIVE(index))
+	    ret++;
+    }
+    return ret;
+}
+
+pid_t target_get_pid() 
+{
+    pid_t ret = -1;
+    ret = PROCESS_PID(0);
+
+    return ret;
+}
+
+bool target_dead_thread(pid_t tid) 
+{
+    bool ret = false;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (tid == PROCESS_TID(index)) {
+	    PROCESS_ALIVE(index) = false;
+	    ret = true;
+	    break;
+	}
+    }
+    return ret;
+}
+
+void target_all_dead_thread(pid_t tid) 
+{
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	PROCESS_ALIVE(index) = false;
+    }
+}
+
+bool target_alive_thread(pid_t tid) 
+{
+    bool ret = false;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (tid == PROCESS_TID(index)) {
+	    PROCESS_ALIVE(index) = true;
+	    ret = true;
+	    break;
+	}
+    }
+    return ret;
+}
+
+bool target_is_tid(pid_t tid)
+{
+    bool ret = false;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (tid == PROCESS_TID(index)) {
+	    PROCESS_ALIVE(index) = true;
+	    ret = true;
+	}
+    }
+    return ret;
+}
