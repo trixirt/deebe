@@ -564,27 +564,10 @@ int ptrace_attach(pid_t process_id)
 				/* Check that process stopped because of implied SIGSTOP */
 				if (WIFSTOPPED(status) &&
 				    (WSTOPSIG(status) == SIGSTOP)) {
-					/* Success */
-					void *try_process = NULL;
-					ret = RET_OK;
 
-					/* Allocate registers for the process */
-					try_process = realloc(_target.process,
-							      (_target.number_processes + 1) *
-							      sizeof(struct target_process_rec));
-					if (try_process) {
-						_target.process = try_process;
-						_target.current_process = _target.number_processes;
-						CURRENT_PROCESS_PID   = process_id;
-						CURRENT_PROCESS_TID   = process_id;
-						CURRENT_PROCESS_BPL   = NULL;
-						CURRENT_PROCESS_ALIVE = true;
-						_target.number_processes++;
-
-						ptrace_arch_option_set_thread(process_id);
-
-					} else {
-						/* TODO : HANDLE ERROR */
+					if (target_new_thread(process_id, process_id)) {
+					    ptrace_arch_option_set_thread(process_id);
+					    ret = RET_OK;
 					}
 
 				} else {
@@ -691,29 +674,12 @@ int ptrace_restart(void)
 						if (WIFSTOPPED(status) &&
 						    (WSTOPSIG(status) == SIGTRAP)) {
 
-							/* Success */
-							void *try_process = NULL;
-							ret = RET_OK;
-							
-							/* Allocate registers for the process */
-							try_process = realloc(_target.process,
-									      (_target.number_processes + 1) *
-									      sizeof(struct target_process_rec));
-							if (try_process) {
-								_target.process = try_process;
-								_target.current_process = _target.number_processes;
-								CURRENT_PROCESS_PID   = try_child;
-								CURRENT_PROCESS_TID   = try_child;
-								CURRENT_PROCESS_BPL   = NULL;
-								CURRENT_PROCESS_ALIVE = true;
-								_target.number_processes++;
-
-								ptrace_arch_option_set_thread(try_child);
-
-								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
-								fflush(stdout);
-							} else {
-								/* TODO : HANDLE ERROR */
+							if (target_new_thread(try_child, try_child)) {
+							    ptrace_arch_option_set_thread(try_child);
+							    
+							    fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
+							    fflush(stdout);
+							    ret = RET_OK;
 							}
 
 						} else {
@@ -1282,7 +1248,19 @@ int ptrace_write_mem(uint64_t addr, uint8_t *data, size_t size)
 int ptrace_resume_from_current(int step, int gdb_sig)
 {
 	int ret = RET_ERR;
+	/* 
+	 * For FreeBSD
+	 * Use PT_TO_SCX to continue but stop at syscall exits
+	 * This is done to be notified when a thread has been created
+	 * If this is a single step, then the single step request will
+	 * take precedence.
+	 */
+#ifdef PT_TO_SCX
+//	long request = PT_TO_SCX;
+	long request = PT_SYSCALL;
+#else
 	long request = PT_CONTINUE;
+#endif
 	int sig;
 
 	_target.step = step;
@@ -1661,19 +1639,26 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			DBG_PRINT("Signal lost\n");
 			/* Lie */
 			ret = RET_OK;
+			fprintf(stderr, "%d %d\n", __LINE__, ret);
 		}
+		fprintf(stderr, "%d %d\n", __LINE__, ret);
 	} else {
 	    
 	    if (ptrace_arch_wait_new_thread(&pid, &current_status)) {
 		/* Success */
-		snprintf(status_string, status_string_len,
-			 "T%02xthread:%x;", 0, pid);
+//		snprintf(status_string, status_string_len,
+//			 "T%02xthread:%x;", 0, pid);
 		
+		snprintf(status_string, status_string_len,
+			 "Tthread:%x;", pid);
+
 		ret = RET_OK;
+		fprintf(stderr, "%d %d\n", __LINE__, ret);
 
 	    } else {
 
-		if (pid == CURRENT_PROCESS_TID) {
+		if ((pid == CURRENT_PROCESS_TID) ||
+		    (pid == CURRENT_PROCESS_PID)) {
 
 		    uint8_t g = 0;
 		
@@ -1700,11 +1685,35 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			}
 			
 			if (ptrace_arch_check_new_thread(CURRENT_PROCESS_TID, current_status, &pid)) {
-			    
-			    snprintf(status_string, status_string_len,
-				     "T%02xthread:%x;", 0, pid); 
+
+			    fprintf(stderr, "In thread\n");
+			 
+			    /* Check if handled check returns a valid response */
+			    if (pid > 0) {
+//				snprintf(status_string, status_string_len,
+//					 "T%02xthread:%x;", 0, pid); 
+
+				snprintf(status_string, status_string_len,
+					 "T%02xthread:%x;", 5, pid); 
+
+
+
+				ret = RET_OK;
+
+				fprintf(stderr, "In new thread\n");
+			    } else {
+
+/*				snprintf(status_string, status_string_len,
+				"T%02xthread:%x;", 0, CURRENT_PROCESS_TID);  */
+				
+				ret = RET_IGNORE;
+				fprintf(stderr, "Ignore meee\n");
+			    }
 			    
 			} else if (ptrace_arch_check_syscall(CURRENT_PROCESS_TID, &s)) {
+
+			    fprintf(stderr, "In syscall \n");
+
 			    /* Check for syscall */
 			    
 			    /* sycall entry or exit */
@@ -1742,16 +1751,20 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			    if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_TID, &watchpoint_addr)) {
 				/* A watchpoint was hit */
 				snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
+				ret = RET_OK;
 			    } else {
 				/* A normal breakpoint was hit */
 				snprintf(status_string, status_string_len, "T%02x", g);
+				ret = RET_OK;
+
 			    }
 			    
 			    _target.ps = PS_STOP;
+
 			}
-			
-			ret = RET_OK;
+
 		    } else if (WIFEXITED(current_status)) {
+
 			/*
 			 * returns true if the child terminated normally, that is,
 			 * by calling exit(3) or _exit(2), or by returning from main().
@@ -1774,7 +1787,9 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			    DBG_PRINT("Wait EXITED %lx:%lx with %d\n", pid, tid, s);
 			}
 			
-			if (pid == tid) {
+
+			if (pid == target_get_pid()) {
+			    /* Check if this is the parent process */
 			    
 			    _target.ps = PS_EXIT;
 			    
@@ -1804,7 +1819,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			}
 
 			ret = RET_OK;
-			
+
 		    } else if (WIFSIGNALED(current_status)) {
 			
 			/* returns true if the child process
@@ -1823,16 +1838,16 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			_target.ps = PS_SIG;
 			
 			ret = RET_OK;
-			
+
 		    } else if (WIFCONTINUED(current_status)) {
+
 			if (_wait_verbose) {
 			    DBG_PRINT("Wait CONTINUED\n");
 			}
 			_target.ps = PS_CONT;
-			
 			ret = RET_OK;
-			
 		    } else {
+
 			if (_wait_verbose) {
 			    DBG_PRINT("Internal error : Unhandled wait status %d\n", current_status);
 			}
@@ -1842,8 +1857,8 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		} else {
 		    /* Failure */
 		    if (_wait_verbose) {
-			DBG_PRINT("%s wait returned unexpect pid %x vs %x\n",
-				  __func__, pid, CURRENT_PROCESS_TID);
+			DBG_PRINT("%s wait returned unexpect pid %x vs %x or %x\n",
+				  __func__, pid, CURRENT_PROCESS_TID, CURRENT_PROCESS_PID);
 		    }
 		    _target.ps = PS_ERR;
 		}

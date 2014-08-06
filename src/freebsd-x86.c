@@ -197,6 +197,7 @@ void ptrace_arch_option_set_syscall(pid_t pid)
 bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 {
 	bool ret = false;
+#if 0
 	/* Older FreeBSD's do not have the syscall enter exit flags */
 #ifdef PL_FLAG_SCE
 	   struct ptrace_lwpinfo info;
@@ -206,6 +207,7 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 		else if (info.pl_flags & PL_FLAG_SCX)
 			ret = true;
 	}
+#endif
 #endif
 	return ret;
 }

@@ -58,7 +58,9 @@ enum process_state {
 typedef struct target_process_rec {
 	pid_t pid;
 	pid_t tid;
+#if 0
 	struct breakpoint *bpl;
+#endif
   bool alive;
 } target_process;
 
@@ -86,11 +88,16 @@ typedef struct target_state_rec {
 	size_t number_processes;
 	size_t current_process;
 	target_process *process;
+	struct breakpoint *bpl;
 } target_state;
 
 #define PROCESS_PID(n)   _target.process[n].pid
 #define PROCESS_TID(n)   _target.process[n].tid
+#if 0
 #define PROCESS_BPL(n)   _target.process[n].bpl
+#else
+#define PROCESS_BPL(n)   _target.bpl
+#endif
 #define PROCESS_ALIVE(n) _target.process[n].alive
 
 #define CURRENT_PROCESS_PID        PROCESS_PID(_target.current_process)
