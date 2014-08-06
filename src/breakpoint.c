@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -59,6 +59,7 @@ void _breakpoint_print(struct breakpoint *bpl)
 struct breakpoint *breakpoint_find(struct breakpoint *bpl,
 				   /*@unused@*/int debug_level,
 				   unsigned long addr) {
+
 	struct breakpoint *ret = NULL;
 	struct breakpoint *p = bpl;
 	while (p != NULL) {

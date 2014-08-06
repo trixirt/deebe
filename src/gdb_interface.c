@@ -1908,8 +1908,25 @@ static int handle_v_command(char * const in_buf,
 				ret = target->resume_from_current(step, sig);
 				if (RET_OK == ret) {
 				    if (target->wait) {
-				      ret = target->wait(out_buf,
-							 out_buf_len);
+					/* 
+					 * Sometimes 'wait' is used internally  
+					 * If wait returns an ignore status, do not send 
+					 * update to gdb, continue and go back to waiting
+					 */
+#if 1
+					do {
+					    ret = target->wait(out_buf,
+							       out_buf_len);
+
+					    if (ret == RET_IGNORE) {
+						target->resume_from_current(step, sig);
+					    }
+					} while (ret == RET_IGNORE);
+#else
+					ret = target->wait(out_buf,
+							   out_buf_len);
+					ret = RET_OK;
+#endif
 				      
 				      handled = true;
 				  }

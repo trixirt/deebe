@@ -74,7 +74,7 @@ bool target_new_thread(pid_t pid, pid_t tid)
 	_target.current_process = _target.number_processes;
 	CURRENT_PROCESS_PID   = pid;
 	CURRENT_PROCESS_TID   = tid;
-	CURRENT_PROCESS_BPL   = NULL;
+//	CURRENT_PROCESS_BPL   = NULL;
 	CURRENT_PROCESS_ALIVE = true;
 	_target.number_processes++;
 	
