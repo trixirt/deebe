@@ -386,6 +386,7 @@ struct gdb_target_s {
 #define RET_OK     (0) /* Success */
 #define RET_ERR    (1) /* Error */
 #define RET_NOSUPP (2) /* Operation is not supported */
+#define RET_IGNORE (3) /* Repeat the last operation */
 
 /* Bits of process_query mask */
 #define RP_BIT_PROCQMASK_THREADID    (1)
