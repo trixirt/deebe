@@ -104,7 +104,8 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
     bool is_old = false;
     int index;
     pid_t pid;
-	  
+    int current_status;
+
     pid = waitpid(-1, &current_status, __WALL);
     /* Ingnore non children, because the clone returns before the parent */
     for (index = 0; index < _target.number_processes; index++) {
@@ -113,8 +114,16 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 	    break;
 	}
     }
-    /* Handle case of a child pid showing up before the parent */
-    if (!is_old) {
+
+    if (is_old) {
+
+	    if (out_pid)
+		    *out_pid = pid;
+	    if (out_status)
+		    *out_status = current_status;
+
+    } else { /* ! is_old */
+
 	pid_t new_tid = pid;
 	int errs_max = 5;
 	int errs = 0;
@@ -145,7 +154,6 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 		
 		CURRENT_PROCESS_PID   = current_process_pid;
 		CURRENT_PROCESS_TID   = new_tid;
-		CURRENT_PROCESS_BPL   = NULL;
 		CURRENT_PROCESS_ALIVE = true;
 
 		if (out_pid)
@@ -160,14 +168,7 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 	}
     }
 
-    if (!ret) {
-		if (out_pid)
-		    *out_pid = new_tid;
-		if (out_status)
-		    *out_status = current_status;
-    }
-
-return ret;
+    return ret;
 }
 
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
@@ -207,11 +208,11 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 		    
 		    CURRENT_PROCESS_PID   = current_process_pid;
 		    CURRENT_PROCESS_TID   = new_tid;
-		    CURRENT_PROCESS_BPL   = NULL;
 		    CURRENT_PROCESS_ALIVE = true;
 
 		    if (out_pid)
-			*out_pid = new_pid;
+			    *out_pid = new_tid;
+
 		    ret = true;
 		} else {
 		    DBG_PRINT("Allocation of proccess failed\n");

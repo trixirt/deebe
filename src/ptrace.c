@@ -1090,7 +1090,7 @@ int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 			 * adjuster.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_read_buffer(CURRENT_PROCESS_BPL,
+				breakpoint_adjust_read_buffer(_target.bpl,
 							      _read_mem_verbose,
 							      kb_addr + leading,
 							      size, data);
@@ -1202,7 +1202,7 @@ static int _ptrace_write_mem(uint64_t addr, uint8_t *data,
 			 * and the code for the breakpoint insn should not change.
 			 */
 			if (breakpoint_check) {
-				breakpoint_adjust_write_buffer(CURRENT_PROCESS_BPL, _read_mem_verbose,
+				breakpoint_adjust_write_buffer(_target.bpl, _read_mem_verbose,
 							       kb_addr + leading,
 							       size, data);
 			}
@@ -1466,7 +1466,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		/* Add to general list first */
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_add(&CURRENT_PROCESS_BPL, _add_break_verbose,
+		bp = breakpoint_add(&_target.bpl, _add_break_verbose,
 				    kaddr, type, len);
 		if (bp) {
 			/* Get the arch specific break insn */
@@ -1491,14 +1491,14 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 						if (_add_break_verbose) {
 							DBG_PRINT("ERROR writing breakpoint at 0x%lx\n", kaddr);
 						}
-						breakpoint_remove(&CURRENT_PROCESS_BPL, _add_break_verbose, kaddr);
+						breakpoint_remove(&_target.bpl, _add_break_verbose, kaddr);
 					}
 				} else {
 					/* Failure */
 					if (_add_break_verbose) {
 						DBG_PRINT("ERROR reading data for breakpoint at 0x%lx\n", kaddr);
 					}
-					breakpoint_remove(&CURRENT_PROCESS_BPL,
+					breakpoint_remove(&_target.bpl,
 							  _add_break_verbose,
 							  kaddr);
 				}
@@ -1507,7 +1507,7 @@ int ptrace_add_break(int type, uint64_t addr, size_t len)
 				if (_add_break_verbose) {
 					DBG_PRINT("INTERNAL ERROR with ARCH breakpoint at 0x%lx\n", kaddr);
 				}
-				breakpoint_remove(&CURRENT_PROCESS_BPL,
+				breakpoint_remove(&_target.bpl,
 						  _add_break_verbose, kaddr);
 			}
 		} else {
@@ -1557,7 +1557,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 		}
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		struct breakpoint *bp = NULL;
-		bp = breakpoint_find(CURRENT_PROCESS_BPL, _remove_break_verbose, kaddr);
+		bp = breakpoint_find(_target.bpl, _remove_break_verbose, kaddr);
 		if (bp) {
 			/*
 			 * Only really remove the breakpoint if it's reference count
@@ -1568,7 +1568,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 							bp->data, bp->len,
 							false);
 				if (ret == RET_OK) {
-					breakpoint_remove(&CURRENT_PROCESS_BPL,
+					breakpoint_remove(&_target.bpl,
 							  _remove_break_verbose,
 							  kaddr);
 					if (_add_break_verbose) {
@@ -1582,7 +1582,7 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 				}
 			} else {
 				/* This just decrements the ref_count */
-				breakpoint_remove(&CURRENT_PROCESS_BPL,
+				breakpoint_remove(&_target.bpl,
 						  _remove_break_verbose, kaddr);
 				ret = RET_OK;
 			}
@@ -1736,7 +1736,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			    /* Second guess the kernel */
 			    if (s != SIGTRAP) {
 				if (pc) {
-				    if (NULL != breakpoint_find(CURRENT_PROCESS_BPL, _wait_verbose, pc)) {
+				    if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc)) {
 					s = SIGTRAP;
 				    }
 				}
