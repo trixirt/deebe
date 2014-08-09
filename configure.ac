@@ -87,7 +87,7 @@ i386-*-freebsd*)
 	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
-x86_64-*-freebsd*)
+amd64-*-freebsd*|x86_64-*-freebsd*)
 	# x64 freebsd
 	os=freebsd
 	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86_64.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
