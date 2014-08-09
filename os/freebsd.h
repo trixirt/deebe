@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -48,7 +48,6 @@
 #define FRLL(N, E, GDB, O, S, GDB_S)				\
 	{							\
 		.off = (O) + offsetof(struct fpreg, E),		\
-		.size = (S),					\
 		.size = (S) ? (S) : msizeof(struct fpreg, E),	\
 		.gdb = (GDB),					\
 		.name = #N,					\
@@ -68,5 +67,8 @@
 void ptrace_os_set_singlestep(pid_t pid, long *request);
 void ptrace_os_clear_singlestep(pid_t pid);
 void ptrace_os_option_set_syscall(pid_t pid);
+void ptrace_os_option_set_thread(pid_t pid);
+bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status);
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 
 #endif
