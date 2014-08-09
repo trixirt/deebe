@@ -217,19 +217,16 @@ extern int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
-	_read_greg();
-	unsigned long sp;
-	memcpy(&sp, _target.reg + offsetof(struct reg, r_esp),
-	       sizeof(unsigned long));
-
-	memcpy(id, _target.reg + offsetof(struct reg, r_eax),
-	       sizeof(unsigned long));
-	_ptrace_read_mem(sp + 4, arg1, 4, NULL, false);
-	_ptrace_read_mem(sp + 8, arg2, 4, NULL, false);
-	_ptrace_read_mem(sp + 12, arg3, 4, NULL, false);
-	_ptrace_read_mem(sp + 16, arg4, 4, NULL, false);
-	memcpy(ret, _target.reg + offsetof(struct reg, r_eax),
-	       sizeof(unsigned long));
+  _read_greg();
+  unsigned long sp;
+  int size = sizeof(unsigned long);
+  memcpy(&sp, _target.reg + offsetof(struct reg, r_esp), size);
+  memcpy(id, _target.reg + offsetof(struct reg, r_eax), size);
+  _ptrace_read_mem(sp + (1 * size), arg1, size, NULL, false);
+  _ptrace_read_mem(sp + (2 * size), arg2, size, NULL, false);
+  _ptrace_read_mem(sp + (3 * size), arg3, size, NULL, false);
+  _ptrace_read_mem(sp + (4 * size), arg4, size, NULL, false);
+  memcpy(ret, _target.reg + offsetof(struct reg, r_eax), size);
 }
 
 void ptrace_arch_option_set_thread(pid_t pid)

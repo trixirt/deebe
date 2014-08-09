@@ -235,10 +235,21 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 	return false;
 }
 
-void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
-			     void *arg4, void *ret)
+extern int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
+			    size_t *read_size, bool breakpoint_check);
+void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
+			     void *arg3, void *arg4, void *ret)
 {
-	_read_greg();
+  _read_greg();
+  unsigned long sp;
+  int size = sizeof(unsigned long);
+  memcpy(&sp, _target.reg + offsetof(struct reg, r_rsp), size);
+  memcpy(id, _target.reg + offsetof(struct reg, r_rax), size);
+  _ptrace_read_mem(sp + (1 * size), arg1, size, NULL, false);
+  _ptrace_read_mem(sp + (2 * size), arg2, size, NULL, false);
+  _ptrace_read_mem(sp + (3 * size), arg3, size, NULL, false);
+  _ptrace_read_mem(sp + (4 * size), arg4, size, NULL, false);
+  memcpy(ret, _target.reg + offsetof(struct reg, r_rax), size);
 }
 
 void ptrace_arch_option_set_thread(pid_t pid)
