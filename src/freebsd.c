@@ -39,6 +39,8 @@
 #include "os.h"
 #include "target.h"
 
+static bool _lwpinfo_verbose = false;
+
 void ptrace_os_set_singlestep(pid_t pid, long *request)
 {
 	/*
@@ -99,22 +101,22 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
     struct ptrace_lwpinfo lwpinfo = { 0 };
 
     if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
-//    if (0 == PTRACE(PT_LWPINFO, ppid, &lwpinfo, sizeof(lwpinfo))) {
-	    
-	fprintf(stderr, "lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
-	fprintf(stderr, "lwpinfo.pl_event %x \n", lwpinfo.pl_event);
-	fprintf(stderr, "lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
-	fprintf(stderr, "lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
-	fprintf(stderr, "lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
-	if (lwpinfo.pl_flags & PL_FLAG_SI) {
-	    fprintf(stderr, "lwpinfo.pl_siginfo\n");
-	    fprintf(stderr, "\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
-	    fprintf(stderr, "\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
-	    fprintf(stderr, "\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
-	    fprintf(stderr, "\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
-	    fprintf(stderr, "\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
-	}
 
+	if (_lwpinfo_verbose) {
+	    DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
+	    DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
+	    DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
+	    DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
+	    DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
+	    if (lwpinfo.pl_flags & PL_FLAG_SI) {
+		DBG_PRINT("lwpinfo.pl_siginfo\n");
+		DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
+		DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
+		DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
+		DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
+		DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
+	    }
+	}
 
 #if 1
     if (! WIFSTOPPED(status) ||
