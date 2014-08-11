@@ -1248,15 +1248,15 @@ int ptrace_write_mem(uint64_t addr, uint8_t *data, size_t size)
 int ptrace_resume_from_current(int step, int gdb_sig)
 {
 	int ret = RET_ERR;
+#ifdef PT_SYSCALL
 	/* 
 	 * For FreeBSD
-	 * Use PT_TO_SCX to continue but stop at syscall exits
+	 * Use PT_SYSCALL to continue but stop at syscall exits
 	 * This is done to be notified when a thread has been created
+	 * and when a thread is about to be destroyed.
 	 * If this is a single step, then the single step request will
 	 * take precedence.
 	 */
-#ifdef PT_TO_SCX
-//	long request = PT_TO_SCX;
 	long request = PT_SYSCALL;
 #else
 	long request = PT_CONTINUE;
