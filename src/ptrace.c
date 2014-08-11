@@ -1639,21 +1639,17 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			DBG_PRINT("Signal lost\n");
 			/* Lie */
 			ret = RET_OK;
-			fprintf(stderr, "%d %d\n", __LINE__, ret);
 		}
-		fprintf(stderr, "%d %d\n", __LINE__, ret);
+
 	} else {
 	    
 	    if (ptrace_arch_wait_new_thread(&pid, &current_status)) {
 		/* Success */
-//		snprintf(status_string, status_string_len,
-//			 "T%02xthread:%x;", 0, pid);
 		
 		snprintf(status_string, status_string_len,
 			 "Tthread:%x;", pid);
 
 		ret = RET_OK;
-		fprintf(stderr, "%d %d\n", __LINE__, ret);
 
 	    } else {
 
@@ -1666,9 +1662,7 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			int s = WSTOPSIG(current_status);
 			unsigned long watchpoint_addr = 0;
 			/* Normal signal */
-			
 			_target.current_signal = s;
-			
 			
 			unsigned long pc = 0;
 			ptrace_arch_get_pc(&pc);
@@ -1686,33 +1680,26 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			
 			if (ptrace_arch_check_new_thread(CURRENT_PROCESS_TID, current_status, &pid)) {
 
-			    fprintf(stderr, "In thread\n");
-			 
 			    /* Check if handled check returns a valid response */
 			    if (pid > 0) {
-//				snprintf(status_string, status_string_len,
-//					 "T%02xthread:%x;", 0, pid); 
 
 				snprintf(status_string, status_string_len,
 					 "T%02xthread:%x;", 5, pid); 
 
-
-
 				ret = RET_OK;
 
-				fprintf(stderr, "In new thread\n");
 			    } else {
 
-/*				snprintf(status_string, status_string_len,
-				"T%02xthread:%x;", 0, CURRENT_PROCESS_TID);  */
-				
+				/* 
+				 * If there was any event but a new pid was not created
+				 * then send an 'ignore' return to the calling function.
+				 * It is the responsibly of that function to continue
+				 * execution and wait for the next event.
+				 */
 				ret = RET_IGNORE;
-				fprintf(stderr, "Ignore meee\n");
 			    }
 			    
 			} else if (ptrace_arch_check_syscall(CURRENT_PROCESS_TID, &s)) {
-
-			    fprintf(stderr, "In syscall \n");
 
 			    /* Check for syscall */
 			    
