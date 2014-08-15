@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -1292,12 +1292,6 @@ int ptrace_resume_from_current(int step, int gdb_sig)
 			DBG_PRINT("%s Error%d %d\n", __func__, step, sig);
 		}
 	}
-
-	if (_resume_current_verbose) {
-		DBG_PRINT("%s %d gdb %d sig %d -> ret %d\n",
-			  __func__, step, gdb_sig, sig, ret);
-	}
-
 	return ret;
 }
 
@@ -1602,16 +1596,11 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 	return ret;
 }
 
-int ptrace_wait(char *status_string, size_t status_string_len)
+int ptrace_wait(char *status_string, size_t status_string_len, int step)
 {
 	int ret = RET_ERR;
 	int current_status = 0;
 	pid_t pid = -1;
-
-	if (_wait_verbose) {
-		DBG_PRINT("%s %p %zu\n", __func__,
-			  status_string, status_string_len);
-	}
 
 	/* Could be waiting awhile, turn on sigio */
 	signal_sigio_on();
@@ -1663,30 +1652,47 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 			unsigned long watchpoint_addr = 0;
 			/* Normal signal */
 			_target.current_signal = s;
-			
-			unsigned long pc = 0;
-			ptrace_arch_get_pc(&pc);
-			
-			if (_wait_verbose) {
-			    DBG_PRINT("stopped at pc 0x%lx\n", pc);
-			    if (pc) {
-				uint8_t b[32] = { 0 };
-				size_t read_size = 0;
-				ptrace_read_mem(pc, &b[0], 32,
-						&read_size);
-				util_print_buffer(fp_log, 0, 32, &b[0]);
+
+			g = ptrace_arch_signal_to_gdb(s);
+
+			if (step && (s == SIGTRAP)) {
+
+			    if (_wait_verbose) {
+				unsigned long pc = 0;
+				ptrace_arch_get_pc(&pc);
+				
+				
+				DBG_PRINT("stepping at pc 0x%lx\n", pc);
+				if (pc) {
+				    uint8_t b[32] = { 0 };
+				    size_t read_size = 0;
+				    ptrace_read_mem(pc, &b[0], 32,
+						    &read_size);
+				    util_print_buffer(fp_log, 0, 32, &b[0]);
+				}
 			    }
-			}
+		
+
 			
-			if (ptrace_arch_check_new_thread(CURRENT_PROCESS_TID, current_status, &pid)) {
+			    /* Single stepping..  */
+			    snprintf(status_string, status_string_len, "T%02x", g);
+			    ret = RET_OK;
+
+			} else if (ptrace_arch_check_new_thread(CURRENT_PROCESS_TID, current_status, &pid)) {
 
 			    /* Check if handled check returns a valid response */
 			    if (pid > 0) {
 
-				snprintf(status_string, status_string_len,
-					 "T%02xthread:%x;", 5, pid); 
+				pid_t ppid = target_get_pid();
 
-				ret = RET_OK;
+				/* Check this isn't a death of the old thread */
+				if (ppid != pid) {
+				    snprintf(status_string, status_string_len,
+					     "T%02xthread:%x;", 5, pid); 
+				    ret = RET_OK;
+				} else {
+				    ret = RET_IGNORE;
+				}
 
 			    } else {
 
@@ -1719,6 +1725,20 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				     ptrace_arch_signal_to_gdb(s));
 			} else {
 			    /* break point or watch point */
+
+			    unsigned long pc = 0;
+			    ptrace_arch_get_pc(&pc);
+			    
+			    if (_wait_verbose) {
+				DBG_PRINT("stopped at pc 0x%lx\n", pc);
+				if (pc) {
+				    uint8_t b[32] = { 0 };
+				    size_t read_size = 0;
+				    ptrace_read_mem(pc, &b[0], 32,
+						    &read_size);
+				    util_print_buffer(fp_log, 0, 32, &b[0]);
+				}
+			    }
 			    
 			    /* Second guess the kernel */
 			    if (s != SIGTRAP) {
@@ -1729,22 +1749,45 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 				}
 			    }
 			    
-			    g = ptrace_arch_signal_to_gdb(s);
-			    if (_wait_verbose) {
-				DBG_PRINT("Wait STOPPED %d %d\n", s, g);
-			    }
-			    
-			    /* Fill out the status string */
-			    if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_TID, &watchpoint_addr)) {
-				/* A watchpoint was hit */
-				snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
-				ret = RET_OK;
+
+#if 0
 			    } else {
 				/* A normal breakpoint was hit */
 				snprintf(status_string, status_string_len, "T%02x", g);
 				ret = RET_OK;
-
 			    }
+#else
+			    
+			/* Fill out the status string */
+			if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_TID, &watchpoint_addr)) {
+			    /* A watchpoint was hit */
+			    snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
+			    ret = RET_OK;
+
+			} else {
+
+			    if (s == SIGTRAP) {
+				if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
+				    /* A normal breakpoint was hit */
+				    snprintf(status_string, status_string_len, "T%02x", g);
+				    ret = RET_OK;
+				} else {
+
+				    DBG_PRINT("UNHANDLED breakpoint \n");
+
+				    _breakpoint_print(_target.bpl);
+
+
+				    ret = RET_IGNORE;
+				}
+			    } else {
+				/* Some other signal */
+				snprintf(status_string, status_string_len, "T%02x", g);
+				ret = RET_OK;
+			    }
+			}
+			
+#endif
 			    
 			    _target.ps = PS_STOP;
 
@@ -1851,9 +1894,6 @@ int ptrace_wait(char *status_string, size_t status_string_len)
 		}
 	    }
 	}
-	if (_wait_verbose) {
-	    DBG_PRINT("%s returns %d\n", __func__, ret);
-	}
 	    
 	/* Finished waiting, turn off sigio */
 	signal_sigio_off();
@@ -1928,6 +1968,14 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 #endif
+
+	/* Disabling because it cause gdb to
+	   ignore errors on unsupported features */
+	sprintf(str, "QNonStop+;");
+	if (((strlen(str)) + c) < out_buf_size) {
+		strcat(out_buf, str);
+		c += strlen(str);
+	}
 
 
 	if (c > 1) {
