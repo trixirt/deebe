@@ -143,7 +143,7 @@ extern void ptrace_stop(void);
 extern int ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
 extern int ptrace_threadinfo_query(int first, char *out_buf,
 				   size_t out_buf_size);
-extern int ptrace_wait(char *status_string, size_t status_string_len);
+extern int ptrace_wait(char *status_string, size_t status_string_len, int step);
 extern void ptrace_quick_signal(int sig);
 extern int ptrace_wait_partial(int first, char *status_string,
 			       size_t status_string_len, int *implemented,
