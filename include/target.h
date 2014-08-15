@@ -56,9 +56,10 @@ enum process_state {
 };
 
 typedef struct target_process_rec {
-	pid_t pid;
-	pid_t tid;
-  bool alive;
+    pid_t pid;
+    pid_t tid;
+    bool alive;
+    bool seen;
 } target_process;
 
 typedef struct target_state_rec {
@@ -105,6 +106,8 @@ bool target_dead_thread(pid_t tid);
 void target_all_dead_thread();
 bool target_alive_thread(pid_t tid);
 bool target_is_tid(pid_t tid);
+
+void _target_debug_print();
 
 #define msizeof(TYPE, MEMBER) sizeof(((TYPE *)0)->MEMBER)
 

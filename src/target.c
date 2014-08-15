@@ -74,7 +74,6 @@ bool target_new_thread(pid_t pid, pid_t tid)
 	_target.current_process = _target.number_processes;
 	CURRENT_PROCESS_PID   = pid;
 	CURRENT_PROCESS_TID   = tid;
-//	CURRENT_PROCESS_BPL   = NULL;
 	CURRENT_PROCESS_ALIVE = true;
 	_target.number_processes++;
 	
@@ -157,4 +156,13 @@ bool target_is_tid(pid_t tid)
 	}
     }
     return ret;
+}
+
+void _target_debug_print() {
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	fprintf(stderr, "%d %x %x %d\n", index, PROCESS_PID(index), PROCESS_TID(index),
+		PROCESS_ALIVE(index));
+    }
 }
