@@ -63,7 +63,8 @@ struct breakpoint *breakpoint_find(struct breakpoint *bpl,
 	struct breakpoint *ret = NULL;
 	struct breakpoint *p = bpl;
 	while (p != NULL) {
-		if (p->addr == addr) {
+	    if ((p->addr <= addr) &&
+		((p->addr + p->len) > addr)) {
 			ret = p;
 			break;
 		} else {
