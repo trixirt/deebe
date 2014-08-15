@@ -111,7 +111,14 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 		DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
 		DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
 	    }
+	    if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		unsigned long id, arg1, arg2, arg3, arg4, r;
+		id = -1; /* only initiaze id, because it is the only used variable */
+		ptrace_arch_get_syscall(&id, &arg1, &arg2, &arg3, &arg4, &r);
+		DBG_PRINT("syscall enter %d\n", id);
+	    }
 	}
+
 
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 	    /* 
@@ -126,18 +133,23 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 	    ret = true;
 	    
 	    if (id == SYS_thr_exit) {
-	    /*
-	     * On the edge of exiting the thread
-	     * Reset the global current thread to the parent process
-	     * Then manually continue with the dieing thread
-	     */
+		/*
+		 * On the edge of exiting the thread
+		 * Reset the global current thread to the parent process
+		 * Then manually continue with the dieing thread
+		 */
+		
 		target_dead_thread(pid);
 		_target.current_process = 0; /* parent process index */
 		if (out_pid)
 		    *out_pid = CURRENT_PROCESS_TID;
 		
+		DBG_PRINT("Dead %x switch to %x\n", pid, CURRENT_PROCESS_TID);
+
+
+/*
 		PTRACE(PT_CONTINUE, pid, 1, 0);
-		pid = waitpid(-1, &status, 0);
+		pid = waitpid(-1, &status, 0); */
 		
 	    }
 
@@ -212,7 +224,9 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 	    
 	    /* Stopping for something that isn't a system call, like a breakpoint */
 	    if (lwpinfo.pl_flags & PL_FLAG_SI) {
+
 		ret = false;
+
 	    } else {
 		/* Maybe ? */
 		ret = true;
