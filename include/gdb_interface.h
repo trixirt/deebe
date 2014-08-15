@@ -313,7 +313,8 @@ struct gdb_target_s {
 	   status_string is unchanged unless return value is OK and
 	   implemented is non 0 */
 	int (*wait)(char *status_string,
-		    size_t status_string_len);
+		    size_t status_string_len,
+	    int step);
 
 	/* From signal handler, pass a general signal to a waiting process */
 	void (*quick_signal)(int sig);
@@ -387,6 +388,7 @@ struct gdb_target_s {
 #define RET_ERR    (1) /* Error */
 #define RET_NOSUPP (2) /* Operation is not supported */
 #define RET_IGNORE (3) /* Repeat the last operation */
+#define RET_CONTINUE (4) /* same as ignore, but send status */
 
 /* Bits of process_query mask */
 #define RP_BIT_PROCQMASK_THREADID    (1)
