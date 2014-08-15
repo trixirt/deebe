@@ -1171,7 +1171,7 @@ void handle_running_commands(char * const in_buf,
 		   blocking wait */
 		if (t->wait) {
 			ret = t->wait(status_string,
-				      status_string_len);
+				      status_string_len, step);
 		} else {
 			ret = RET_NOSUPP;
 		}
@@ -1895,42 +1895,49 @@ static int handle_v_command(char * const in_buf,
 			int step  = ((n[0] == 'S') || (n[0] == 's')) ? 1 : 0;
 			uint32_t sig = 0;
 			bool err = false;
+			int64_t p, t;
+			p = t = -1;
 
+			char *in = &n[1];
 			if ((n[0] == 'C') ||
 			    (n[0] == 'S')) {
-				char *in = &n[1];
 				if (!gdb_decode_uint32(&in, &sig, '\0')) {
 					err = true;
 				}
 			}
 
-			if (!err) {
-				ret = target->resume_from_current(step, sig);
-				if (RET_OK == ret) {
-				    if (target->wait) {
-					/* 
-					 * Sometimes 'wait' is used internally  
-					 * If wait returns an ignore status, do not send 
-					 * update to gdb, continue and go back to waiting
-					 */
-#if 1
-					do {
-					    ret = target->wait(out_buf,
-							       out_buf_len);
-
-					    if (ret == RET_IGNORE) {
-						target->resume_from_current(step, sig);
-					    }
-					} while (ret == RET_IGNORE);
-#else
-					ret = target->wait(out_buf,
-							   out_buf_len);
-					ret = RET_OK;
-#endif
-				      
-				      handled = true;
-				  }
+			/* 
+			 * Handle the case where the continue applies to a specific thread 
+			 * Look for ':<thread-id> '
+			 */
+			if (strlen(in) > 2) {
+			    if (in[0] == ':') {
+				if (0 == _decode_thread_id(&in[1], &p, &t)) {
+				    target->set_gen_thread(p, t);
 				}
+			    }
+			}
+
+			if (!err) {
+			    ret = target->resume_from_current(step, sig);
+			    if (RET_OK == ret) {
+				if (target->wait) {
+				    /* 
+				     * Sometimes 'wait' is used internally  
+				     * If wait returns an ignore status, do not send 
+				     * update to gdb, continue and go back to waiting
+				     */
+				    do {
+					ret = target->wait(out_buf,
+							   out_buf_len, step);
+					
+					if (ret == RET_IGNORE) {
+					    target->resume_from_current(step, sig);
+					}
+				    } while (ret == RET_IGNORE);
+				    handled = true;
+				}
+			    }
 			}
 		}
 	}
