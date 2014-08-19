@@ -1281,10 +1281,11 @@ int ptrace_resume_from_current(int step, int gdb_sig)
 	if (0 == PTRACE(request, CURRENT_PROCESS_TID, 1, sig)) {
 		/* Success */
 		_target.current_signal = sig;
-		if (sig)
-			_target.ps = PS_SIG_PENDING;
-		else
-			_target.ps = PS_RUN;
+		if (sig) {
+		    CURRENT_PROCESS_STATE = PS_SIG_PENDING;
+		} else {
+		    CURRENT_PROCESS_STATE = PS_RUN;
+		}
 		ret = RET_OK;
 	} else {
 		/* Failure */
@@ -1302,7 +1303,7 @@ int ptrace_resume_with_syscall(void)
 	errno = 0;
 	if (0 == PTRACE(PT_SYSCALL, CURRENT_PROCESS_TID, PT_SYSCALL_ARG3, 0)) {
 		/* Success */
-		_target.ps = PS_RUN;
+		CURRENT_PROCESS_STATE = PS_RUN;
 		ret = RET_OK;
 	} else {
 		/* Failure */
@@ -1605,7 +1606,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 	/* Could be waiting awhile, turn on sigio */
 	signal_sigio_on();
 
-	if (PS_SIG_PENDING == _target.ps) {
+	if (PS_SIG_PENDING == CURRENT_PROCESS_STATE) {
 		int errs_max = 5;
 		int errs = 0;
 		for (errs = 0; errs < errs_max; errs++) {
@@ -1712,10 +1713,10 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			    /* sycall entry or exit */
 			    if (_target.syscall_enter) {
 				/* This assumes no breakpoints etc.. */
-				_target.ps = PS_SYSCALL_EXIT;
+				CURRENT_PROCESS_STATE = PS_SYSCALL_EXIT;
 				_target.syscall_enter = false;
 			    } else {
-				_target.ps = PS_SYSCALL_ENTER;
+				CURRENT_PROCESS_STATE = PS_SYSCALL_ENTER;
 				_target.syscall_enter = true;
 			    }
 			    /* signal is optionally
@@ -1789,7 +1790,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			
 #endif
 			    
-			    _target.ps = PS_STOP;
+			    CURRENT_PROCESS_STATE = PS_STOP;
 
 			}
 
@@ -1801,9 +1802,8 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			 */
 			
 			int s = WEXITSTATUS(current_status);
-			pid_t pid, tid;
+			pid_t pid;
 			pid = CURRENT_PROCESS_PID;
-			tid = CURRENT_PROCESS_TID;
 
 			/*
 			 * returns the exit status of the  child.   This  consists  of  the
@@ -1814,14 +1814,14 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			 */
 
 			if (_wait_verbose) {
-			    DBG_PRINT("Wait EXITED %lx:%lx with %d\n", pid, tid, s);
+			    DBG_PRINT("Wait EXITED %lx with %d\n", pid, s);
 			}
 			
 
 			if (pid == target_get_pid()) {
 			    /* Check if this is the parent process */
 			    
-			    _target.ps = PS_EXIT;
+			    CURRENT_PROCESS_STATE = PS_EXIT;
 			    
 			    /* Fill out the status string */
 			    snprintf(status_string, status_string_len, "W%02x", s);
@@ -1865,7 +1865,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			}
 			snprintf(status_string, status_string_len, "X%02x", g);
 			
-			_target.ps = PS_SIG;
+			CURRENT_PROCESS_STATE = PS_SIG;
 			
 			ret = RET_OK;
 
@@ -1874,14 +1874,14 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			if (_wait_verbose) {
 			    DBG_PRINT("Wait CONTINUED\n");
 			}
-			_target.ps = PS_CONT;
+			CURRENT_PROCESS_STATE = PS_CONT;
 			ret = RET_OK;
 		    } else {
 
 			if (_wait_verbose) {
 			    DBG_PRINT("Internal error : Unhandled wait status %d\n", current_status);
 			}
-			_target.ps = PS_ERR;
+			CURRENT_PROCESS_STATE = PS_ERR;
 		    }
 
 		} else {
@@ -1890,7 +1890,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			DBG_PRINT("%s wait returned unexpect pid %x vs %x or %x\n",
 				  __func__, pid, CURRENT_PROCESS_TID, CURRENT_PROCESS_PID);
 		    }
-		    _target.ps = PS_ERR;
+		    CURRENT_PROCESS_STATE = PS_ERR;
 		}
 	    }
 	}
@@ -2062,11 +2062,6 @@ int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
 int ptrace_no_ack()
 {
 	return _target.no_ack;
-}
-
-enum process_state ptrace_get_process_state(void)
-{
-	return _target.ps;
 }
 
 void ptrace_option_set_syscall()
