@@ -59,7 +59,7 @@ typedef struct target_process_rec {
     pid_t pid;
     pid_t tid;
     bool alive;
-    bool seen;
+    enum process_state ps;
 } target_process;
 
 typedef struct target_state_rec {
@@ -70,7 +70,7 @@ typedef struct target_state_rec {
 	int current_gdb_signal;
 	int step;
 	int flag_attached_existing_process;
-	enum process_state ps;
+//	enum process_state ps;
 	size_t reg_size;
 	size_t freg_size;
 	size_t fxreg_size;
@@ -92,10 +92,12 @@ typedef struct target_state_rec {
 #define PROCESS_PID(n)   _target.process[n].pid
 #define PROCESS_TID(n)   _target.process[n].tid
 #define PROCESS_ALIVE(n) _target.process[n].alive
+#define PROCESS_STATE(n) _target.process[n].ps
 
 #define CURRENT_PROCESS_PID        PROCESS_PID(_target.current_process)
 #define CURRENT_PROCESS_TID        PROCESS_TID(_target.current_process)
 #define CURRENT_PROCESS_ALIVE      PROCESS_ALIVE(_target.current_process)
+#define CURRENT_PROCESS_STATE      PROCESS_STATE(_target.current_process)
 
 extern target_state _target;
 
