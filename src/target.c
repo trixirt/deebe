@@ -39,14 +39,13 @@
 #include <fcntl.h>
 
 #include "target.h"
+#include "global.h"
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
-	.current_signal = SIGTRAP,
 	.flag_attached_existing_process = 1,
-//	.ps = PS_START,
 	.reg_size = 0,
 	.freg_size = 0,
 	.fxreg_size = 0,
@@ -71,14 +70,17 @@ bool target_new_thread(pid_t pid, pid_t tid)
 			  sizeof(struct target_process_rec));
     if (try_process) {
 	_target.process = try_process;
-	_target.current_process = _target.number_processes;
-	CURRENT_PROCESS_PID   = pid;
-	CURRENT_PROCESS_TID   = tid;
-	CURRENT_PROCESS_ALIVE = true;
+	PROCESS_PID(_target.number_processes) = pid;
+	PROCESS_TID(_target.number_processes) = tid;
+	PROCESS_STATE(_target.number_processes) = PS_START;
+	PROCESS_WAIT_STATUS(_target.number_processes) = 0;
+	PROCESS_WAIT(_target.number_processes) = true;
+	PROCESS_SIG(_target.number_processes) = 0;
 	_target.number_processes++;
-	
 	ret = true;
-	
+
+	DBG_PRINT("%s %x\n", __func__, tid);
+
     } else {
 	/* TODO : HANDLE ERROR */
     }
@@ -92,7 +94,7 @@ int target_number_threads()
     int index;
     
     for (index = 0; index < _target.number_processes; index++) {
-	if (PROCESS_ALIVE(index))
+	if (PROCESS_STATE(index) != PS_EXIT)
 	    ret++;
     }
     return ret;
@@ -113,7 +115,7 @@ bool target_dead_thread(pid_t tid)
    
     for (index = 0; index < _target.number_processes; index++) {
 	if (tid == PROCESS_TID(index)) {
-	    PROCESS_ALIVE(index) = false;
+	    PROCESS_STATE(index) = PS_EXIT;
 	    ret = true;
 	    break;
 	}
@@ -125,7 +127,7 @@ void target_all_dead_thread(pid_t tid)
 {
     int index;
     for (index = 0; index < _target.number_processes; index++) {
-	PROCESS_ALIVE(index) = false;
+	PROCESS_STATE(index) = PS_EXIT;
     }
 }
 
@@ -136,7 +138,7 @@ bool target_alive_thread(pid_t tid)
    
     for (index = 0; index < _target.number_processes; index++) {
 	if (tid == PROCESS_TID(index)) {
-	    PROCESS_ALIVE(index) = true;
+	    PROCESS_STATE(index) = PS_START;
 	    ret = true;
 	    break;
 	}
@@ -151,9 +153,36 @@ bool target_is_tid(pid_t tid)
    
     for (index = 0; index < _target.number_processes; index++) {
 	if (tid == PROCESS_TID(index)) {
-	    PROCESS_ALIVE(index) = true;
-	    ret = true;
+	    if (PROCESS_STATE(index) != PS_EXIT)
+		ret = true;
+	    break;
 	}
+    }
+    return ret;
+}
+
+int target_index(pid_t tid)
+{
+    int ret = -1;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (tid == PROCESS_TID(index)) {
+	    ret = index;
+	    break;
+	}
+    }
+
+    return ret;
+}
+
+bool target_thread_make_current(pid_t tid)
+{
+    bool ret = false;
+    int index = target_index(tid);
+    if (index >= 0) {
+	_target.current_process = index;
+	ret = true;
     }
     return ret;
 }
@@ -163,6 +192,6 @@ void _target_debug_print() {
    
     for (index = 0; index < _target.number_processes; index++) {
 	fprintf(stderr, "%d %x %x %d\n", index, PROCESS_PID(index), PROCESS_TID(index),
-		PROCESS_ALIVE(index));
+		PROCESS_STATE(index));
     }
 }

@@ -223,3 +223,8 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
   }
   return ret;
 }
+
+int os_thread_kill(int tid, int sig) {
+    int ret = tkill(tid, sig);
+    return ret;
+}

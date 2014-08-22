@@ -74,16 +74,16 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 	  ret = RET_OK;
 	} else {
 	  /* Normal case */
-	  for (index = 0; index < _target.number_processes; index++) {
-	    if (PROCESS_TID(index) == key) {
-	      bool alive = PROCESS_ALIVE(index);
-	      if (alive) {
-		_target.current_process = index;
-		ret = RET_OK;
-	      }
-	      break;
+	    for (index = 0; index < _target.number_processes; index++) {
+		if (PROCESS_TID(index) == key) {
+		    bool alive = PROCESS_STATE(index) != PS_EXIT ? true : false;
+		    if (alive) {
+			_target.current_process = index;
+			ret = RET_OK;
+		    }
+		    break;
+		}
 	    }
-	  }
 	} 
 	return ret;
 }
@@ -98,7 +98,6 @@ int ptrace_is_thread_alive(int64_t pid, int64_t tid,
 			   int *alive)
 {
   int64_t key;
-  int index;
   int out_alive = 0; /* dead */
   if (ptrace_support_multiprocess()) {
     /* pid and tid are valid */
@@ -108,11 +107,7 @@ int ptrace_is_thread_alive(int64_t pid, int64_t tid,
     key = pid;
   }
 
-  for (index = 0; index < _target.number_processes; index++) {
-    if (PROCESS_TID(index) == key) {
-      out_alive = PROCESS_ALIVE(index);
-    }
-  }
+  out_alive = target_alive_thread(key);
 
   *alive = out_alive;
   return RET_OK;

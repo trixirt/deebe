@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -58,6 +58,7 @@ static int _network_io(int (*r)(), int (*w)(), int (*pkt)())
 {
 	int ret = 0;
 	int s;
+
 	s = r();
 	if (s > 0) {
 		/* Error or disconnect */
@@ -207,16 +208,14 @@ int main_debug()
 				fprintf(stdout, "Listening on port %ld\n", cmdline_port);
 				fflush(stdout);
 
-				do {
-					if (network_accept()) {
-						while (true) {
-							if (_network_io(network_read, network_write,
-									gdb_interface_packet)) {
-								break;
-							}
-						}
+				if (network_accept()) {
+				    do {
+					if (_network_io(network_read, network_write,
+							gdb_interface_packet)) {
+					    break;
 					}
-				} while (!cmdline_once);
+				    } while (gDebugeeRunning);
+				}
 			}
 			network_cleanup();
 		}
@@ -231,7 +230,6 @@ int main(int argc, char *argv[])
 {
 	int ret = -1;
 
-#if 1
 #ifndef DEEBE_RELEASE
 	FILE *try_log = fopen(LOG_FILENAME, "wt");
 	if (NULL != try_log)
@@ -240,7 +238,6 @@ int main(int argc, char *argv[])
 		fp_log = stdout;
 
 	try_log = NULL;
-#endif
 #else
 	fp_log = stdout;
 #endif

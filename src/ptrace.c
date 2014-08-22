@@ -1245,55 +1245,62 @@ int ptrace_write_mem(uint64_t addr, uint8_t *data, size_t size)
 	return ret;
 }
 
+int _ptrace_resume(pid_t tid, int step, int gdb_sig)
+{
+    int ret = RET_ERR;
+#ifdef PT_SYSCALL
+    /* 
+     * For FreeBSD
+     * Use PT_SYSCALL to continue but stop at syscall exits
+     * This is done to be notified when a thread has been created
+     * and when a thread is about to be destroyed.
+     * If this is a single step, then the single step request will
+     * take precedence.
+     */
+    long request = PT_SYSCALL;
+#else
+    long request = PT_CONTINUE;
+#endif
+    int sig;
+    int index = target_index(tid);
+    
+    sig = ptrace_arch_signal_from_gdb(gdb_sig);
+    if (sig < 0) {
+	sig = 0;
+    }
+
+    if (step == 1) {
+	ptrace_arch_set_singlestep(tid, &request);
+    } else {
+	ptrace_arch_clear_singlestep(tid);
+    }
+
+    /* TODO : Map sig to arg4 */
+    if (0 == PTRACE(request, tid, 1, sig)) {
+	if (index >= 0) {
+	    PROCESS_SIG(index) = sig;
+	}
+	if (sig) {
+	    if (index >= 0) {
+		PROCESS_STATE(index) = PS_SIG_PENDING;
+	    }
+	} else {
+	    if (index >= 0) {
+		PROCESS_STATE(index) = PS_RUN;
+	    }
+	}
+	ret = RET_OK;
+    } else {
+	/* Failure */
+	if (_resume_current_verbose) {
+	    DBG_PRINT("%s Error%d %d : %s\n", __func__, step, sig, strerror(errno));
+	}
+    }
+    return ret;
+}
 int ptrace_resume_from_current(int step, int gdb_sig)
 {
-	int ret = RET_ERR;
-#ifdef PT_SYSCALL
-	/* 
-	 * For FreeBSD
-	 * Use PT_SYSCALL to continue but stop at syscall exits
-	 * This is done to be notified when a thread has been created
-	 * and when a thread is about to be destroyed.
-	 * If this is a single step, then the single step request will
-	 * take precedence.
-	 */
-	long request = PT_SYSCALL;
-#else
-	long request = PT_CONTINUE;
-#endif
-	int sig;
-
-	_target.step = step;
-	_target.current_gdb_signal = gdb_sig;
-
-	sig = ptrace_arch_signal_from_gdb(gdb_sig);
-	if (sig < 0) {
-		sig = 0;
-	}
-
-	if (step == 1) {
-		ptrace_arch_set_singlestep(CURRENT_PROCESS_TID, &request);
-	} else {
-		ptrace_arch_clear_singlestep(CURRENT_PROCESS_TID);
-	}
-
-	/* TODO : Map sig to arg4 */
-	if (0 == PTRACE(request, CURRENT_PROCESS_TID, 1, sig)) {
-		/* Success */
-		_target.current_signal = sig;
-		if (sig) {
-		    CURRENT_PROCESS_STATE = PS_SIG_PENDING;
-		} else {
-		    CURRENT_PROCESS_STATE = PS_RUN;
-		}
-		ret = RET_OK;
-	} else {
-		/* Failure */
-		if (_resume_current_verbose) {
-			DBG_PRINT("%s Error%d %d\n", __func__, step, sig);
-		}
-	}
-	return ret;
+    return _ptrace_resume(CURRENT_PROCESS_TID, step, gdb_sig);
 }
 
 int ptrace_resume_with_syscall(void)
@@ -1597,7 +1604,350 @@ int ptrace_remove_break(int type, uint64_t addr, size_t len)
 	return ret;
 }
 
-int ptrace_wait(char *status_string, size_t status_string_len, int step)
+static void _clear_ws()
+{
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	PROCESS_WAIT_STATUS(index) = 0;
+	PROCESS_WAIT(index) = false;
+    }
+}
+
+static void _deliver_sig() {
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_STATE(index) == PS_SIG_PENDING) {
+	    int wait_status;
+	    int wait_tid;
+	    pid_t tid = PROCESS_TID(index);
+	    int sig = PROCESS_SIG(index);
+	    int errs_max = 5;
+	    int errs = 0;
+
+	    for (errs = 0; errs < errs_max; errs++) {
+		/* Sleep for a msec */
+		usleep(100);
+		wait_tid = waitpid(tid, &wait_status, WNOHANG);
+		if (tid == wait_tid) {
+		    PROCESS_WAIT_STATUS(index) = wait_status;
+		    PROCESS_WAIT(index) = true;
+		    break;
+		} else {
+		    /* failure, try resending */
+		    os_thread_kill(tid, sig);
+		    usleep(100);
+		}
+	    }
+	}
+    }
+}
+
+static void _wait_all() {
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+
+	if (PROCESS_WAIT(index)) {
+	    /* Already waiting */
+	    continue;
+	} else {
+	    pid_t tid = PROCESS_TID(index);
+	    int wait_status;
+	    pid_t wait_tid;
+	    
+	    wait_tid = waitpid(tid, &wait_status, WNOHANG);
+	    
+	    if (tid == wait_tid) {
+		PROCESS_WAIT_STATUS(index) = wait_status;
+		PROCESS_WAIT(index) = true;
+	    }
+	}
+    }
+}
+
+static bool _exited(char *str, size_t len) {
+    bool ret = false;
+
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+
+	if (!PROCESS_WAIT(index)) {
+	    continue;
+	} else {
+	    pid_t tid = PROCESS_TID(index);
+	    int wait_status = PROCESS_WAIT_STATUS(index);
+
+	    
+	    if (WIFEXITED(wait_status)) {
+
+		if (index == 0) {
+	    
+		    /*
+		     * returns true if the child terminated normally, that is,
+		     * by calling exit(3) or _exit(2), or by returning from main().
+		     */
+		    
+		    int exit_status = WEXITSTATUS(wait_status);
+		    
+		    /*
+		     * returns the exit status of the  child.   This  consists  of  the
+		     * least  significant  16-8  bits  of  the status argument that the
+		     * child specified in a call to exit() or _exit() or as  the  argu-
+		     * ment  for  a return statement in main().  This macro should only
+		     * be employed if WIFEXITED returned true.
+		     */
+		    
+		    /* Fill out the status string */
+		    snprintf(str, len, "W%02x", exit_status);
+		    
+		    PROCESS_STATE(index) = PS_EXIT;
+
+		    /* For main */
+		    gDebugeeRunning = false;
+
+		    ret = true;
+		    goto end;
+		} else {
+
+		    /* 
+		     * A thread has exited, set it's alive state to false
+		     * and switch to the parent process
+		     */
+		    PROCESS_STATE(index) = PS_EXIT;
+		    
+		    /* Need to find a replacement for current thread, use the parent */
+		    if (CURRENT_PROCESS_TID == tid) {
+			_target.current_process = 0;
+			
+			/* And report the change */
+			snprintf(str, len,
+				 "T%02xthread:%x;", 
+				 0 /* No signal */, 
+				 CURRENT_PROCESS_TID);
+		    }
+		}
+	    } 
+	}
+    }
+end:
+    return ret;
+}
+
+static void _signaled(char *str, size_t len) {
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	if (!PROCESS_WAIT(index)) {
+	    continue;
+	} else {
+	    pid_t tid = PROCESS_TID(index);
+	    int wait_status = PROCESS_WAIT_STATUS(index);
+
+	    if (WIFSIGNALED(wait_status)) {
+		
+		if (tid == CURRENT_PROCESS_TID) {
+		    int g;
+		    
+		    /* returns true if the child process
+		       was terminated by a signal. */
+		    
+		    int s = WTERMSIG(wait_status);
+#ifndef DEEBE_RELEASE
+		    int c = WCOREDUMP(wait_status);
+#endif
+		    g = ptrace_arch_signal_to_gdb(s);
+		    if (_wait_verbose) {
+			DBG_PRINT("Wait SIGNALED %d cored %d - %d\n", s, c, g);
+		    }
+		    snprintf(str, len, "X%02x", g);
+		}
+		PROCESS_STATE(index) = PS_SIG;
+	    }
+	}
+    }
+}
+
+static void _singlestepped (char *str, size_t len, int step) {
+    if (step) {
+	int index;
+	for (index = 0; index < _target.number_processes; index++) {
+	    if (!PROCESS_WAIT(index)) {
+		continue;
+	    } else {
+		pid_t tid = PROCESS_TID(index);
+		int wait_status = PROCESS_WAIT_STATUS(index);
+
+		if (WIFSTOPPED(wait_status)) {
+		    int s = WSTOPSIG(wait_status);
+		    int g = ptrace_arch_signal_to_gdb(s);
+		    
+		    /* ok to do this after checking for exit status */
+		    PROCESS_WAIT_STATUS(index) = 0;
+
+		    if (tid == CURRENT_PROCESS_TID) {
+			/* Single stepping..  */
+			snprintf(str, len, "T%02x", g);
+		    }
+		}
+	    }
+	}
+    }
+}
+
+
+static void _newthreadcreated(char *str, size_t len) {
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	if (!PROCESS_WAIT(index)) {
+	    continue;
+	} else {
+	    pid_t tid = PROCESS_TID(index);
+	    int wait_status = PROCESS_WAIT_STATUS(index);
+
+	    if (WIFSTOPPED(wait_status)) {
+		pid_t new_tid;
+		if (ptrace_arch_check_new_thread(tid, wait_status, &new_tid)) {
+
+		    /* ok to do this after checking for exit status */
+		    PROCESS_WAIT_STATUS(index) = 0;
+
+		    /* TODO : Rework for stop/nonstop 
+
+		    if (new_tid > 0) {
+			if (tid == CURRENT_PROCESS_TID) {
+			    snprintf(str, len,
+				     "T%02xthread:%x;", 5, new_tid); 
+			}
+		    }
+		    */
+		}
+	    }
+	}
+    }
+}
+
+
+
+static void _breakpointed(char *str, size_t len, int step) {
+    if (!step) {
+	int index;
+	for (index = 0; index < _target.number_processes; index++) {
+
+	    if (!PROCESS_WAIT(index)) {
+		continue;
+	    } else {
+		pid_t tid = PROCESS_TID(index);
+		int wait_status = PROCESS_WAIT_STATUS(index);
+
+		if (WIFSTOPPED(wait_status)) {
+
+		    int s = WSTOPSIG(wait_status);
+		    int g = ptrace_arch_signal_to_gdb(s);
+
+		    if (s == SIGTRAP) {
+			unsigned long watchpoint_addr = 0;
+			unsigned long pc = 0;
+			ptrace_arch_get_pc(&pc);
+			
+			if (_wait_verbose) {
+			    DBG_PRINT("stopped at pc 0x%lx\n", pc);
+			    if (pc) {
+				uint8_t b[32] = { 0 };
+				size_t read_size = 0;
+				ptrace_read_mem(pc, &b[0], 32,
+						&read_size);
+				util_print_buffer(fp_log, 0, 32, &b[0]);
+			    }
+			}
+
+			/* Report all of it.. */
+			if (target_thread_make_current(tid)) {
+			    /* Fill out the status string */
+			    if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
+				/* A watchpoint was hit */
+				snprintf(str, len, "T%02xthread:%x;watch:%lx;", g, tid, watchpoint_addr);
+			    } else {
+				if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
+				    /* A normal breakpoint was hit */
+				    snprintf(str, len, "T%02xthread:%x;", g, tid);
+				} 
+			    } 
+			}
+		    } else {
+			/* Report all of it.. */
+			if (target_thread_make_current(tid)) {
+			    snprintf(str, len, "T%02xthread:%x;", g, tid);
+			}
+		    }
+		}
+	    }
+	}
+    }
+}
+
+/* XXX does not seem to be used on FreeBSD .. */
+static void _continueothers(int step) {
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	if (!PROCESS_WAIT(index)) {
+	    continue;
+	} else {
+	    pid_t tid = PROCESS_TID(index);
+	    int wait_status = PROCESS_WAIT_STATUS(index);
+	    
+	    if ((wait_status) && 
+		(tid != CURRENT_PROCESS_TID)) {
+		int sig = PROCESS_SIG(index);
+		int g = ptrace_arch_signal_to_gdb(sig);
+		_ptrace_resume(tid, step, g);
+	    }
+	}
+    }
+}
+
+
+static int ptrace_wait_async(char *str, size_t len, int step) 
+{
+    _clear_ws();
+
+    /* Could be waiting awhile, turn on sigio */
+    signal_sigio_on();
+
+    _deliver_sig();
+    _wait_all();
+    /* TODO : Add os check for new thread */
+
+    str[0] = 0;
+    if (! _exited(str, len)) {
+	_signaled(str, len);
+	_singlestepped(str, len, step);
+	_newthreadcreated(str, len);
+	_breakpointed(str, len, step);
+	_continueothers(step);
+    }
+
+    /* Finished waiting, turn off sigio */
+    signal_sigio_off();
+
+    if (CURRENT_PROCESS_WAIT) {
+	if (strlen(str)) {
+	    return RET_OK;
+	} else {
+	    return RET_IGNORE;
+	}
+    } else {
+
+	int read_status;
+	read_status = network_read();
+	if (0 == read_status) {
+	    gdb_interface_quick_packet();
+	}
+	network_write();
+
+	return RET_CONTINUE_WAIT;
+    }
+}
+
+
+static int ptrace_wait_sync(char *status_string, size_t status_string_len, int step)
 {
 	int ret = RET_ERR;
 	int current_status = 0;
@@ -1619,7 +1969,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 				/* failure */
 				if (errs + 2 < errs_max)
 					kill(CURRENT_PROCESS_TID,
-					     _target.current_signal);
+					     CURRENT_PROCESS_SIG);
 				else
 					kill(CURRENT_PROCESS_TID, SIGTRAP);
 				usleep(100);
@@ -1652,7 +2002,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			int s = WSTOPSIG(current_status);
 			unsigned long watchpoint_addr = 0;
 			/* Normal signal */
-			_target.current_signal = s;
+			CURRENT_PROCESS_SIG = s;
 
 			g = ptrace_arch_signal_to_gdb(s);
 
@@ -1672,8 +2022,6 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 				    util_print_buffer(fp_log, 0, 32, &b[0]);
 				}
 			    }
-		
-
 			
 			    /* Single stepping..  */
 			    snprintf(status_string, status_string_len, "T%02x", g);
@@ -1750,46 +2098,35 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 				}
 			    }
 			    
-
-#if 0
-			    } else {
-				/* A normal breakpoint was hit */
-				snprintf(status_string, status_string_len, "T%02x", g);
+			    /* Fill out the status string */
+			    if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_TID, &watchpoint_addr)) {
+				/* A watchpoint was hit */
+				snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
 				ret = RET_OK;
-			    }
-#else
-			    
-			/* Fill out the status string */
-			if (ptrace_arch_hit_watchpoint(CURRENT_PROCESS_TID, &watchpoint_addr)) {
-			    /* A watchpoint was hit */
-			    snprintf(status_string, status_string_len, "T%02xwatch:%lx;", g, watchpoint_addr);
-			    ret = RET_OK;
+				
+			    } else {
+				
+				if (s == SIGTRAP) {
+				    if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
+					/* A normal breakpoint was hit */
+					snprintf(status_string, status_string_len, "T%02x", g);
+					ret = RET_OK;
+				    } else {
+					
+					DBG_PRINT("UNHANDLED breakpoint \n");
+					
+					_breakpoint_print(_target.bpl);
+					
 
-			} else {
-
-			    if (s == SIGTRAP) {
-				if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
-				    /* A normal breakpoint was hit */
+					ret = RET_IGNORE;
+				    }
+				} else {
+				    /* Some other signal */
 				    snprintf(status_string, status_string_len, "T%02x", g);
 				    ret = RET_OK;
-				} else {
-
-				    DBG_PRINT("UNHANDLED breakpoint \n");
-
-				    _breakpoint_print(_target.bpl);
-
-
-				    ret = RET_IGNORE;
 				}
-			    } else {
-				/* Some other signal */
-				snprintf(status_string, status_string_len, "T%02x", g);
-				ret = RET_OK;
 			    }
-			}
 			
-#endif
-			    
 			    CURRENT_PROCESS_STATE = PS_STOP;
 
 			}
@@ -1825,6 +2162,9 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			    
 			    /* Fill out the status string */
 			    snprintf(status_string, status_string_len, "W%02x", s);
+
+			    /* For main */
+			    gDebugeeRunning = false;
 			} else {
 			    int index;
 			    
@@ -1832,7 +2172,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 			     * A thread has exited, set it's alive state to false
 			     * and switch to the parent process
 			     */
-			    CURRENT_PROCESS_ALIVE = false;
+			    CURRENT_PROCESS_STATE = PS_EXIT;
 			    
 			    /* Ingnore non children, because the clone returns before the parent */
 			    for (index = 0; index < _target.number_processes; index++) {
@@ -1899,6 +2239,16 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 	signal_sigio_off();
 	
 	return ret;
+}
+
+int ptrace_wait(char *status_string, size_t status_string_len, int step)
+{
+    /* TODO : Key off of QNonStop */
+    if (1 == 1)
+	return ptrace_wait_async(status_string, status_string_len, step);
+    else
+	return ptrace_wait_sync(status_string, status_string_len, step);
+
 }
 
 int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
@@ -1987,7 +2337,7 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 
 int ptrace_get_signal(void)
 {
-	return _target.current_signal;
+    return CURRENT_PROCESS_SIG;
 }
 
 static int _parseHexList(char *inbuf)

@@ -58,19 +58,18 @@ enum process_state {
 typedef struct target_process_rec {
     pid_t pid;
     pid_t tid;
-    bool alive;
     enum process_state ps;
+    int ws; /* wait status */
+    bool w; /* waiting ? */
+    int sig; /* signal */
 } target_process;
 
 typedef struct target_state_rec {
 	int no_ack;
 	int multiprocess;
 	bool syscall_enter;
-	int current_signal;
-	int current_gdb_signal;
 	int step;
 	int flag_attached_existing_process;
-//	enum process_state ps;
 	size_t reg_size;
 	size_t freg_size;
 	size_t fxreg_size;
@@ -89,15 +88,20 @@ typedef struct target_state_rec {
 	struct breakpoint *bpl;
 } target_state;
 
-#define PROCESS_PID(n)   _target.process[n].pid
-#define PROCESS_TID(n)   _target.process[n].tid
-#define PROCESS_ALIVE(n) _target.process[n].alive
-#define PROCESS_STATE(n) _target.process[n].ps
+#define PROCESS_PID(n)         _target.process[n].pid
+#define PROCESS_TID(n)         _target.process[n].tid
+#define PROCESS_STATE(n)       _target.process[n].ps
+#define PROCESS_WAIT_STATUS(n) _target.process[n].ws
+#define PROCESS_WAIT(n)        _target.process[n].w
+#define PROCESS_SIG(n)         _target.process[n].sig
 
-#define CURRENT_PROCESS_PID        PROCESS_PID(_target.current_process)
-#define CURRENT_PROCESS_TID        PROCESS_TID(_target.current_process)
-#define CURRENT_PROCESS_ALIVE      PROCESS_ALIVE(_target.current_process)
-#define CURRENT_PROCESS_STATE      PROCESS_STATE(_target.current_process)
+#define CURRENT_PROCESS_PID         PROCESS_PID(_target.current_process)
+#define CURRENT_PROCESS_TID         PROCESS_TID(_target.current_process)
+#define CURRENT_PROCESS_STATE       PROCESS_STATE(_target.current_process)
+#define CURRENT_PROCESS_WAIT_STATUS PROCESS_WAIT_STATUS(_target.current_process)
+#define CURRENT_PROCESS_WAIT        PROCESS_WAIT(_target.current_process)
+#define CURRENT_PROCESS_SIG         PROCESS_SIG(_target.current_process)
+
 
 extern target_state _target;
 
@@ -107,7 +111,9 @@ pid_t target_get_pid();
 bool target_dead_thread(pid_t tid);
 void target_all_dead_thread();
 bool target_alive_thread(pid_t tid);
+int target_index(pid_t tid);
 bool target_is_tid(pid_t tid);
+bool target_thread_make_current(pid_t tid);
 
 void _target_debug_print();
 
