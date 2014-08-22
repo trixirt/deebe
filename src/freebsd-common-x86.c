@@ -71,6 +71,9 @@ bool x86_read_debug_reg(pid_t pid, size_t reg, void *val)
 	if (reg < 8) {
 		_read_dbreg();
 		size_t addr = reg * sizeof(unsigned int);
+
+		// fprintf(stderr, "%s %p %p %d\n", __func__, _target.dbreg, _target.dbreg_rw, _target.dbreg_size);
+
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
 			memcpy(val, _target.dbreg + addr, sizeof(unsigned int));
 			ret = true;

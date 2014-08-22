@@ -104,6 +104,9 @@ struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
 				  int type, size_t len) {
 	/*@null@*/struct breakpoint *ret = NULL;
 	struct breakpoint *bp = NULL;
+
+	// fprintf(stderr, "bp add %x\n", (unsigned int) addr);
+
 	/*
 	 * It is ok to have multiple breakpoints at the same address
 	 * If we find one, increment its reference count

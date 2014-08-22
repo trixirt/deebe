@@ -103,6 +103,8 @@ extern log_func gdb_interface_log;
 
 extern FILE *fp_log;
 
+extern bool gDebugeeRunning;
+
 /* host signal mappings */
 extern int host_signal_to_gdb(int sig);
 extern int host_signal_from_gdb(int gdb);
@@ -144,6 +146,8 @@ int gdb_interface_debug_level = -1;
 /*@null@*/log_func gdb_interface_log = NULL;
 
 FILE *fp_log = NULL;
+
+bool gDebugeeRunning = true;
 
 #endif /* DECL_GLOBAL */
 #endif /* _GLOBAL_H */

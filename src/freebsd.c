@@ -33,6 +33,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/syscall.h>
+#include <sys/thr.h>
 #include "target_ptrace.h"
 #include <machine/reg.h>
 #include "global.h"
@@ -187,7 +188,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 				    if (! target_is_tid(lwpid_list[i])) {
 					if (target_new_thread(parent, lwpid_list[i])) {
 					    if (out_pid)
-						*out_pid = CURRENT_PROCESS_TID;
+						*out_pid = lwpid_list[i]; // CURRENT_PROCESS_TID;
 					}
 					break;
 				    }
@@ -240,4 +241,8 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
     return ret;
 }
 
+int os_thread_kill(int tid, int sig) {
+    int ret = thr_kill((long)tid, sig);
+    return ret;
+}
 

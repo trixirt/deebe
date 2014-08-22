@@ -388,7 +388,7 @@ struct gdb_target_s {
 #define RET_ERR    (1) /* Error */
 #define RET_NOSUPP (2) /* Operation is not supported */
 #define RET_IGNORE (3) /* Repeat the last operation */
-#define RET_CONTINUE (4) /* same as ignore, but send status */
+#define RET_CONTINUE_WAIT (4) /* No body waiting.. skip resume and go back to waiting */
 
 /* Bits of process_query mask */
 #define RP_BIT_PROCQMASK_THREADID    (1)

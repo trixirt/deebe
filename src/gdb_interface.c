@@ -1934,7 +1934,7 @@ static int handle_v_command(char * const in_buf,
 					if (ret == RET_IGNORE) {
 					    target->resume_from_current(step, sig);
 					}
-				    } while (ret == RET_IGNORE);
+				    } while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
 				    handled = true;
 				}
 			    }
@@ -3066,6 +3066,16 @@ int gdb_interface_quick_packet()
 				ret = 0;
 			}
 			break;
+
+		case 'v':
+		    if (0 == strncmp(in_buf, "vCont;c", 7)) {
+			dbg_ack_packet_received(false, NULL);
+			ret = 0;
+		    } else {
+			/* Ignore */
+			DBG_PRINT("quick packet : ignoring %s ", in_buf);
+		    }
+		    break;
 
 		default:
 			/* Ignore */
