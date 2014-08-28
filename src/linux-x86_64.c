@@ -173,12 +173,12 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
-void ptrace_arch_read_fxreg()
+void ptrace_arch_read_fxreg(pid_t tid, size_t size)
 {
 	/* part of fp regs */
 }
 
-void ptrace_arch_write_fxreg()
+void ptrace_arch_write_fxreg(pid_t tid)
 {
 	/* part of fp regs */
 }
@@ -194,19 +194,19 @@ int ptrace_arch_gdb_greg_max()
 	return 24;
 }
 
-void ptrace_arch_get_pc(unsigned long *pc)
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
 {
-	_read_greg();
+	_read_greg(tid);
 	memcpy(pc, _target.reg + offsetof(struct user, regs.rip),
 	       sizeof(unsigned long));
 }
 
-void ptrace_arch_set_pc(unsigned long pc)
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 {
-	_read_greg();
+	_read_greg(tid);
 	memcpy(_target.reg + offsetof(struct user, regs.rip), &pc,
 	       sizeof(unsigned long));
-	_write_greg();
+	_write_greg(tid);
 }
 
 void ptrace_arch_option_set_syscall(pid_t pid)
@@ -219,10 +219,10 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 	return false;
 }
 
-void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
-	_read_greg();
+	_read_greg(tid);
 }
 
 bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size)

@@ -38,22 +38,22 @@
 #include "global.h"
 #include "dptrace.h"
 
-void ptrace_os_read_fxreg()
+void ptrace_os_read_fxreg(pid_t tid)
 {
 #ifdef PT_GETFPXREGS
 	if (NULL != _target.fxreg) {
-		_read_reg(PT_GETFPXREGS, PT_SETFPXREGS,
+		_read_reg(tid, PT_GETFPXREGS, PT_SETFPXREGS,
 			  &_target.fxreg, &_target.fxreg_rw,
 			  &_target.fxreg_size);
 	}
 #endif
 }
 
-void ptrace_os_write_fxreg()
+void ptrace_os_write_fxreg(pid_t tid)
 {
 #ifdef PT_GETFPXREGS
 	if (NULL != _target.fxreg) {
-		_write_reg(PT_SETFPXREGS, _target.fxreg);
+		_write_reg(tid, PT_SETFPXREGS, _target.fxreg);
 	}
 #endif
 }
@@ -101,71 +101,67 @@ void ptrace_os_option_set_thread(pid_t pid)
 bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 {
     bool ret = false;
-    bool is_old = false;
-    int index;
-    pid_t pid;
-    int current_status;
+    pid_t tid;
+    int status = 0;
+    
+    tid = waitpid(-1, &status, __WALL | WNOHANG);
+    if (tid > 0) {
 
-    pid = waitpid(-1, &current_status, __WALL);
-    /* Ingnore non children, because the clone returns before the parent */
-    for (index = 0; index < _target.number_processes; index++) {
-	if (PROCESS_TID(index) == pid) {
-	    is_old = true;
-	    break;
-	}
-    }
+	    fprintf(stderr, "%x\n", tid);
 
-    if (is_old) {
+	    if (!target_is_tid(tid)) {
+		    pid_t tid2;
+		    fprintf(stderr, "Got %x %x\n", tid, status);
 
-	    if (out_pid)
-		    *out_pid = pid;
-	    if (out_status)
-		    *out_status = current_status;
-
-    } else { /* ! is_old */
-
-	pid_t new_tid = pid;
-	int errs_max = 5;
-	int errs = 0;
-	for (errs = 0; errs < errs_max; errs++) {
-	    /* Sleep for a 1 msec */
-	    usleep(1000);
-	    pid = waitpid(CURRENT_PROCESS_TID, &current_status, WNOHANG);
-	    if (pid == CURRENT_PROCESS_TID) {
-		break;
+		    int thread_status;
+		    int errs_max = 5;
+		    int errs = 0;
+		    for (errs = 0; errs < errs_max; errs++) {
+			    /* Sleep for a 1 msec */
+			    usleep(1000);
+			    tid2 = waitpid(tid, &thread_status, WNOHANG | __WCLONE);
+			    if (tid2 == tid) {
+				    break;
+			    } else {
+				    int other_index;
+				    other_index = target_index(tid2);
+				    if (other_index >= 0) {
+					    PROCESS_WAIT_STATUS(other_index) = status;
+					    PROCESS_WAIT(other_index) = true;
+					    
+					    DBG_PRINT("%s strange.. %d %x\n", __func__, other_index, status);
+					    
+				    } else {
+					    DBG_PRINT("%s try %d %x vs %x status %d\n", __func__, errs, tid2, tid, thread_status);
+				    }
+			    }
+		    }
+		    
+		    if (errs < errs_max) {
+			    if (WIFSTOPPED(thread_status) &&
+				(WSTOPSIG(thread_status) == SIGSTOP)) {
+				    if (target_new_thread(CURRENT_PROCESS_PID, tid, 0, /* thread_status,*/ true)) {
+					    if (out_pid)
+						    *out_pid = tid;
+					    ret = true;
+					    
+					    DBG_PRINT("%s good.. %x\n", __func__, tid);
+					    
+				    } else {
+					    DBG_PRINT("%s error allocating new thread\n", __func__);
+				    }
+			    } else {
+				    DBG_PRINT("%s error with expected thread wait status %x\n", __func__, thread_status);
+			    }
+		    } else {
+			    DBG_PRINT("%s error waiting for child thread : Error is %s\n", __func__, strerror(errno));
+		    }
+		    
+	    } else {
+		    int index = target_index(tid);
+		    PROCESS_WAIT_STATUS(index) = status;
+		    PROCESS_WAIT(index) = true;
 	    }
-	}
-	if (errs == errs_max) {
-	    void *try_process = NULL;
-	    /* child pid without a parent */
-	    
-	    /* Since the parent is not known, use a valid, if incorrect value */
-	    pid_t current_process_pid = CURRENT_PROCESS_PID;
-	    
-	    /* re-Allocate per process state */
-	    try_process = realloc(_target.process,
-				  (_target.number_processes + 1) *
-				  sizeof(struct target_process_rec));
-	    if (try_process) {
-		
-		_target.process = try_process;
-		_target.current_process = _target.number_processes; /* this one */
-		_target.number_processes++;
-		
-		CURRENT_PROCESS_PID   = current_process_pid;
-		CURRENT_PROCESS_TID   = new_tid;
-		CURRENT_PROCESS_ALIVE = true;
-
-		if (out_pid)
-		    *out_pid = new_tid;
-		if (out_status)
-		    *out_status = current_status;
-
-		ret = true;
-		} else {
-		DBG_PRINT("Allocation of proccess failed\n");
-	    }
-	}
     }
 
     return ret;
@@ -173,58 +169,71 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
-  bool ret = false;
+	bool ret = false;
 
-  int s = WSTOPSIG(status);
-  if (s == SIGTRAP) {
-    int e = (status >> 16) & 0xff;
-    if (e == PTRACE_EVENT_CLONE) {
+#if 0
+	int s = WSTOPSIG(status);
+	if (s == SIGTRAP) {
+		int e = (status >> 16) & 0xff;
+		if (e == PTRACE_EVENT_CLONE) {
 
-	unsigned long new_tid = 0;
-	if (0 != ptrace(PTRACE_GETEVENTMSG, CURRENT_PROCESS_TID, 0, &new_tid)) {
-	    DBG_PRINT("ptrace error with new thread id\n");
-	} else {
-	    void *try_process = NULL;
-	    int thread_status;
-	    pid_t wait_pid;
-	    
-	    /* Wait for all children, to catch the thread */
-	    wait_pid = waitpid(-1, &thread_status, __WALL);
-	    if ((new_tid == wait_pid) && 
-		(WIFSTOPPED(thread_status) &&
-		 (WSTOPSIG(thread_status) == SIGSTOP))) {
+			DBG_PRINT("%s looking good\n", __func__);
 
-		pid_t current_process_pid = CURRENT_PROCESS_PID;
-			      
-		/* re-Allocate per process state */
-		try_process = realloc(_target.process,
-				      (_target.number_processes + 1) *
-				      sizeof(struct target_process_rec));
-		if (try_process) {
-		    
-		    _target.process = try_process;
-		    _target.current_process = _target.number_processes; /* this one */
-		    _target.number_processes++;
-		    
-		    CURRENT_PROCESS_PID   = current_process_pid;
-		    CURRENT_PROCESS_TID   = new_tid;
-		    CURRENT_PROCESS_ALIVE = true;
+			unsigned long new_tid = 0;
+			if (0 != ptrace(PTRACE_GETEVENTMSG, CURRENT_PROCESS_TID, 0, &new_tid)) {
+				DBG_PRINT("ptrace error with new thread id\n");
+			} else {
+				int thread_status;
+				int errs_max = 5;
+				int errs = 0;
+				for (errs = 0; errs < errs_max; errs++) {
+					/* Sleep for a 1 msec */
+					usleep(1000);
+					pid = waitpid(new_tid, &thread_status, WNOHANG | __WCLONE);
+					if (pid == new_tid) {
+						break;
+					} else {
+						int other_index;
+						other_index = target_index(pid);
+						if (other_index >= 0) {
+							PROCESS_WAIT_STATUS(other_index) = status;
+							PROCESS_WAIT(other_index) = true;
 
-		    if (out_pid)
-			    *out_pid = new_tid;
+							DBG_PRINT("%s strange.. %d %x\n", __func__, other_index, status);
 
-		    ret = true;
-		} else {
-		    DBG_PRINT("Allocation of proccess failed\n");
+						} else {
+							DBG_PRINT("%s try %d %x vs %x status %d\n", __func__, errs, pid, new_tid, thread_status);
+						}
+					}
+				}
+
+				if (errs < errs_max) {
+					if (WIFSTOPPED(thread_status) &&
+					    (WSTOPSIG(thread_status) == SIGSTOP)) {
+						if (target_new_thread(CURRENT_PROCESS_PID, new_tid, 0, /* thread_status,*/ true)) {
+							if (out_pid)
+								*out_pid = new_tid;
+							ret = true;
+							
+							DBG_PRINT("%s good.. %x\n", __func__, new_tid);
+
+						} else {
+							DBG_PRINT("%s error allocating new thread\n", __func__);
+						}
+					} else {
+						DBG_PRINT("%s error with expected thread wait status %x\n", __func__, thread_status);
+					}
+				} else {
+					DBG_PRINT("%s error waiting for child thread : Error is %s\n", __func__, strerror(errno));
+				}
+			}
 		}
-	    }
 	}
-    }
-  }
-  return ret;
+#endif
+
+	return ret;
 }
 
 int os_thread_kill(int tid, int sig) {
-    int ret = tkill(tid, sig);
-    return ret;
+    return 1;
 }

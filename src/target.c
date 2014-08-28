@@ -43,6 +43,7 @@
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
+	.nonstop = 1, /* threading runs in non-stop mode */
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 1,
@@ -59,32 +60,45 @@ target_state _target = {
 	.process = NULL, /* TODO : FREE THIS */
 };
 
-bool target_new_thread(pid_t pid, pid_t tid)
+bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting)
 {
     bool ret = false;
-    void *try_process = NULL;
-    
-    /* Allocate registers for the process */
-    try_process = realloc(_target.process,
-			  (_target.number_processes + 1) *
-			  sizeof(struct target_process_rec));
-    if (try_process) {
-	_target.process = try_process;
-	PROCESS_PID(_target.number_processes) = pid;
-	PROCESS_TID(_target.number_processes) = tid;
-	PROCESS_STATE(_target.number_processes) = PS_START;
-	PROCESS_WAIT_STATUS(_target.number_processes) = 0;
-	PROCESS_WAIT(_target.number_processes) = true;
-	PROCESS_SIG(_target.number_processes) = 0;
-	_target.number_processes++;
-	ret = true;
+    int index;
 
-	DBG_PRINT("%s %x\n", __func__, tid);
-
-    } else {
-	/* TODO : HANDLE ERROR */
+    /* Try to reused an exited process's space */
+    for (index = 0; index < _target.number_processes; index++) {
+	    if (PROCESS_STATE(index) == PS_EXIT)
+		    break;
     }
 
+    /* No space, tack one onto the end */
+    if (index >= _target.number_processes) {
+	    void *try_process = NULL;
+
+	    /* Allocate registers for the process */
+	    try_process = realloc(_target.process,
+				  (_target.number_processes + 1) *
+				  sizeof(struct target_process_rec));
+	    if (!try_process) {
+		    goto end;
+	    } else {
+		    _target.process = try_process;
+		    index = _target.number_processes;
+		    _target.number_processes++;
+	    }
+    } 
+
+    PROCESS_PID(index) = pid;
+    PROCESS_TID(index) = tid;
+    PROCESS_STATE(index) = PS_START;
+    PROCESS_WAIT_STATUS(index) = wait_status;
+    PROCESS_WAIT(index) = waiting;
+    PROCESS_SIG(index) = 0;
+    ret = true;
+
+end:
+
+    DBG_PRINT("%s pid %x tid %x index %d return %d\n", __func__, pid, tid, index, ret);
     return ret;
 }
 
@@ -183,6 +197,9 @@ bool target_thread_make_current(pid_t tid)
     if (index >= 0) {
 	_target.current_process = index;
 	ret = true;
+
+	DBG_PRINT("%s %x %d\n", __func__, tid, index);
+	
     }
     return ret;
 }
@@ -194,4 +211,9 @@ void _target_debug_print() {
 	fprintf(stderr, "%d %x %x %d\n", index, PROCESS_PID(index), PROCESS_TID(index),
 		PROCESS_STATE(index));
     }
+}
+
+int target_current_index()
+{
+	return _target.current_process;
 }

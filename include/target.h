@@ -43,13 +43,13 @@
 
 enum process_state {
 	PS_NULL = 0,
-	PS_START,
-	PS_RUN,
-	PS_EXIT,
+	PS_START, /* Initial state, process is just starting */
+	PS_RUN,   /* process is running */
+	PS_EXIT,  /* process has exited */
 	PS_SIG,
 	PS_SIG_PENDING,
 	PS_ERR,
-	PS_CONT,
+	PS_CONT,  /* process needs to continue */
 	PS_STOP,
 	PS_SYSCALL_ENTER,
 	PS_SYSCALL_EXIT,
@@ -66,6 +66,7 @@ typedef struct target_process_rec {
 
 typedef struct target_state_rec {
 	int no_ack;
+	int nonstop;
 	int multiprocess;
 	bool syscall_enter;
 	int step;
@@ -102,10 +103,11 @@ typedef struct target_state_rec {
 #define CURRENT_PROCESS_WAIT        PROCESS_WAIT(_target.current_process)
 #define CURRENT_PROCESS_SIG         PROCESS_SIG(_target.current_process)
 
+#define PROCESS_WAIT_STATUS_DEFAULT -1
 
 extern target_state _target;
 
-bool target_new_thread(pid_t pid, pid_t tid);
+bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting);
 int target_number_threads();
 pid_t target_get_pid();
 bool target_dead_thread(pid_t tid);
@@ -114,6 +116,7 @@ bool target_alive_thread(pid_t tid);
 int target_index(pid_t tid);
 bool target_is_tid(pid_t tid);
 bool target_thread_make_current(pid_t tid);
+int target_current_index();
 
 void _target_debug_print();
 
