@@ -57,11 +57,11 @@
 typedef void (*out_f)(const char *string);
 
 /* Internal functions */
-bool _read_greg();
-void _write_greg();
+bool _read_greg(pid_t tid);
+void _write_greg(pid_t tid);
 void _print_rll(struct reg_location_list *rl);
-bool _read_dbreg();
-void _write_dbreg();
+bool _read_dbreg(pid_t tid);
+void _write_dbreg(pid_t tid);
 
 /*
  * Defined in the ARCH
@@ -70,13 +70,13 @@ void _write_dbreg();
 /* functions */
 int ptrace_arch_gdb_greg_max();
 int ptrace_arch_swbreak_insn(void *bdata);
-void ptrace_arch_get_pc(unsigned long *pc);
-void ptrace_arch_set_pc(unsigned long pc);
-void ptrace_arch_set_singlestep(pid_t pid, long *request);
-bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig);
-void ptrace_arch_clear_singlestep(pid_t pid);
-void ptrace_arch_read_greg();
-void ptrace_arch_write_greg();
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc);
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc);
+void ptrace_arch_set_singlestep(pid_t tid, long *request);
+bool ptrace_arch_check_syscall(pid_t tid, int *in_out_sig);
+void ptrace_arch_clear_singlestep(pid_t tid);
+void ptrace_arch_read_greg(pid_t tid);
+void ptrace_arch_write_greg(pid_t tid);
 /* TBD : Move gdb signal handling out of ptrace */
 int ptrace_arch_signal_to_gdb(int sig);
 int ptrace_arch_signal_from_gdb(int gdb);
@@ -88,26 +88,26 @@ bool ptrace_arch_add_watchpoint(pid_t pid, int type, unsigned long addr,
 bool ptrace_arch_remove_watchpoint(pid_t pid, int type, unsigned long addr,
 				   size_t len);
 bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr);
-void ptrace_arch_read_fxreg();
-void ptrace_arch_write_fxreg();
-void ptrace_arch_read_dbreg();
-void ptrace_arch_write_dbreg();
+void ptrace_arch_read_fxreg(pid_t tid, size_t size);
+void ptrace_arch_write_fxreg(pid_t tid);
+void ptrace_arch_read_dbreg(pid_t tid);
+void ptrace_arch_write_dbreg(pid_t tid);
 void ptrace_arch_option_set_syscall(pid_t pid);
 void ptrace_arch_option_set_thread(pid_t pid);
-void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void *arg3,
 			     void *arg4, void *ret);
 bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status);
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 
 /* Internal functions used by arch's */
-bool _read_reg(int GET, int SET, void **reg, uint8_t **reg_rw,
+bool _read_reg(pid_t tid, int GET, int SET, void **reg, uint8_t **reg_rw,
 	       size_t *reg_size);
-void _write_reg(long SET, void *reg);
+void _write_reg(pid_t tid, long SET, void *reg);
 
 /* Public functions */
 
-extern int ptrace_add_break(int type, uint64_t addr, size_t len);
-extern int ptrace_attach(pid_t process_id);
+extern int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len);
+extern int ptrace_attach(pid_t tid);
 extern void ptrace_close(void);
 extern int ptrace_connect(char *status_string, size_t status_string_len,
 			  int *can_restart);
@@ -118,8 +118,8 @@ extern int ptrace_general_set(char *inbuf, char *outbuf, size_t size);
 extern enum process_state ptrace_get_process_state(void);
 extern int ptrace_go_waiting(int gdb_sig);
 extern void ptrace_help(/*@unused@*/char *prog_name);
-extern void ptrace_kill(void);
-extern void ptrace_quick_kill(void);
+extern void ptrace_kill(pid_t tid);
+extern void ptrace_quick_kill(pid_t tid);
 extern int ptrace_no_ack();
 extern int ptrace_offsets_query(uint64_t *text, uint64_t *data, uint64_t *bss);
 extern int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
@@ -127,32 +127,32 @@ extern int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
 extern void ptrace_option_set_syscall();
 extern int ptrace_get_signal(void);
 extern int ptrace_raw_query(char *in_buf, char *out_buf, size_t out_buf_size);
-extern int ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
+extern int ptrace_read_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 			   size_t *read_size);
-extern int ptrace_read_registers(uint8_t *data, uint8_t *avail,
+extern int ptrace_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 				 size_t buf_size, size_t *read_size);
-extern int ptrace_read_single_register(unsigned int gdb, uint8_t *data,
+extern int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 				       uint8_t *avail, size_t buf_size,
 				       size_t *read_size);
 extern int ptrace_restart(void);
-extern int ptrace_resume_from_addr(int step, int gdb_sig, uint64_t addr);
-extern int ptrace_resume_from_current(int step, int gdb_sig);
-extern int ptrace_resume_with_syscall(void);
-extern int ptrace_remove_break(int type, uint64_t addr, size_t len);
-extern void ptrace_stop(void);
+extern int ptrace_resume_from_addr(pid_t tid, int step, int gdb_sig, uint64_t addr);
+extern int ptrace_resume_from_current(pid_t tid, int step, int gdb_sig);
+extern int ptrace_resume_with_syscall(pid_t tid);
+extern int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len);
+extern void ptrace_stop(pid_t tid);
 extern int ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
 extern int ptrace_threadinfo_query(int first, char *out_buf,
 				   size_t out_buf_size);
 extern int ptrace_wait(char *status_string, size_t status_string_len, int step);
-extern void ptrace_quick_signal(int sig);
+extern void ptrace_quick_signal(pid_t tid, int sig);
 extern int ptrace_wait_partial(int first, char *status_string,
 			       size_t status_string_len, int *implemented,
 			       int *more);
-extern int ptrace_write_mem(uint64_t addr, uint8_t *data, size_t size);
-extern int ptrace_write_registers(uint8_t *data, size_t size);
-extern int ptrace_write_single_register(unsigned int gdb, uint8_t *data,
+extern int ptrace_write_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
+extern int ptrace_write_registers(pid_t tid, uint8_t *data, size_t size);
+extern int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 					size_t size);
-extern void ptrace_get_syscall(void *id, void *arg1, void *arg2, void *arg3,
+extern void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void *arg3,
 			       void *arg4, void *ret);
 
 

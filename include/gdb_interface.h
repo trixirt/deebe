@@ -196,9 +196,9 @@ struct gdb_target_s {
 	/* Kill target: disconnect from a target and leave it waiting
 	   for a command. It is expected that either close or wait or
 	   connect will follow after kill to get last status_string */
-	void (*kill)(void);
+	void (*kill)(pid_t tid);
 	/* Similar to kill but called from signal handler */
-	void (*quick_kill)(void);
+	void (*quick_kill)(pid_t tid);
 
 	/* Restart target and return status string */
 	int (*restart)(void);
@@ -206,7 +206,7 @@ struct gdb_target_s {
 	/* Stop target. E.g. send ^C or BREAK to target - note
 	   it has to be followed either by wait or connect in order to
 	   to get last status_string */
-	void (*stop)(void);
+	void (*stop)(pid_t tid);
 
 	/*============== Thread Control ===============================*/
 
@@ -225,20 +225,22 @@ struct gdb_target_s {
 	   target byte order. If  register is not available
 	   corresponding bytes in avail_buf are 0, otherwise
 	   avail buf is 1 */
-	int (*read_registers)(unsigned char *data_buf,
+	int (*read_registers)(pid_t tid,
+			      unsigned char *data_buf,
 			      unsigned char *avail_buf,
 			      size_t buf_size,
 			      size_t *read_size);
 
 	/* Write all registers. buf is 4-byte aligned and it is in target
 	   byte order */
-	int (*write_registers)(unsigned char *buf, size_t write_size);
+	int (*write_registers)(pid_t tid, unsigned char *buf, size_t write_size);
 
 	/* Read one register. buf is 4-byte aligned and it is in
 	   target byte order. If  register is not available
 	   corresponding bytes in avail_buf are 0, otherwise
 	   avail buf is 1 */
-	int (*read_single_register)(unsigned int reg_no,
+	int (*read_single_register)(pid_t tid,
+				    unsigned int reg_no,
 				    unsigned char *buf,
 				    unsigned char *avail_buf,
 				    size_t buf_size,
@@ -246,7 +248,8 @@ struct gdb_target_s {
 
 	/* Write one register. buf is 4-byte aligned and it is in target byte
 	   order */
-	int (*write_single_register)(unsigned int reg_no,
+	int (*write_single_register)(pid_t tid,
+				     unsigned int reg_no,
 				     unsigned char *buf,
 				     size_t write_size);
 
@@ -254,14 +257,16 @@ struct gdb_target_s {
 
 	/* Read memory, buf is 4-bytes aligned and it is in target
 	   byte order */
-	int (*read_mem)(uint64_t addr,
+	int (*read_mem)(pid_t tid,
+			uint64_t addr,
 			unsigned char *buf,
 			size_t req_size,
 			size_t *actual_size);
 
 	/* Write memory, buf is 4-bytes aligned and it is in target
 	   byte order */
-	int (*write_mem)(uint64_t addr,
+	int (*write_mem)(pid_t tid,
+			 uint64_t addr,
 			 unsigned char *buf,
 			 size_t req_size);
 
@@ -269,11 +274,11 @@ struct gdb_target_s {
 
 	/* Resume from current address, if not supported it
 	   has to be figured out by wait */
-	int (*resume_from_current)(int step, int sig);
+	int (*resume_from_current)(pid_t tid, int step, int sig);
 
 	/* Resume from specified address, if not supported it
 	   has to be figured out by wait */
-	int (*resume_from_addr)(int step, int sig, uint64_t addr);
+	int (*resume_from_addr)(pid_t tid, int step, int sig, uint64_t addr);
 
 	/* Allow threads which are not stopped already to continue */
 	int (*go_waiting)(int sig);
@@ -317,7 +322,7 @@ struct gdb_target_s {
 	    int step);
 
 	/* From signal handler, pass a general signal to a waiting process */
-	void (*quick_signal)(int sig);
+	void (*quick_signal)(pid_t tid, int sig);
 	/*============= Queries ===============================*/
 
 	/* Bits of mask determine set of information about thread
@@ -357,8 +362,8 @@ struct gdb_target_s {
 
 	/*============ Breakpoints ===========================*/
 
-	int (*add_break)(int type, uint64_t addr, size_t length);
-	int (*remove_break)(int type, uint64_t addr, size_t length);
+	int (*add_break)(pid_t tid, int type, uint64_t addr, size_t length);
+	int (*remove_break)(pid_t tid, int type, uint64_t addr, size_t length);
 
 	/* Query thread info */
 	int (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);

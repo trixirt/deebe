@@ -1,7 +1,7 @@
 /*
    This file is derrived from the gdbproxy project's gdbproxy.c
    The changes to this file are
-   Copyright (C) 2012-2013 Juniper Networks, Inc
+   Copyright (C) 2012-2014 Juniper Networks, Inc
 
    The original copyright is
 
@@ -84,6 +84,7 @@
 #include "network.h"
 #include "global.h"
 #include "util.h"
+#include "target.h"
 
 static void dbg_sock_putchar(int c)
 {
@@ -811,7 +812,8 @@ void handle_read_registers_command(char * const in_buf,
 
 	/* Get all registers. Format: 'g'. Note we do not do any
 	   data caching - all caching is done by the debugger */
-	ret = t->read_registers(data_buf,
+	ret = t->read_registers(CURRENT_PROCESS_TID,
+				data_buf,
 				avail_buf,
 				sizeof(data_buf),
 				&len);
@@ -924,7 +926,7 @@ void handle_write_registers_command(char * const in_buf,
 		return;
 	}
 
-	ret = t->write_registers(data_buf, len);
+	ret = t->write_registers(CURRENT_PROCESS_TID, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -947,7 +949,8 @@ void handle_read_single_register_command(char * const in_buf,
 		return;
 	}
 
-	ret = t->read_single_register(reg_no,
+	ret = t->read_single_register(CURRENT_PROCESS_TID,
+				      reg_no,
 				      data_buf,
 				      avail_buf,
 				      sizeof(data_buf),
@@ -997,7 +1000,7 @@ void handle_write_single_register_command(char * const in_buf,
 	}
 	ASSERT(len < GDB_INTERFACE_PARAM_DATABYTES_MAX);
 
-	ret = t->write_single_register(reg_no, data_buf, len);
+	ret = t->write_single_register(CURRENT_PROCESS_TID, reg_no, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -1023,7 +1026,7 @@ void handle_read_memory_command(char * const in_buf,
 	if (len > ((RP_VAL_DBG_PBUFSIZ - 32)/2))
 		len = (RP_VAL_DBG_PBUFSIZ - 32)/2;
 
-	ret = t->read_mem(addr, data_buf, len, &read_len);
+	ret = t->read_mem(CURRENT_PROCESS_TID, addr, data_buf, len, &read_len);
 	switch (ret) {
 	case RET_OK:
 		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
@@ -1079,7 +1082,7 @@ void handle_write_memory_command(char * const in_buf,
 		return;
 	}
 
-	ret = t->write_mem(addr, data_buf, len);
+	ret = t->write_mem(CURRENT_PROCESS_TID, addr, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -1145,10 +1148,10 @@ void handle_running_commands(char * const in_buf,
 		if (!gdb_decode_uint64(&addr_ptr, &addr, '\0'))	{
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
-		}
-		ret = t->resume_from_addr(step, sig, addr);
-	} else {
-		ret = t->resume_from_current(step, sig);
+		} /* XXX */
+		ret = t->resume_from_addr(CURRENT_PROCESS_TID, step, sig, addr);
+	} else { /* XXX */
+		ret = t->resume_from_current(CURRENT_PROCESS_TID, step, sig);
 	}
 
 	if (ret != RET_OK) {
@@ -1202,7 +1205,7 @@ int handle_kill_command(char * const in_buf,
 {
 	int ret;
 
-	t->kill();
+	t->kill(CURRENT_PROCESS_TID);
 
 	if (!extended_protocol)	{
 		if (cmdline_once) {
@@ -1323,7 +1326,7 @@ void handle_detach_command(char * const in_buf,
 	int ret = RET_NOSUPP;
 
 	if (t->detach) {
-		ret = t->detach();
+		ret = t->detach(CURRENT_PROCESS_TID);
 	} else {
 		t->disconnect();
 	}
@@ -1615,7 +1618,7 @@ void handle_query_command(char * const in_buf,
 							if (read_buf) {
 								if (t->read_mem) {
 									size_t bytes_read;
-									if (RET_OK == t->read_mem(addr, read_buf, len, &bytes_read)) {
+									if (RET_OK == t->read_mem(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
 										if (bytes_read == len) {
 											void *found = NULL;
 											found = memmem(read_buf, len, pattern, pattern_len);
@@ -1809,9 +1812,9 @@ static void handle_breakpoint_command(char * const in_buf,
 	}
 
 	if (in_buf[0] == 'Z')
-		ret = t->add_break(type, addr, len);
+		ret = t->add_break(CURRENT_PROCESS_TID, type, addr, len);
 	else
-		ret = t->remove_break(type, addr, len);
+		ret = t->remove_break(CURRENT_PROCESS_TID, type, addr, len);
 
 	gdb_interface_write_retval(ret, out_buf);
 }
@@ -1919,7 +1922,7 @@ static int handle_v_command(char * const in_buf,
 			}
 
 			if (!err) {
-			    ret = target->resume_from_current(step, sig);
+				ret = target->resume_from_current(CURRENT_PROCESS_TID, step, sig);
 			    if (RET_OK == ret) {
 				if (target->wait) {
 				    /* 
@@ -1932,7 +1935,7 @@ static int handle_v_command(char * const in_buf,
 							   out_buf_len, step);
 					
 					if (ret == RET_IGNORE) {
-					    target->resume_from_current(step, sig);
+						target->resume_from_current(CURRENT_PROCESS_TID, step, sig);
 					}
 				    } while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
 				    handled = true;
@@ -3031,7 +3034,7 @@ int gdb_interface_quick_packet()
 	if (s == '\3') {
 		if (gdb_interface_target->stop) {
 			dbg_ack_packet_received(false, NULL);
-			gdb_interface_target->stop();
+			gdb_interface_target->stop(CURRENT_PROCESS_TID);
 		} else {
 			DBG_PRINT("TBD : Handle ctrl-c\n");
 		}
@@ -3041,7 +3044,7 @@ int gdb_interface_quick_packet()
 		case 'k':
 			if (gdb_interface_target->quick_kill) {
 				dbg_ack_packet_received(false, NULL);
-				gdb_interface_target->quick_kill();
+				gdb_interface_target->quick_kill(CURRENT_PROCESS_TID);
 				ret = 0;
 			}
 			break;
@@ -3053,7 +3056,7 @@ int gdb_interface_quick_packet()
 				in = &in_buf[1];
 				if (gdb_decode_uint32(&in, &sig, '\0')) {
 					dbg_ack_packet_received(false, NULL);
-					gdb_interface_target->quick_signal(sig);
+					gdb_interface_target->quick_signal(CURRENT_PROCESS_TID, sig);
 					ret = 0;
 				}
 			}
@@ -3062,7 +3065,7 @@ int gdb_interface_quick_packet()
 		case 'c':
 			if (gdb_interface_target->quick_signal) {
 				dbg_ack_packet_received(false, NULL);
-				gdb_interface_target->quick_signal(SIGTRAP);
+				gdb_interface_target->quick_signal(CURRENT_PROCESS_TID, SIGTRAP);
 				ret = 0;
 			}
 			break;
