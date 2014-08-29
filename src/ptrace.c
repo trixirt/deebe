@@ -726,12 +726,19 @@ void ptrace_stop(pid_t tid)
 	if (kill(tid, SIGINT)) {
 		/* Failure */
 		if (_stop_verbose) {
-			DBG_PRINT("ERROR sending SIGINT to %d\n", tid);
+			DBG_PRINT("ERROR sending SIGINT to %x\n", tid);
 		}
 	} else {
+		int index = target_index(tid);
+		if (index >= 0) {
+			PROCESS_SIG(index) = SIGINT;
+		} else {
+			DBG_PRINT("Error with target index\n");
+		}
+
 		/* Success */
 		if (_stop_verbose) {
-			DBG_PRINT("OK sending SIGINT to %d\n", tid);
+			DBG_PRINT("OK sending SIGINT to %x\n", tid);
 		}
 	}
 }
@@ -2727,4 +2734,134 @@ void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			void *arg3, void *arg4, void *ret)
 {
 	ptrace_arch_get_syscall(tid, id, arg1, arg2, arg3, arg4, ret);
+}
+
+int ptrace_set_gen_thread(int64_t pid, int64_t tid)
+{
+	int ret = RET_ERR;
+	int64_t key;
+
+	DBG_PRINT("%s  %x %x\n", __func__, (unsigned int)pid, (unsigned int)tid);
+
+	if (_target.multiprocess) {
+	  /* pid and tid are valid */
+	  key = tid;
+	} else {
+	  /* only pid is valid, but it is really tid */
+	  key = pid;
+	}
+
+	if ((key == 0) ||
+	    (key == -1)) {
+	  /* TODO HANDLE */
+	  ret = RET_OK;
+	} else {
+		int index;
+		/* Normal case */
+		index = target_index(key);
+		pid_t old_current = CURRENT_PROCESS_TID;
+		pid_t new_current = PROCESS_TID(index);
+
+		DBG_PRINT("%s index %d\n", __func__, index);
+
+		if (index < 0) {
+			/* Not a valid thread */
+		} else if (!target_alive_thread(new_current)) {
+			/* dead thread */
+			DBG_PRINT("%s dead %d\n", __func__, index);
+		} else if (_target.current_process == index) {
+			/* The trival case */
+			DBG_PRINT("%s trivial %d\n", __func__, index);
+			ret = RET_OK;
+		} else if (PROCESS_WAIT(index)) {
+			/* We got lucky, the process is already in a wait state */
+			target_thread_make_current(index);
+			
+			DBG_PRINT("%s already waiting %d\n", __func__, index);
+
+			/*
+			 * Continuing the old current will happen automatically
+			 * when the normal continue/wait logic runs
+			 */
+			ret = RET_OK;
+		} else {
+			/*
+			 * The current thread is not the one that is being switched to.
+			 * So stop the needed thread, and continue the now old current thread
+			 */
+			fprintf(stderr, "%s switching from %x to %x\n", __func__, old_current, new_current);
+			
+			ptrace_stop(new_current);
+			/*
+			 * ptrace_stop send a SIG_INT to the tid
+			 * To seperate this signal from a normal signal, flag it as 'internal'
+			 */
+			PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+
+			/* Sleep for a a msec */
+			usleep(1000);
+			
+			/*
+			 * Now wait..
+			 * Ripped off logic from normal wait.
+			 * TBD : Clean up.
+			 */
+			{
+				int wait_ret;
+				char str[128];
+				size_t len = 128;
+				int tries = 0;
+				int max_tries = 20;
+				do {
+					wait_ret = ptrace_wait(str, len, 0);
+					/*
+					 * A side effect of wait is that it can set the current tid
+					 * when an event like a break point is hit.  Check to make sure
+					 * this doesn't happen.  We lose the event and continue to try 
+					 * to stop the thread that is requested.
+					 */
+					if (wait_ret == RET_OK) {
+						if (CURRENT_PROCESS_TID != new_current) {
+							/*
+							 * Double check that the thread did not exit before
+							 * the signal to stop was handled
+							 */
+							if (PROCESS_STATE(index) == PS_EXIT) {
+								/*
+								 * Nothing much to do here about the requested thread.
+								 * When a thread exits, the current thread changes to the main process
+								 * The main process is now in a wait state, so no need to contine in
+								 * this wait/continue loop.  Goto the end and return an error
+								 */
+								goto end;
+							} else {
+								/*
+								 * Keep track of the number of tries
+								 * Don't get stuck in an infinite loop here.
+								 */
+								tries++;
+								if (tries > max_tries) {
+									DBG_PRINT("Exceeded maximume retries to switch threads\n");
+									/* Some thread is waiting.. so goto end and return an error */
+									goto end;
+								} else {
+									/* Abuse the return value */
+									wait_ret = RET_IGNORE;
+								}
+							}
+						}
+					} 
+
+					if (wait_ret == RET_IGNORE) {
+						ptrace_resume_from_current(CURRENT_PROCESS_TID, 0, 0);
+					}
+				} while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
+
+				DBG_PRINT("%s: %s\n", __func__, str);
+				ret = RET_OK;
+			}
+		}
+	}
+end:
+	return ret;
 }

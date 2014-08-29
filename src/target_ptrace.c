@@ -54,39 +54,6 @@ static int ptrace_support_multiprocess() {
 	return _target.multiprocess;
 }
 
-int ptrace_set_gen_thread(int64_t pid, int64_t tid)
-{
-	int ret = RET_ERR;
-	int index;
-	int64_t key;
-
-	if (ptrace_support_multiprocess()) {
-	  /* pid and tid are valid */
-	  key = tid;
-	} else {
-	  /* only pid is valid, but it is really tid */
-	  key = pid;
-	}
-
-	if ((key == 0) ||
-	    (key == -1)) {
-	  /* TODO HANDLE */
-	  ret = RET_OK;
-	} else {
-	  /* Normal case */
-	    for (index = 0; index < _target.number_processes; index++) {
-		if (PROCESS_TID(index) == key) {
-		    bool alive = PROCESS_STATE(index) != PS_EXIT ? true : false;
-		    if (alive) {
-			_target.current_process = index;
-			ret = RET_OK;
-		    }
-		    break;
-		}
-	    }
-	} 
-	return ret;
-}
 
 int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id)
 {

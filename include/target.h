@@ -48,6 +48,7 @@ enum process_state {
 	PS_EXIT,  /* process has exited */
 	PS_SIG,
 	PS_SIG_PENDING,
+	PS_INTERNAL_SIG_PENDING,
 	PS_ERR,
 	PS_CONT,  /* process needs to continue */
 	PS_STOP,
