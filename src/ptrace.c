@@ -1497,8 +1497,10 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
 		/* Add to general list first */
 		struct breakpoint *bp = NULL;
+		size_t arch_brkpt_len = ptrace_arch_swbreak_size();
+		
 		bp = breakpoint_add(&_target.bpl, _add_break_verbose,
-				    kaddr, type, len);
+				    kaddr, type, arch_brkpt_len);
 		if (bp) {
 			/* Get the arch specific break insn */
 			ret = ptrace_arch_swbreak_insn(bp->bdata);
@@ -2020,9 +2022,8 @@ static void _stopped_single(char *str, size_t len) {
 					}
 				}
 			} else {
-
-				/* A non trap signal */
-				snprintf(str, len, "T%02xthread:%x;", g, tid);
+			    /* A non trap signal */
+			    snprintf(str, len, "T%02xthread:%x;", g, tid);
 			}
 		}
 	}
@@ -2057,13 +2058,21 @@ static void _stopped_all(char *str, size_t len) {
 						valid = true;
 						no_event = false;
 					} else {
-						if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
-							/* A normal breakpoint was hit */
-							snprintf(str, len, "T%02xthread:%x;", g, tid);
-							target_thread_make_current(tid);
-							valid = true;
-							no_event = false;
-						} 
+					  if (ptrace_arch_swbreak_size()) {
+					    if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
+					      /* A normal breakpoint was hit */
+					      snprintf(str, len, "T%02xthread:%x;", g, tid);
+					      target_thread_make_current(tid);
+					      valid = true;
+					      no_event = false;
+					    } 
+					  } else {
+					    /* gdb is doing the breaking */;
+					    snprintf(str, len, "T%02xthread:%x;", g, tid);
+					    target_thread_make_current(tid);
+					    valid = true;
+					    no_event = false;
+					  }
 					}
 
 					if (valid && _wait_verbose) {
@@ -2097,37 +2106,12 @@ static void _stopped_all(char *str, size_t len) {
 						 * A normal signal
 						 */
 
-						fprintf(stderr, "%x %x : %x\n", tid, g, PROCESS_STATE(index));
-					
 						/* A non trap signal */
 
 						/* Report all of it.. */
 						if (target_thread_make_current(tid)) {
-							snprintf(str, len, "T%02xthread:%x;", g, tid);
-
-							{
-								unsigned long pc = 0;
-								ptrace_arch_get_pc(tid, &pc);
-								DBG_PRINT("stopped at pc 0x%lx %d\n", pc, index);
-
-
-								if (pc) {
-									uint8_t b[32] = { 0 };
-									size_t read_size = 0;
-									ptrace_read_mem(tid, pc-16, &b[0], 32,
-											&read_size);
-									util_print_buffer(fp_log, 0, 32, &b[0]);
-
-									_ptrace_read_mem(tid, pc-16, &b[0], 32,
-											 &read_size, false);
-									util_print_buffer(fp_log, 0, 32, &b[0]);
-
-									if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
-										DBG_PRINT("stumbled on a breakpoint\n");
-
-									}
-								}
-							}
+						    /* A non trap signal */
+						    snprintf(str, len, "T%02xthread:%x;", g, tid);
 						}
 					}
 				}
