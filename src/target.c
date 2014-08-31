@@ -43,7 +43,7 @@
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
-	.nonstop = 1, /* threading runs in non-stop mode */
+	.nonstop = NS_ON, /* threading runs in non-stop mode */
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 1,

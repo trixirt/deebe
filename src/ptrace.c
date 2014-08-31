@@ -2601,15 +2601,16 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 	}
 #endif
 
-#if 0
-	/* Disabling because it cause gdb to
-	   ignore errors on unsupported features */
+	/*
+	 * NonStop means threads can run conncurrently
+	 * The difficulty is when things like memory
+	 * need to be written too.
+	 */
 	sprintf(str, "QNonStop+;");
 	if (((strlen(str)) + c) < out_buf_size) {
 		strcat(out_buf, str);
 		c += strlen(str);
 	}
-#endif
 
 	if (c > 1) {
 		ret = RET_OK;
@@ -2626,6 +2627,10 @@ int ptrace_get_signal(void)
 static int _parseHexList(char *inbuf)
 {
 	return -1;
+}
+
+static void _all_stop() {
+  /* NOOP */
 }
 
 int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
@@ -2688,17 +2693,17 @@ int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
 		ret = RET_OK;
 	}
 
-#if 0
 	sprintf(str, "QNonStop:");
 	if (strncmp(inbuf, str, strlen(str)) == 0) {
 		inbuf += strlen(str);
-		if (inbuf[0] == '0')
-			_target.nonstop = 0;
-		else
-			_target.nonstop = 1;
+		if (inbuf[0] == '0') {
+		  _all_stop() ;
+		  _target.nonstop = NS_OFF;
+		} else {
+		  _target.nonstop = NS_ON;
+		}
 		ret = RET_OK;
 	}
-#endif
 
 	return ret;
 }
