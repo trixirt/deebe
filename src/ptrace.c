@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -1758,10 +1758,10 @@ void __wait(pid_t t) {
 	if (tid > 0 && status != -1) {
 		siginfo_t si = { 0 };
 		if (0 == ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)) {
-			fprintf(stderr, "Got siginfo\n");
-			fprintf(stderr, "signo %d\n", si.si_signo);
-			fprintf(stderr, "errno %d\n", si.si_errno);
-			fprintf(stderr, "code  %d\n", si.si_code);
+		    fprintf(stderr, "Got siginfo %x %x\n", tid, status);
+			fprintf(stderr, "signo %x\n", si.si_signo);
+			fprintf(stderr, "errno %x\n", si.si_errno);
+			fprintf(stderr, "code  %x\n", si.si_code);
 		} else {
 			fprintf(stderr, "NO siginfo\n");
 		}
@@ -2033,7 +2033,22 @@ static void _stopped_all(char *str, size_t len) {
 	int index;
 	bool no_event = true; /* Nothing to report to gdb */
 	for (index = 0; no_event && index < _target.number_processes; index++) {
-		if (PROCESS_WAIT(index)) {
+	  
+	  bool process_wait = PROCESS_WAIT(index);
+	  if (process_wait) {
+	    /*
+	     * When running in AllStop
+	     * Only check for either the current thread or any new threads
+	     * The other threads can keep on waiting
+	     */
+	    if (NS_OFF == _target.nonstop) {
+	      if (!((index == target_current_index()) ||
+		    (PS_START == PROCESS_STATE(index)))) {
+		process_wait = false;
+	      }
+	    }
+	  }
+	  if (process_wait) {
 			
 			pid_t tid = PROCESS_TID(index);
 			int wait_status = PROCESS_WAIT_STATUS(index);
@@ -2058,21 +2073,20 @@ static void _stopped_all(char *str, size_t len) {
 						valid = true;
 						no_event = false;
 					} else {
-					  if (ptrace_arch_swbreak_size()) {
-					    if (NULL != breakpoint_find(_target.bpl, _wait_verbose, pc -1)) {
-					      /* A normal breakpoint was hit */
-					      snprintf(str, len, "T%02xthread:%x;", g, tid);
-					      target_thread_make_current(tid);
-					      valid = true;
-					      no_event = false;
-					    } 
-					  } else {
-					    /* gdb is doing the breaking */;
-					    snprintf(str, len, "T%02xthread:%x;", g, tid);
-					    target_thread_make_current(tid);
-					    valid = true;
-					    no_event = false;
-					  }
+					    /*
+					     * On Linux, when a new thread is created, the parent receives
+					     * a SIGTRAP with the addition information of PTRACE_EVENT_CLONE
+					     * embedded in the wait status status.  Check for this before
+					     * returning an SIGTRAP to gdb.  Gdb will receive the the notification
+					     * of a new thread from the the new thread, not the parent
+					     */
+					    if (!ptrace_os_new_thread(wait_status)) {
+						/* A normal breakpoint was hit, or a trap instruction */
+						snprintf(str, len, "T%02xthread:%x;", g, tid);
+						target_thread_make_current(tid);
+						valid = true;
+						no_event = false;
+					    }
 					}
 
 					if (valid && _wait_verbose) {
@@ -2092,7 +2106,8 @@ static void _stopped_all(char *str, size_t len) {
 					/*
 					 * On linux, thread indicates it has been started
 					 * by starting with a STOP signal.  When this is
-					 * seen when the process state is at PS_START, ignore.
+					 * seen when the process state is at PS_START and
+					 * running in NonStop, ignore.
 					 * The enumeration of the new thread has already happended.
 					 * 
 					 * Strengthen the check to ignore all signals when the
@@ -2100,7 +2115,18 @@ static void _stopped_all(char *str, size_t len) {
 					 * 
 					 */
 					if (PS_START == PROCESS_STATE(index)) {
-						DBG_PRINT("Ignoring start state signal %x %d\n", tid, g);
+					  if (NS_OFF == _target.nonstop) {
+					      /* Remap signal to SIGTRAP */
+					      g = ptrace_arch_signal_to_gdb(SIGTRAP);
+					      /* Need to report to gdb */
+					      if (target_thread_make_current(tid)) {
+						  /* A non trap signal */
+						  snprintf(str, len, "T%02xthread:%x;", g, tid);
+						  no_event = false;
+					      }
+					  } else {
+					      DBG_PRINT("Ignoring start state signal %x %d\n", tid, g);
+					  }
 					} else {
 						/*
 						 * A normal signal
@@ -2112,6 +2138,7 @@ static void _stopped_all(char *str, size_t len) {
 						if (target_thread_make_current(tid)) {
 						    /* A non trap signal */
 						    snprintf(str, len, "T%02xthread:%x;", g, tid);
+						    no_event = false;
 						}
 					}
 				}
@@ -2177,7 +2204,7 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 
 		_deliver_sig();
 		_wait_all();
-		if (! _exited_all(str, len)) {
+		if (! _exited_all(str, len)) { // xxx 
 			/*
 			 * The current thread could have exited
 			 * This will change the currnet thread to
@@ -2191,8 +2218,8 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 				 * since only 1 event at a time can be reported
 				 * to gdb.
 				 */
-				
-				_stopped_all(str, len);
+			  _stopped_all(str, len);
+
 				/*
 				 * Some random thread could have trapped/signaled
 				 * This will change the current thread to the

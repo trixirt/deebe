@@ -167,6 +167,15 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
     return ret;
 }
 
+bool ptrace_os_new_thread(int status) {
+    bool ret = false;
+    int e = (status >> 16) & 0xff;
+    if (e == PTRACE_EVENT_CLONE) {
+	ret = true;
+    }
+    return ret;
+}
+
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
 	bool ret = false;
