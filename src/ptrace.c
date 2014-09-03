@@ -1277,9 +1277,6 @@ int _ptrace_resume(pid_t tid, int step, int gdb_sig)
     int sig;
     int index = target_index(tid);
 
-//    fprintf(stderr, "%s %x %d %d %d - ws %x %x\n", __func__, tid, index, step, gdb_sig,
-//	    PROCESS_WAIT(index), PROCESS_STATE(index));
-    
     sig = ptrace_arch_signal_from_gdb(gdb_sig);
     if (sig < 0) {
 	sig = 0;
@@ -1700,83 +1697,14 @@ static void _wait_all()
 }
 #endif
 
-#ifdef __linux__
-void __wait(pid_t t) {
-
-	pid_t tid;
-	int status = -1;
-
-	/*
-	 * Only look for parent event after the children
-	 * are taken care of.  Do not do both.
-	 */
-	
-	status = -1;
-	tid = waitpid(t, &status, WNOHANG);
-	if (tid > 0 && status != -1) {
-		int index;
-		index = target_index(tid);
-		
-//		fprintf(stderr, "%s %x %d %x\n", __func__, tid, index, status);
-		
-		if (index >= 0) {
-			PROCESS_WAIT(index) = true;
-			PROCESS_WAIT_STATUS(index) = status;
-		}  else {
-			if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
-				DBG_PRINT("error allocation of new thread\n");
-			}
-		}
-	} else {
-
-	/*
-	 * Look for children events first
-	 */
-
-//		tid = waitpid(-1, &status, __WCLONE | WNOHANG);
-		tid = waitpid(-1, &status, __WALL | WNOHANG);
-		if (tid > 0 && status != -1) {
-			int index;
-			index = target_index(tid);
-			if (index >= 0) {
-				
-				printf("Accc %d %x\n", index, status);
-				
-				PROCESS_WAIT(index) = true;
-				PROCESS_WAIT_STATUS(index) = status;
-			}  else {
-				if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
-					DBG_PRINT("error allocation of new thread\n");
-				}
-			}
-		} 
-	}
-
-	/*
-	 * Check on why the wait happend
-	 */
-	if (tid > 0 && status != -1) {
-		siginfo_t si = { 0 };
-		if (0 == ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)) {
-		    fprintf(stderr, "Got siginfo %x %x\n", tid, status);
-			fprintf(stderr, "signo %x\n", si.si_signo);
-			fprintf(stderr, "errno %x\n", si.si_errno);
-			fprintf(stderr, "code  %x\n", si.si_code);
-		} else {
-			fprintf(stderr, "NO siginfo\n");
-		}
-	}
-}
 
 void _wait_all() {
-	__wait(-1);
+    ptrace_os_wait(-1);
 }
 
 void _wait_single() {
-	__wait(CURRENT_PROCESS_TID);
+    ptrace_os_wait(CURRENT_PROCESS_TID);
 }
-
-#endif
 
 bool __exited(char *str, size_t len, int index, int wait_status) {
 
@@ -1977,28 +1905,19 @@ static bool _syscall_all(char *str, size_t len) {
 
 static void _stopped_single(char *str, size_t len) {
 
-//	fprintf(stderr, "%s, %d\n", __func__, __LINE__); 
-
 	if (CURRENT_PROCESS_WAIT) {
 
 		pid_t tid = CURRENT_PROCESS_TID;
 		int wait_status = CURRENT_PROCESS_WAIT_STATUS;
-
-//		fprintf(stderr, "%s, %d %x %x\n", __func__, __LINE__, tid, wait_status); 
 
 		if (WIFSTOPPED(wait_status)) {
 
 			int s = WSTOPSIG(wait_status);
 			int g = ptrace_arch_signal_to_gdb(s);
 
-//			fprintf(stderr, "%s, %d\n", __func__, __LINE__); 
-
 			if (s == SIGTRAP) {
 				unsigned long watchpoint_addr = 0;
 				unsigned long pc = 0;
-
-
-//				fprintf(stderr, "%s, %d\n", __func__, __LINE__); 
 
 				ptrace_arch_get_pc(tid, &pc);
 			
@@ -2158,24 +2077,25 @@ static void _stopped_all(char *str, size_t len) {
 
 /* XXX does not seem to be used on FreeBSD .. */
 static void _continue_others() {
+    /* In AllStop mode, this is a noop */
+    if (NS_ON == _target.nonstop) {
 	int index;
 	for (index = 0; index < _target.number_processes; index++) {
-		pid_t tid = PROCESS_TID(index);
-		bool wait = PROCESS_WAIT(index);
+	    pid_t tid = PROCESS_TID(index);
+	    bool wait = PROCESS_WAIT(index);
 
-		if (!wait || (tid == CURRENT_PROCESS_TID)) {
-			continue;
-		} else {
-			fprintf(stderr, "%s %x %d\n", __func__, tid, index);
+	    if (!wait || (tid == CURRENT_PROCESS_TID)) {
+		continue;
+	    } else {
+		if (PS_CONT == PROCESS_STATE(index)) {
+		    int sig = PROCESS_SIG(index);
+		    int g = ptrace_arch_signal_to_gdb(sig);
 
-			if (PS_CONT == PROCESS_STATE(index)) {
-				int sig = PROCESS_SIG(index);
-				int g = ptrace_arch_signal_to_gdb(sig);
-
-				_ptrace_resume(tid, 0, g);
-			}
+		    _ptrace_resume(tid, 0, g);
 		}
+	    }
 	}
+    }
 }
 
 
@@ -2185,8 +2105,6 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 	signal_sigio_on();
 
 	if (step) {
-		fprintf(stderr, "%s : single \n", __func__);
-
 		_wait_single();
 		if (! _exited_single(str, len)) {
 			/*
@@ -2200,8 +2118,6 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 		}
 
 	} else {
-		// fprintf(stderr, "%s : sync all \n", __func__);
-
 		_deliver_sig();
 		_wait_all();
 		if (! _exited_all(str, len)) { // xxx 
@@ -2775,7 +2691,6 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 		int index;
 		/* Normal case */
 		index = target_index(key);
-		pid_t old_current = CURRENT_PROCESS_TID;
 		pid_t new_current = PROCESS_TID(index);
 
 		DBG_PRINT("%s index %d\n", __func__, index);
@@ -2805,8 +2720,6 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 			 * The current thread is not the one that is being switched to.
 			 * So stop the needed thread, and continue the now old current thread
 			 */
-			fprintf(stderr, "%s switching from %x to %x\n", __func__, old_current, new_current);
-			
 			ptrace_stop(new_current);
 			/*
 			 * ptrace_stop send a SIG_INT to the tid
