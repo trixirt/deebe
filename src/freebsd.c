@@ -246,3 +246,32 @@ int os_thread_kill(int tid, int sig) {
     return ret;
 }
 
+bool ptrace_os_new_thread(int status) {
+    bool ret = false;
+    /* Noop */
+    return ret;
+}
+
+void ptrace_os_wait(pid_t t) {
+    pid_t tid;
+    int status = -1;
+
+    /*
+     * Only look for parent event after the children
+     * are taken care of.  Do not do both.
+     */
+    status = -1;
+    tid = waitpid(t, &status, WNOHANG);
+    if (tid > 0 && status != -1) {
+	int index;
+	index = target_index(tid);
+	if (index >= 0) {
+	    PROCESS_WAIT(index) = true;
+	    PROCESS_WAIT_STATUS(index) = status;
+	}  else {
+	    if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
+		DBG_PRINT("error allocation of new thread\n");
+	    }
+	}
+    }
+}

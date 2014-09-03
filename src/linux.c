@@ -106,13 +106,8 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
     
     tid = waitpid(-1, &status, __WALL | WNOHANG);
     if (tid > 0) {
-
-	    fprintf(stderr, "%x\n", tid);
-
 	    if (!target_is_tid(tid)) {
 		    pid_t tid2;
-		    fprintf(stderr, "Got %x %x\n", tid, status);
-
 		    int thread_status;
 		    int errs_max = 5;
 		    int errs = 0;
@@ -245,4 +240,62 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 
 int os_thread_kill(int tid, int sig) {
     return 1;
+}
+
+void ptrace_os_wait(pid_t t) {
+    pid_t tid;
+    int status = -1;
+
+    /*
+     * Only look for parent event after the children
+     * are taken care of.  Do not do both.
+     */
+    status = -1;
+    tid = waitpid(t, &status, WNOHANG);
+    if (tid > 0 && status != -1) {
+	int index;
+	index = target_index(tid);
+	if (index >= 0) {
+	    PROCESS_WAIT(index) = true;
+	    PROCESS_WAIT_STATUS(index) = status;
+	}  else {
+	    if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
+		DBG_PRINT("error allocation of new thread\n");
+	    }
+	}
+    } else {
+	/*
+	 * Look for children events first
+	 */
+	tid = waitpid(-1, &status, __WALL | WNOHANG);
+	if (tid > 0 && status != -1) {
+	    int index;
+	    index = target_index(tid);
+	    if (index >= 0) {
+		PROCESS_WAIT(index) = true;
+		PROCESS_WAIT_STATUS(index) = status;
+	    }  else {
+		if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
+		    DBG_PRINT("error allocation of new thread\n");
+		}
+	    }
+	} 
+    }
+    
+    /*
+     * DEBUGGING CODE
+     * Check on why the wait happend
+     *
+     if (tid > 0 && status != -1) {
+       siginfo_t si = { 0 };
+       if (0 == ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)) {
+         fprintf(stderr, "Got siginfo %x %x\n", tid, status);
+         fprintf(stderr, "signo %x\n", si.si_signo);
+         fprintf(stderr, "errno %x\n", si.si_errno);
+         fprintf(stderr, "code  %x\n", si.si_code);
+       } else {
+         fprintf(stderr, "NO siginfo\n");
+       }
+     }
+    */
 }
