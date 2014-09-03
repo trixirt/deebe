@@ -115,7 +115,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 	    if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 		unsigned long id, arg1, arg2, arg3, arg4, r;
 		id = -1; /* only initiaze id, because it is the only used variable */
-		ptrace_arch_get_syscall(&id, &arg1, &arg2, &arg3, &arg4, &r);
+		ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
 		DBG_PRINT("syscall enter %d\n", id);
 	    }
 	}
@@ -128,7 +128,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 	     */
 	    unsigned long id, arg1, arg2, arg3, arg4, r;
 	    id = -1; /* only initiaze id, because it is the only used variable */
-	    ptrace_arch_get_syscall(&id, &arg1, &arg2, &arg3, &arg4, &r);
+	    ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
 	    
 	    /* handled */
 	    ret = true;
@@ -186,7 +186,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 				for (i = 0; i < num_lwps; i++) {
 				    /* Find the one that isn't already being tracked */
 				    if (! target_is_tid(lwpid_list[i])) {
-					if (target_new_thread(parent, lwpid_list[i])) {
+					if (target_new_thread(parent, lwpid_list[i], 0, false)) {
 					    if (out_pid)
 						*out_pid = lwpid_list[i]; // CURRENT_PROCESS_TID;
 					}

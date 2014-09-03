@@ -98,6 +98,11 @@ int ptrace_arch_swbreak_insn(void *bdata)
 	return ret;
 }
 
+size_t ptrace_arch_swbreak_size()
+{
+  return 1;
+}
+
 bool ptrace_arch_support_watchpoint(int type)
 {
 	bool ret = false;

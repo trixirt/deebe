@@ -64,16 +64,13 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return host_signal_from_gdb(gdb);
 }
 
-bool x86_read_debug_reg(pid_t pid, size_t reg, void *val)
+bool x86_read_debug_reg(pid_t tid, size_t reg, void *val)
 {
 	bool ret = false;
 #ifdef PT_GETDBREGS
 	if (reg < 8) {
-		_read_dbreg();
+		_read_dbreg(tid);
 		size_t addr = reg * sizeof(unsigned int);
-
-		// fprintf(stderr, "%s %p %p %d\n", __func__, _target.dbreg, _target.dbreg_rw, _target.dbreg_size);
-
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
 			memcpy(val, _target.dbreg + addr, sizeof(unsigned int));
 			ret = true;
@@ -83,16 +80,16 @@ bool x86_read_debug_reg(pid_t pid, size_t reg, void *val)
 	return ret;
 }
 
-bool x86_write_debug_reg(pid_t pid, size_t reg, void *val)
+bool x86_write_debug_reg(pid_t tid, size_t reg, void *val)
 {
 	bool ret = false;
 #ifdef PT_GETDBREGS
 	if (reg < 8) {
-		_read_dbreg();
+		_read_dbreg(tid);
 		unsigned long addr = reg * sizeof(unsigned int);
 		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
 			memcpy(_target.dbreg + addr, val, sizeof(unsigned int));
-			_write_dbreg();
+			_write_dbreg(tid);
 			ret = true;
 		}
 	}
