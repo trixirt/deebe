@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -247,18 +247,18 @@ int ptrace_arch_swbreak_insn(void *bdata)
 	return ret;
 }
 
-void ptrace_arch_get_pc(unsigned long *pc)
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
 {
-	_read_greg();
+	_read_greg(tid);
 	memcpy(pc, _target.reg + offsetof(struct user, regs.nip),
 	       sizeof(unsigned long));
 }
-void ptrace_arch_set_pc(unsigned long pc)
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 {
-	_read_greg();
+	_read_greg(pid_t tid);
 	memcpy(_target.reg + offsetof(struct user, regs.nip), &pc,
 	       sizeof(unsigned long));
-	_write_greg();
+	_write_greg(pid_t tid);
 }
 
 void ptrace_arch_set_singlestep(/*@unused@*/pid_t pid,
@@ -327,14 +327,14 @@ bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 	return ret;
 }
 
-void ptrace_arch_read_fxreg()
+void ptrace_arch_read_fxreg(pid_t tid, size_t size)
 {
-	ptrace_os_read_fxreg();
+	ptrace_os_read_fxreg(tid);
 }
 
-void ptrace_arch_write_fxreg()
+void ptrace_arch_write_fxreg(pid_t tid)
 {
-	ptrace_os_write_fxreg();
+	ptrace_os_write_fxreg(tid);
 }
 
 void ptrace_arch_option_set_syscall(pid_t pid)
@@ -347,8 +347,8 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 	return ptrace_os_check_syscall(pid, in_out_sig);
 }
 
-void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
-	_read_greg();
+	_read_greg(tid);
 }

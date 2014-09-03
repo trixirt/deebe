@@ -159,33 +159,33 @@ int ptrace_arch_gdb_greg_max()
 	return GDB_GREG_MAX;
 }
 
-void ptrace_arch_get_pc(unsigned long *pc)
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
 {
-	_read_greg();
+	_read_greg(tid);
 	memcpy(pc, _target.reg + offsetof(struct reg, r_eip),
 	       sizeof(unsigned long));
 }
-void ptrace_arch_set_pc(unsigned long pc)
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 {
-	_read_greg();
+	_read_greg(tid);
 	memcpy(_target.reg + offsetof(struct reg, r_eip), &pc,
 	       sizeof(unsigned long));
-	_write_greg();
+	_write_greg(tid);
 }
 
-void ptrace_arch_read_fxreg()
+void ptrace_arch_read_fxreg(pid_t tid, size_t size)
 {
 #ifdef PT_GETXMMREGS
-	_read_reg(PT_GETXMMREGS, PT_SETXMMREGS,
+    _read_reg(tid, PT_GETXMMREGS, PT_SETXMMREGS,
 		  &_target.fxreg, &_target.fxreg_rw,
 		  &_target.fxreg_size);
 #endif
 }
 
-void ptrace_arch_write_fxreg()
+void ptrace_arch_write_fxreg(pid_t tid)
 {
 #ifdef PT_GETXMMREGS
-	_write_reg(PT_SETXMMREGS, _target.fxreg);
+    _write_reg(tid, PT_SETXMMREGS, _target.fxreg);
 #endif
 }
 
@@ -214,10 +214,10 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 
 extern int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
 			    size_t *read_size, bool breakpoint_check);
-void ptrace_arch_get_syscall(void *id, void *arg1, void *arg2,
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
-  _read_greg();
+  _read_greg(tid);
   unsigned long sp;
   int size = sizeof(unsigned long);
   memcpy(&sp, _target.reg + offsetof(struct reg, r_esp), size);
