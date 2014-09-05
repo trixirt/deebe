@@ -43,6 +43,7 @@
 
 enum process_state {
 	PS_NULL = 0,
+	PS_PRE_START, /* The parent has created, but it has not shown up */
 	PS_START, /* Initial state, process is just starting */
 	PS_RUN,   /* process is running */
 	PS_EXIT,  /* process has exited */
@@ -68,6 +69,7 @@ typedef struct target_process_rec {
     int ws; /* wait status */
     bool w; /* waiting ? */
     int sig; /* signal */
+    long syscall; /* the most recent syscall */
 } target_process;
 
 typedef struct target_state_rec {
@@ -101,6 +103,7 @@ typedef struct target_state_rec {
 #define PROCESS_WAIT_STATUS(n) _target.process[n].ws
 #define PROCESS_WAIT(n)        _target.process[n].w
 #define PROCESS_SIG(n)         _target.process[n].sig
+#define PROCESS_SYSCALL(n)     _target.process[n].syscall
 
 #define CURRENT_PROCESS_PID         PROCESS_PID(_target.current_process)
 #define CURRENT_PROCESS_TID         PROCESS_TID(_target.current_process)
@@ -108,6 +111,7 @@ typedef struct target_state_rec {
 #define CURRENT_PROCESS_WAIT_STATUS PROCESS_WAIT_STATUS(_target.current_process)
 #define CURRENT_PROCESS_WAIT        PROCESS_WAIT(_target.current_process)
 #define CURRENT_PROCESS_SIG         PROCESS_SIG(_target.current_process)
+#define CURRENT_PROCESS_SYSCALL     PROCESS_SIG(_target.current_process)
 
 #define PROCESS_WAIT_STATUS_DEFAULT -1
 

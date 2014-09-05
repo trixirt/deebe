@@ -119,8 +119,8 @@ extern int ptrace_general_set(char *inbuf, char *outbuf, size_t size);
 extern enum process_state ptrace_get_process_state(void);
 extern int ptrace_go_waiting(int gdb_sig);
 extern void ptrace_help(/*@unused@*/char *prog_name);
-extern void ptrace_kill(pid_t tid);
-extern void ptrace_quick_kill(pid_t tid);
+extern void ptrace_kill(pid_t pid, pid_t tid);
+extern void ptrace_quick_kill(pid_t pid, pid_t tid);
 extern int ptrace_no_ack();
 extern int ptrace_offsets_query(uint64_t *text, uint64_t *data, uint64_t *bss);
 extern int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
@@ -136,8 +136,8 @@ extern int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *dat
 				       uint8_t *avail, size_t buf_size,
 				       size_t *read_size);
 extern int ptrace_restart(void);
-extern int ptrace_resume_from_addr(pid_t tid, int step, int gdb_sig, uint64_t addr);
-extern int ptrace_resume_from_current(pid_t tid, int step, int gdb_sig);
+extern int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig, uint64_t addr);
+extern int ptrace_resume_from_current(pid_t pid, pid_t tid, int step, int gdb_sig);
 extern int ptrace_resume_with_syscall(pid_t tid);
 extern int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len);
 extern void ptrace_stop(pid_t tid);

@@ -1149,9 +1149,9 @@ void handle_running_commands(char * const in_buf,
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		} /* XXX */
-		ret = t->resume_from_addr(CURRENT_PROCESS_TID, step, sig, addr);
+		ret = t->resume_from_addr(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig, addr);
 	} else { /* XXX */
-		ret = t->resume_from_current(CURRENT_PROCESS_TID, step, sig);
+	    ret = t->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 	}
 
 	if (ret != RET_OK) {
@@ -1205,7 +1205,7 @@ int handle_kill_command(char * const in_buf,
 {
 	int ret;
 
-	t->kill(CURRENT_PROCESS_TID);
+	t->kill(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
 
 	if (!extended_protocol)	{
 		if (cmdline_once) {
@@ -1922,7 +1922,7 @@ static int handle_v_command(char * const in_buf,
 			}
 
 			if (!err) {
-				ret = target->resume_from_current(CURRENT_PROCESS_TID, step, sig);
+			    ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 			    if (RET_OK == ret) {
 				if (target->wait) {
 				    /* 
@@ -1935,7 +1935,7 @@ static int handle_v_command(char * const in_buf,
 							   out_buf_len, step);
 					
 					if (ret == RET_IGNORE) {
-						target->resume_from_current(CURRENT_PROCESS_TID, step, sig);
+					    target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 					}
 				    } while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
 				    handled = true;
@@ -3044,7 +3044,7 @@ int gdb_interface_quick_packet()
 		case 'k':
 			if (gdb_interface_target->quick_kill) {
 				dbg_ack_packet_received(false, NULL);
-				gdb_interface_target->quick_kill(CURRENT_PROCESS_TID);
+				gdb_interface_target->quick_kill(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
 				ret = 0;
 			}
 			break;

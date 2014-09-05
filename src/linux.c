@@ -162,7 +162,7 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
     return ret;
 }
 
-bool ptrace_os_new_thread(int status) {
+bool ptrace_os_new_thread(pid_t tid, int status) {
     bool ret = false;
     int e = (status >> 16) & 0xff;
     if (e == PTRACE_EVENT_CLONE) {
@@ -298,4 +298,38 @@ void ptrace_os_wait(pid_t t) {
        }
      }
     */
+}
+
+void ptrace_os_continue_others()
+{
+    /* In AllStop mode, this is a noop */
+    if (NS_ON == _target.nonstop) {
+	int index;
+	for (index = 0; index < _target.number_processes; index++) {
+	    pid_t tid = PROCESS_TID(index);
+	    bool wait = PROCESS_WAIT(index);
+
+	    if (!wait || (tid == CURRENT_PROCESS_TID)) {
+		continue;
+	    } else {
+		if (PS_CONT == PROCESS_STATE(index)) {
+		    int sig = PROCESS_SIG(index);
+		    int g = ptrace_arch_signal_to_gdb(sig);
+		    _ptrace_resume(tid, 0, g);
+		}
+	    }
+	}
+    }
+}
+
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
+    long ret;
+    long request = PT_CONTINUE;
+    if (step == 1) {
+	ptrace_arch_set_singlestep(tid, &request);
+    } else {
+	ptrace_arch_clear_singlestep(tid);
+    }
+    ret = PTRACE(request, tid, 1, sig);
+    return ret;
 }

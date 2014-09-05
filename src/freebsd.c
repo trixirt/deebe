@@ -40,7 +40,7 @@
 #include "os.h"
 #include "target.h"
 
-static bool _lwpinfo_verbose = false;
+static bool _lwpinfo_verbose = true;
 
 void ptrace_os_set_singlestep(pid_t pid, long *request)
 {
@@ -62,22 +62,6 @@ void ptrace_os_option_set_syscall(pid_t pid)
 
 void ptrace_os_option_set_thread(pid_t pid)
 {
-}
-
-bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
-{
-    bool ret = false;
-    pid_t pid;
-    int status = 0;
-
-    pid = waitpid(-1, &status, 0);
-
-    if (out_pid)
-	*out_pid = pid;
-    if (out_status)
-	*out_status = status;
-    
-    return ret;
 }
 
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
@@ -246,32 +230,238 @@ int os_thread_kill(int tid, int sig) {
     return ret;
 }
 
-bool ptrace_os_new_thread(int status) {
+bool ptrace_os_new_thread(pid_t tid, int status) {
     bool ret = false;
-    /* Noop */
+    int index = target_index(tid);
+    if (index >= 0) {
+	if ((PS_SYSCALL_ENTER == PROCESS_STATE(index)) ||
+	    (PS_SYSCALL_EXIT == PROCESS_STATE(index))) {
+	    ret = true;
+	}
+    }
     return ret;
 }
 
-void ptrace_os_wait(pid_t t) {
-    pid_t tid;
-    int status = -1;
+#if 0
+static void check_lwplist_for_new_threads(pid_t tid)
+{
+    int num_lwps = 0;
+    int num_threads = 0;
+    lwpid_t *lwpid_list = NULL;
+    
+    num_threads = target_number_threads();
+#if PT_GETNUMLWPS
+    num_lwps = PTRACE(PT_GETNUMLWPS, tid, NULL, 0);
+#else
+    /* Noop it */
+    num_lwps = num_threads;
+#endif
 
+#ifdef PT_GETLWPLIST
     /*
-     * Only look for parent event after the children
-     * are taken care of.  Do not do both.
+     * Look for different in number of threads the system
+     * has versus what we have.
+     *
+     * WARNING : System does not seem to report dead threads
+     * by removing the number of threads reported by PT_GETNUMLWPS
+     * This means neither can we.
      */
-    status = -1;
-    tid = waitpid(t, &status, WNOHANG);
-    if (tid > 0 && status != -1) {
-	int index;
-	index = target_index(tid);
-	if (index >= 0) {
-	    PROCESS_WAIT(index) = true;
-	    PROCESS_WAIT_STATUS(index) = status;
-	}  else {
-	    if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
-		DBG_PRINT("error allocation of new thread\n");
+    if (num_lwps != num_threads) {
+	if (num_lwps) {
+	    lwpid_list = (lwpid_t *) calloc(num_lwps, sizeof(lwpid_t));
+	    if (lwpid_list) {
+		if (num_lwps == PTRACE(PT_GETLWPLIST, tid, lwpid_list, num_lwps)) {
+		    /* More than expected, A new thread is born! */
+		    if (num_lwps > num_threads) {
+			pid_t parent = target_get_pid();
+			int i;
+			for (i = 0; i < num_lwps; i++) {
+			    /* Find the one that isn't already being tracked */
+			    if (! target_is_tid(lwpid_list[i])) {
+				pid_t new_tid = lwpid_list[i];
+				/*
+				 * The first time this is hit, it is the main thread of
+				 * the parent process.  Set the parent process tid to
+				 * this value so the first and second threads will be
+				 * handled the same.
+				 */
+				if (PROCESS_TID(0) == PROCESS_PID(0)) {
+				    PROCESS_TID(0) = new_tid;
+				}
+				
+				/*
+				 * The tread has not quite been born
+				 * Waiting for it now does not work.
+				 * So defer waiting for it by adding the new thread
+				 * but setting it's state to PRE_START
+				 *
+				 * Since the new thread is not in a wait state, set the
+				 * wait flag to false.
+				 */
+				if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+				    DBG_PRINT("%s error allocating new thread\n", __func__);
+				} else {
+				    int index = target_index(new_tid);
+				    PROCESS_STATE(index) = PS_PRE_START;
+				}
+				break;
+			    }
+			}
+		    } else {
+			/*
+			 * A thread has died
+			 *
+			 * In development, this case was never reached.
+			 * Leave it here in case somthing improved
+			 */
+			DBG_PRINT("Unexpected code hit %s %d \n", __func__, __LINE__);
+		    }
+		} else {
+		    DBG_PRINT("Error with PT_GETLWPLIST\n");
+		}
+	    } else {
+		DBG_PRINT("Error allocating lwpid_list\n");
 	    }
 	}
     }
+#endif
+    if (lwpid_list)
+	free(lwpid_list);
+}
+
+#endif
+
+static int check_lwpinfo(pid_t pid)
+{
+    int ret = 0; /* Index */
+#ifdef PT_LWPINFO
+    int index;
+    pid_t tid;
+    int ptrace_status;
+    /*
+     * Use PT_LWPINFO to get a fine grained reason for the wait
+     */
+    struct ptrace_lwpinfo lwpinfo = { 0 };
+    ptrace_status = PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+    if (0 == ptrace_status) {
+
+	if (_lwpinfo_verbose) {
+	    DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
+	    DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
+	    DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
+	    DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
+	    DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
+	    if (lwpinfo.pl_flags & PL_FLAG_SI) {
+		DBG_PRINT("lwpinfo.pl_siginfo\n");
+		DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
+		DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
+		DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
+		DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
+		DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
+	    }
+	    if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		unsigned long id, arg1, arg2, arg3, arg4, r;
+		id = -1; /* only initiaze id, because it is the only used variable */
+		ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+		DBG_PRINT("syscall enter %d\n", id);
+	    }
+	}
+	/*
+	 * wait works on the pid
+	 * This does not tell us which lwp caused the event
+	 * To find this, look in the lwpinfo.pl_lwpid
+	 */
+	tid = lwpinfo.pl_lwpid;
+	if (! target_is_tid(tid)) {
+	    /*
+	     * The first time this is hit, it is the main thread of
+	     * the parent process.  Set the parent process tid to
+	     * this value so the first and second threads will be
+	     * handled the same.
+	     */
+	    if (PROCESS_TID(0) == PROCESS_PID(0)) {
+		PROCESS_TID(0) = tid;
+	    } else {
+		if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+		    DBG_PRINT("%s error allocating new thread\n", __func__);
+		}
+	    }
+	}
+	
+	index = target_index(tid);
+	if (index >= 0) {
+	    if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+		unsigned long id, arg1, arg2, arg3, arg4, r;
+		id = -1; /* only initiaze id, because it is the only used variable */
+		ptrace_arch_get_syscall(tid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+		PROCESS_SYSCALL(index) = id;
+		PROCESS_STATE(index) = PS_SYSCALL_ENTER;
+	    } else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
+		PROCESS_STATE(index) = PS_SYSCALL_EXIT;
+	    }
+	    ret = index;
+	}
+    } else {
+	char str[128];
+	DBG_PRINT("Error get lwpinfo, status is %d\n", ptrace_status);
+	if (0 == strerror_r(errno, &str[0], 128)) {
+	    DBG_PRINT("Error %d %s\n", errno, str);
+	}
+    }
+#endif
+    return ret;
+}
+
+void ptrace_os_wait(pid_t t)
+{
+    /*
+     * FreeBSD wait only works on the process id
+     * So no matter what is passed in, use the process id
+     * of the parent.
+     */
+    pid_t pid = PROCESS_PID(0);
+    int wait_status = -1;
+    pid_t wait_tid = 0;
+
+    wait_tid = waitpid(pid, &wait_status, WNOHANG);
+
+    if ((wait_tid == pid) && (-1 != wait_status)) {
+	int wait_index;
+	/*
+	 * check_lwpinfo returns the index to the tid that
+	 * caused the event.
+	 */
+	wait_index = check_lwpinfo(wait_tid);
+	PROCESS_WAIT(wait_index) = true;
+	PROCESS_WAIT_STATUS(wait_index) = wait_status;
+    }
+}
+
+void ptrace_os_continue_others()
+{
+    /* Noop */
+}
+
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
+    long ret;
+    long request = PT_CONTINUE;
+    pid_t continue_pid = pid;
+
+    /*
+     * FreeBSD does not notify when a thread exits
+     * So if we continue a thread continues until it ends, we are stuck.
+     * So only continue the thread when single stepping.
+     * Unhandled is single stepping to the end of the thread.
+     */
+    if (step == 1) {
+	ptrace_arch_set_singlestep(tid, &request);
+	continue_pid = tid;
+    } else {
+	ptrace_arch_clear_singlestep(tid);
+	continue_pid = pid;
+    }
+
+    ret = PTRACE(request, continue_pid, 1, sig);
+
+    return ret;
 }
