@@ -43,7 +43,12 @@
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
-	.nonstop = NS_ON, /* threading runs in non-stop mode */
+	/*
+	 * Older gdb's do not know the difference between
+	 * AllStop and NonStop mode for threading.
+	 * Since AllStop is the oldest mode, default to that.
+	 */
+	.nonstop = NS_OFF,
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 1,
@@ -63,13 +68,15 @@ target_state _target = {
 bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting)
 {
     bool ret = false;
-    int index;
+    int index = _target.number_processes;
 
-    /* Try to reused an exited process's space */
-    for (index = 0; index < _target.number_processes; index++) {
-	    if (PROCESS_STATE(index) == PS_EXIT)
-		    break;
-    }
+    /*
+     * Try to reused an exited process's space
+     */
+     for (index = 0; index < _target.number_processes; index++) {
+       if (PROCESS_STATE(index) == PS_EXIT)
+         break;
+     }
 
     /* No space, tack one onto the end */
     if (index >= _target.number_processes) {

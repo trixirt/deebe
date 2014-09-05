@@ -1,7 +1,7 @@
 /*
   This file is derrived from the gdbproxy project's gdbproxy.h
   The changes to this file are
-  Copyright (C) 2012-2013 Juniper Networks, Inc
+  Copyright (C) 2012-2014 Juniper Networks, Inc
 
   The original copyright is
 
@@ -196,9 +196,9 @@ struct gdb_target_s {
 	/* Kill target: disconnect from a target and leave it waiting
 	   for a command. It is expected that either close or wait or
 	   connect will follow after kill to get last status_string */
-	void (*kill)(pid_t tid);
+    void (*kill)(pid_t pid, pid_t tid);
 	/* Similar to kill but called from signal handler */
-	void (*quick_kill)(pid_t tid);
+    void (*quick_kill)(pid_t pid, pid_t tid);
 
 	/* Restart target and return status string */
 	int (*restart)(void);
@@ -274,11 +274,11 @@ struct gdb_target_s {
 
 	/* Resume from current address, if not supported it
 	   has to be figured out by wait */
-	int (*resume_from_current)(pid_t tid, int step, int sig);
+    int (*resume_from_current)(pid_t pid, pid_t tid, int step, int sig);
 
 	/* Resume from specified address, if not supported it
 	   has to be figured out by wait */
-	int (*resume_from_addr)(pid_t tid, int step, int sig, uint64_t addr);
+    int (*resume_from_addr)(pid_t pid, pid_t tid, int step, int sig, uint64_t addr);
 
 	/* Allow threads which are not stopped already to continue */
 	int (*go_waiting)(int sig);
