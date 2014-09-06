@@ -206,7 +206,7 @@ struct gdb_target_s {
 	/* Stop target. E.g. send ^C or BREAK to target - note
 	   it has to be followed either by wait or connect in order to
 	   to get last status_string */
-	void (*stop)(pid_t tid);
+    void (*stop)(pid_t pid, pid_t tid);
 
 	/*============== Thread Control ===============================*/
 
@@ -322,7 +322,7 @@ struct gdb_target_s {
 	    int step);
 
 	/* From signal handler, pass a general signal to a waiting process */
-	void (*quick_signal)(pid_t tid, int sig);
+    void (*quick_signal)(pid_t pid, pid_t tid, int sig);
 	/*============= Queries ===============================*/
 
 	/* Bits of mask determine set of information about thread

@@ -425,6 +425,8 @@ void ptrace_os_wait(pid_t t)
 
     wait_tid = waitpid(pid, &wait_status, WNOHANG);
 
+    /* DBG_PRINT("%s %x %x %x\n", __func__, pid, wait_tid, wait_status); */
+
     if ((wait_tid == pid) && (-1 != wait_status)) {
 	int wait_index;
 	/*
