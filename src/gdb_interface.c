@@ -3034,7 +3034,7 @@ int gdb_interface_quick_packet()
 	if (s == '\3') {
 		if (gdb_interface_target->stop) {
 			dbg_ack_packet_received(false, NULL);
-			gdb_interface_target->stop(CURRENT_PROCESS_TID);
+			gdb_interface_target->stop(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
 		} else {
 			DBG_PRINT("TBD : Handle ctrl-c\n");
 		}
@@ -3056,7 +3056,7 @@ int gdb_interface_quick_packet()
 				in = &in_buf[1];
 				if (gdb_decode_uint32(&in, &sig, '\0')) {
 					dbg_ack_packet_received(false, NULL);
-					gdb_interface_target->quick_signal(CURRENT_PROCESS_TID, sig);
+					gdb_interface_target->quick_signal(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, sig);
 					ret = 0;
 				}
 			}
@@ -3065,7 +3065,7 @@ int gdb_interface_quick_packet()
 		case 'c':
 			if (gdb_interface_target->quick_signal) {
 				dbg_ack_packet_received(false, NULL);
-				gdb_interface_target->quick_signal(CURRENT_PROCESS_TID, SIGTRAP);
+				gdb_interface_target->quick_signal(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, SIGTRAP);
 				ret = 0;
 			}
 			break;

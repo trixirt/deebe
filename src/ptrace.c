@@ -721,9 +721,9 @@ int ptrace_open(/*@unused@*/int argc, /*@unused@*/char *argv[],
 	return ret;
 }
 
-void ptrace_stop(pid_t tid)
+void ptrace_stop(pid_t pid, pid_t tid)
 {
-	if (kill(tid, SIGINT)) {
+    if (kill(pid, SIGINT)) { /* XXX pid or tid ? */
 		/* Failure */
 		if (_stop_verbose) {
 			DBG_PRINT("ERROR sending SIGINT to %x\n", tid);
@@ -1347,20 +1347,20 @@ int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig, uint64_
 
 void ptrace_quick_kill(pid_t pid, pid_t tid)
 {
-    kill(tid, SIGKILL); /* XXX change to pid */
+    kill(pid, SIGKILL); /* XXX change to pid */
 }
 
-void ptrace_quick_signal(pid_t tid, int gdb_sig)
+void ptrace_quick_signal(pid_t pid, pid_t tid, int gdb_sig)
 {
 #if 0
 	/* This is how the routine should work */
 	int sig;
 	sig = ptrace_arch_signal_from_gdb(gdb_sig);
 	if (sig > 0)
-		kill(tid, sig);
+		kill(pid, sig);
 #endif
 	/* But be blunt */
-	kill(tid, SIGTRAP);
+	kill(pid, SIGTRAP);
 }
 
 void ptrace_kill(pid_t pid, pid_t tid)
@@ -1860,9 +1860,13 @@ static void _stopped_single(char *str, size_t len) {
 static void _stopped_all(char *str, size_t len) {
 	int index;
 	bool no_event = true; /* Nothing to report to gdb */
+
+	/* This does not work for FreeBSD as the threads are not free running */
 	for (index = 0; no_event && index < _target.number_processes; index++) {
 	  
 	  bool process_wait = PROCESS_WAIT(index);
+#if 0
+
 	  if (process_wait) {
 	    /*
 	     * When running in AllStop
@@ -1876,6 +1880,7 @@ static void _stopped_all(char *str, size_t len) {
 	      }
 	    }
 	  }
+#endif
 	  if (process_wait) {
 			
 			pid_t tid = PROCESS_TID(index);
@@ -2014,37 +2019,29 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 	} else {
 		_deliver_sig();
 		_wait_all();
-		if (! _exited_all(str, len)) { // xxx 
+		if (! _exited_all(str, len)) { 
 			/*
 			 * The current thread could have exited
 			 * This will change the currnet thread to
 			 * the parent thread
 			 */
-		    if (! 0 /*_syscall_all(str, len)*/) {
-				/*
-				 * A syscall event has been reported
-				 * This could change the current thread.
-				 * No point in also running through _stop
-				 * since only 1 event at a time can be reported
-				 * to gdb.
-				 */
-			  _stopped_all(str, len);
 
-				/*
-				 * Some random thread could have trapped/signaled
-				 * This will change the current thread to the
-				 * the thread causing the event.  It also means
-				 * that some events went unhandled.
-				 */
-			}
-			/*
-			 * These routines do not return events so they are
-			 * they are safe to run anytime
-			 */
-			_continued_all();
-			/* _newthread_all(); */
-			ptrace_os_continue_others();
+		    _stopped_all(str, len);
+			  
+		    /*
+		     * Some random thread could have trapped/signaled
+		     * This will change the current thread to the
+		     * the thread causing the event.  It also means
+		     * that some events went unhandled.
+		     */
 		}
+		/*
+		 * These routines do not return events so they are
+		 * they are safe to run anytime
+		 */
+		_continued_all();
+		/* _newthread_all(); */
+		ptrace_os_continue_others();
 	}
 
     /* Finished waiting, turn off sigio */
@@ -2289,13 +2286,14 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 		int index;
 		/* Normal case */
 		index = target_index(key);
-		pid_t new_current = PROCESS_TID(index);
+		pid_t new_pid = PROCESS_PID(index);
+		pid_t new_tid = PROCESS_TID(index);
 
 		DBG_PRINT("%s index %d\n", __func__, index);
 
 		if (index < 0) {
 			/* Not a valid thread */
-		} else if (!target_alive_thread(new_current)) {
+		} else if (!target_alive_thread(new_tid)) {
 			/* dead thread */
 			DBG_PRINT("%s dead %d\n", __func__, index);
 		} else if (_target.current_process == index) {
@@ -2318,7 +2316,7 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 			 * The current thread is not the one that is being switched to.
 			 * So stop the needed thread, and continue the now old current thread
 			 */
-			ptrace_stop(new_current);
+		    ptrace_stop(new_pid, new_tid);
 			/*
 			 * ptrace_stop send a SIG_INT to the tid
 			 * To seperate this signal from a normal signal, flag it as 'internal'
@@ -2348,7 +2346,7 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 					 * to stop the thread that is requested.
 					 */
 					if (wait_ret == RET_OK) {
-						if (CURRENT_PROCESS_TID != new_current) {
+						if (CURRENT_PROCESS_TID != new_tid) {
 							/*
 							 * Double check that the thread did not exit before
 							 * the signal to stop was handled
