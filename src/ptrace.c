@@ -2073,7 +2073,7 @@ int ptrace_wait(char *status_string, size_t status_string_len, int step)
 
 int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 {
-  int ret = RET_ERR;
+  int ret = RET_OK;
   static int n;
   if (first) {
     n = 0;
@@ -2082,13 +2082,9 @@ int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
   }
   if (n < _target.number_processes) {
     pid_t t = PROCESS_TID(n);
-    if (n+1 == _target.number_processes)
-      sprintf(out_buf, "m %x,l", t);
-    else
-      sprintf(out_buf, "m %x", t);
-    ret = RET_OK;
+    sprintf(out_buf, "m %x", t);
   } else {
-    sprintf(out_buf, "m l");
+    sprintf(out_buf, "l");
   }
   return ret;
 }
