@@ -1347,7 +1347,11 @@ int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig, uint64_
 
 void ptrace_quick_kill(pid_t pid, pid_t tid)
 {
+    DBG_PRINT("%s %x %x\n", __func__, pid, tid);
+
     kill(pid, SIGKILL); /* XXX change to pid */
+    usleep(1000);
+    exit(0);
 }
 
 void ptrace_quick_signal(pid_t pid, pid_t tid, int gdb_sig)
@@ -1365,11 +1369,48 @@ void ptrace_quick_signal(pid_t pid, pid_t tid, int gdb_sig)
 
 void ptrace_kill(pid_t pid, pid_t tid)
 {
-	if (cmdline_pid > 0) {
-	    _ptrace_detach(pid, tid, SIGKILL);
-	} else {
-	    ptrace_resume_from_current(pid, tid, 0, SIGKILL);
-	}
+    DBG_PRINT("%s %x %x\n", __func__, pid, tid);
+
+   if (kill(pid, SIGINT)) {
+       /* Failure */
+       if (_stop_verbose) {
+	   DBG_PRINT("ERROR sending SIGKILL to %x\n", tid);
+       }
+   } else {
+       /*
+	* Now wait..
+	* Ripped off logic from normal wait.
+	* TBD : Clean up.
+	*/
+       int wait_ret;
+       char str[128];
+       size_t len = 128;
+       int tries = 0;
+       int max_tries = 20;
+       int g = ptrace_arch_signal_to_gdb(SIGKILL);
+       do {
+	   usleep(1000);
+	   wait_ret = ptrace_wait(str, len, 0);
+	   if (!gDebugeeRunning) {
+	       DBG_PRINT("Success in kill the debugee\n");
+	       break;
+	   }
+	   /*
+	    * Keep track of the number of tries
+	    * Don't get stuck in an infinite loop here.
+	    */
+	   tries++;
+	   if (tries > max_tries) {
+	       DBG_PRINT("Exceeded maximume tries to kill \n");
+	       goto end;
+	   }
+	   if (wait_ret == RET_IGNORE || wait_ret == RET_OK) {
+	       ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
+	   }
+       } while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
+   }
+end:
+    exit(0);
 }
 
 int ptrace_go_waiting(int gdb_sig)
