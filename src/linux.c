@@ -306,6 +306,7 @@ void ptrace_os_continue_others()
     if (NS_ON == _target.nonstop) {
 	int index;
 	for (index = 0; index < _target.number_processes; index++) {
+	    pid_t pid = PROCESS_PID(index);
 	    pid_t tid = PROCESS_TID(index);
 	    bool wait = PROCESS_WAIT(index);
 
@@ -315,7 +316,7 @@ void ptrace_os_continue_others()
 		if (PS_CONT == PROCESS_STATE(index)) {
 		    int sig = PROCESS_SIG(index);
 		    int g = ptrace_arch_signal_to_gdb(sig);
-		    _ptrace_resume(tid, 0, g);
+		    ptrace_resume_from_current(pid, tid, 0, g);
 		}
 	    }
 	}
@@ -330,6 +331,6 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
     } else {
 	ptrace_arch_clear_singlestep(tid);
     }
-    ret = PTRACE(request, tid, 1, sig);
+    ret = ptrace(request, tid, 1, sig);
     return ret;
 }
