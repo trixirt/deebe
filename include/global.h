@@ -57,8 +57,8 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 		exit(-1);						     \
 	} while (0)
 
-
-#define DEEBE_RELEASE
+/* In developement.. */
+#define DEEBE_RELEASE__
 #ifdef DEEBE_RELEASE
 #define DBG_PRINT(fmt, args...)
 #else
@@ -109,6 +109,7 @@ extern bool gDebugeeRunning;
 extern int host_signal_to_gdb(int sig);
 extern int host_signal_from_gdb(int gdb);
 
+extern int gPipeStdout[2];
 #else
 
 /* cmdline */
@@ -148,6 +149,8 @@ int gdb_interface_debug_level = -1;
 FILE *fp_log = NULL;
 
 bool gDebugeeRunning = true;
+
+int gPipeStdout[2] = { -1, -1, };
 
 #endif /* DECL_GLOBAL */
 #endif /* _GLOBAL_H */
