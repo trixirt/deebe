@@ -1931,9 +1931,27 @@ static int handle_v_command(char * const in_buf,
 				     * update to gdb, continue and go back to waiting
 				     */
 				    do {
+
+					/* Check for Debugee console output */
+					if (gPipeStdout[0] > 0) {
+					    char buf[1024];
+					    ssize_t read_size;
+					    while (0 < (read_size = read(gPipeStdout[0], &buf[0], 1023))) {
+						/* gdb_interface_put_console depends on string to be null terminated*/
+						buf[read_size] = 0; 
+						/* Out to deebe console */
+						fprintf(stdout, "%s", buf);
+						/* Back to gdb */
+						gdb_interface_put_console(buf);
+						network_write();
+					    }
+					}
+
 					ret = target->wait(out_buf,
 							   out_buf_len, step);
 					
+
+
 					if (ret == RET_IGNORE) {
 					    target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 					}
@@ -2601,9 +2619,11 @@ int rp_encode_string(const char *s, char *out, size_t out_size)
 		*out++ = hex[(*s >> 4) & 0x0f];
 		*out++ = hex[*s & 0x0f];
 		s++;
-		i++;
+		i += 2;
 	}
 	*out = '\0';
+	i++;
+
 	return i;
 }
 
@@ -3341,4 +3361,15 @@ int gdb_interface_packet()
 		DBG_PRINT("gdb_interface : error getting a packet\n");
 	}
 	return ret;
+}
+
+/* b can be no more than 1024 and must be null terminated */
+void gdb_interface_put_console(char *b) {
+    int esize;
+    char ebuf[2049]; /* 1 for 'O', 2 * buf */
+    ebuf[0] = 'O';
+    esize = rp_encode_string(b, &ebuf[1], 2048);
+    if (esize > 0) {
+	gdb_interface_put_packet(&ebuf[0], esize+1);
+    }
 }

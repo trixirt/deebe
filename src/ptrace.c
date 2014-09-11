@@ -639,6 +639,14 @@ int ptrace_restart(void)
 	if (cmdline_argc) {
 		/* fork -n- exec */
 		pid_t try_child;
+
+		/* The pipes that will be used to redirect the debugee's stdout and stderr */
+		if (0 == pipe(gPipeStdout)) {
+		    /* Non blocking please.. */
+		    fcntl(gPipeStdout[0], F_SETFL, O_NONBLOCK);
+		    fcntl(gPipeStdout[1], F_SETFL, O_NONBLOCK);
+		}
+
 		try_child = fork();
 		if (try_child == 0) {
 			/* The child */
@@ -646,6 +654,18 @@ int ptrace_restart(void)
 					/*@null@*/0, /*@null@*/0)) {
 				_exit(PTRACE_ERROR_TRACEME);
 			} else {
+			    /* Child closes input side of pipe */
+			    if (gPipeStdout[0] > 0) {
+				close(gPipeStdout[0]);
+				/* Replace with pipe output, dup2 takes care of the closing */
+				if (-1 == dup2(gPipeStdout[1], STDOUT_FILENO)) {
+				    /* fprintf(stderr, "Dup2 failed.. \n"); */
+				}
+				if (-1 == dup2(gPipeStdout[1], STDERR_FILENO)) {
+				    /* fprintf(stderr, "Dup2 failed.. \n"); */
+				} 
+			    }
+			    
 				/* Implied SIGTRAP when ptraced execv is successful */
 				if (execv(cmdline_argv[0], cmdline_argv)) {
 					_exit(PTRACE_ERROR_EXECV);
@@ -658,6 +678,10 @@ int ptrace_restart(void)
 				/* The parent with a child */
 				int status;
 				pid_t wait_child;
+
+				/* Parent closes the output side of pipe */
+				if (gPipeStdout[1] > 0)
+				    close(gPipeStdout[1]);
 
 				wait_child = waitpid(try_child, &status, 0);
 				if (wait_child == try_child) {
@@ -2176,6 +2200,7 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 	}
 #endif
 
+#if 0
 	/*
 	 * NonStop means threads can run conncurrently
 	 * The difficulty is when things like memory
@@ -2186,6 +2211,7 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		strcat(out_buf, str);
 		c += strlen(str);
 	}
+#endif
 
 	if (c > 1) {
 		ret = RET_OK;

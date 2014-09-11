@@ -439,6 +439,7 @@ void gdb_interface_cleanup();
 void gdb_interface_init();
 int gdb_interface_packet();
 int gdb_interface_quick_packet();
+void gdb_interface_put_console(char *b);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);
