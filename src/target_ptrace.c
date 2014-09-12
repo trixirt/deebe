@@ -43,11 +43,14 @@ static const RCMD_TABLE ptrace_remote_commands[] = {
 
 int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
 {
-  /* 
-   * Sends gdb something extra to print out
-   * Nothing yet to say, so return no support
-   */
-  return RET_NOSUPP;
+    int ret = RET_ERR;
+    int index;
+    index = target_index((pid_t) thread_id);
+    if (index >= 0) {
+	sprintf(out_buf, "Thread %d", index + 1);
+	ret = RET_OK;
+    } 
+    return ret;
 }
 
 static int ptrace_support_multiprocess() {
