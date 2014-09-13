@@ -144,7 +144,7 @@ extern void ptrace_stop(pid_t pid, pid_t tid);
 extern int ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
 extern int ptrace_threadinfo_query(int first, char *out_buf,
 				   size_t out_buf_size);
-extern int ptrace_wait(char *status_string, size_t status_string_len, int step);
+extern int ptrace_wait(char *status_string, size_t status_string_len, int step, bool skip_continue_others);
 extern void ptrace_quick_signal(pid_t pid, pid_t tid, int sig);
 extern int ptrace_wait_partial(int first, char *status_string,
 			       size_t status_string_len, int *implemented,

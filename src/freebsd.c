@@ -242,19 +242,13 @@ bool ptrace_os_new_thread(pid_t tid, int status) {
     return ret;
 }
 
-#if 0
-static void check_lwplist_for_new_threads(pid_t tid)
+static void check_lwplist_for_new_threads(pid_t pid)
 {
     int num_lwps = 0;
-    int num_threads = 0;
     lwpid_t *lwpid_list = NULL;
-    
-    num_threads = target_number_threads();
+
 #if PT_GETNUMLWPS
-    num_lwps = PTRACE(PT_GETNUMLWPS, tid, NULL, 0);
-#else
-    /* Noop it */
-    num_lwps = num_threads;
+    num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
 #endif
 
 #ifdef PT_GETLWPLIST
@@ -264,72 +258,54 @@ static void check_lwplist_for_new_threads(pid_t tid)
      *
      * WARNING : System does not seem to report dead threads
      * by removing the number of threads reported by PT_GETNUMLWPS
-     * This means neither can we.
+     *
      */
-    if (num_lwps != num_threads) {
-	if (num_lwps) {
-	    lwpid_list = (lwpid_t *) calloc(num_lwps, sizeof(lwpid_t));
-	    if (lwpid_list) {
-		if (num_lwps == PTRACE(PT_GETLWPLIST, tid, lwpid_list, num_lwps)) {
-		    /* More than expected, A new thread is born! */
-		    if (num_lwps > num_threads) {
-			pid_t parent = target_get_pid();
-			int i;
-			for (i = 0; i < num_lwps; i++) {
-			    /* Find the one that isn't already being tracked */
-			    if (! target_is_tid(lwpid_list[i])) {
-				pid_t new_tid = lwpid_list[i];
-				/*
-				 * The first time this is hit, it is the main thread of
-				 * the parent process.  Set the parent process tid to
-				 * this value so the first and second threads will be
-				 * handled the same.
-				 */
-				if (PROCESS_TID(0) == PROCESS_PID(0)) {
-				    PROCESS_TID(0) = new_tid;
-				}
-				
-				/*
-				 * The tread has not quite been born
-				 * Waiting for it now does not work.
-				 * So defer waiting for it by adding the new thread
-				 * but setting it's state to PRE_START
-				 *
-				 * Since the new thread is not in a wait state, set the
-				 * wait flag to false.
-				 */
-				if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
-				    DBG_PRINT("%s error allocating new thread\n", __func__);
-				} else {
-				    int index = target_index(new_tid);
-				    PROCESS_STATE(index) = PS_PRE_START;
-				}
-				break;
-			    }
-			}
+    if (num_lwps) {
+	lwpid_list = (lwpid_t *) calloc(num_lwps, sizeof(lwpid_t));
+	if (num_lwps == PTRACE(PT_GETLWPLIST, pid, lwpid_list, num_lwps)) {
+	    int i;
+	    for (i = 0; i < num_lwps; i++) {
+		/* Find the one that isn't already being tracked */
+		if (! target_is_tid(lwpid_list[i])) {
+		    pid_t new_tid = lwpid_list[i];
+		    pid_t parent = target_get_pid();
+		    
+		    /*
+		     * The first time this is hit, it is the main thread of
+		     * the parent process.  Set the parent process tid to
+		     * this value so the first and second threads will be
+		     * handled the same.
+		     */
+		    if (PROCESS_TID(0) == PROCESS_PID(0)) {
+			PROCESS_TID(0) = new_tid;
 		    } else {
 			/*
-			 * A thread has died
+			 * The tread has not quite been born
+			 * Waiting for it now does not work.
+			 * So defer waiting for it by adding the new thread
+			 * but setting it's state to PRE_START
 			 *
-			 * In development, this case was never reached.
-			 * Leave it here in case somthing improved
+			 * Since the new thread is not in a wait state, set the
+			 * wait flag to false.
 			 */
-			DBG_PRINT("Unexpected code hit %s %d \n", __func__, __LINE__);
+			if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+			    DBG_PRINT("%s error allocating new thread\n", __func__);
+			} else {
+			    int index = target_index(new_tid);
+			    PROCESS_STATE(index) = PS_PRE_START;
+			}
+			break;
 		    }
-		} else {
-		    DBG_PRINT("Error with PT_GETLWPLIST\n");
 		}
-	    } else {
-		DBG_PRINT("Error allocating lwpid_list\n");
-	    }
+	    } /* lwps loop */
 	}
     }
+
 #endif
     if (lwpid_list)
 	free(lwpid_list);
 }
 
-#endif
 
 static int check_lwpinfo(pid_t pid)
 {
@@ -429,6 +405,17 @@ void ptrace_os_wait(pid_t t)
 
     if ((wait_tid == pid) && (-1 != wait_status)) {
 	int wait_index;
+
+	/*
+	 * Need to keep track of new threads being created
+	 * Without this check only those that hit a breakpoint
+	 * would be reported.
+	 *
+	 * This call can change the number of threads in the thread
+	 * list but it will not change the order.
+	 */
+	check_lwplist_for_new_threads(pid);
+
 	/*
 	 * check_lwpinfo returns the index to the tid that
 	 * caused the event.

@@ -1414,7 +1414,7 @@ void ptrace_kill(pid_t pid, pid_t tid)
        int g = ptrace_arch_signal_to_gdb(SIGKILL);
        do {
 	   usleep(1000);
-	   wait_ret = ptrace_wait(str, len, 0);
+	   wait_ret = ptrace_wait(str, len, 0, true);
 	   if (!gDebugeeRunning) {
 	       DBG_PRINT("Success in kill the debugee\n");
 	       break;
@@ -1874,7 +1874,7 @@ static void _gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned
     if (target_number_threads() > 0)
 	snprintf(&tstr[0], 32, "thread:%x;", tid);
     if (watch_addr) 
-	snprintf(&tstr[0], 32, "watch:%lx;", watch_addr);
+	snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
     snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
 }
 static void _stopped_single(char *str, size_t len) {
@@ -2063,7 +2063,7 @@ static void _stopped_all(char *str, size_t len) {
 	} /* process loop */
 }
 
-static int ptrace_wait_async(char *str, size_t len, int step) 
+int ptrace_wait(char *str, size_t len, int step, bool skip_continue_others)
 {
 	/* Could be waiting awhile, turn on sigio */
 	signal_sigio_on();
@@ -2105,8 +2105,13 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 		 * they are safe to run anytime
 		 */
 		_continued_all();
-		/* _newthread_all(); */
-		ptrace_os_continue_others();
+
+		/*
+		 * Sometime the caller wants everyone to stop
+		 * So do not start up the non-current threads
+		 */
+		if (! skip_continue_others)
+		    ptrace_os_continue_others();
 	}
 
     /* Finished waiting, turn off sigio */
@@ -2120,6 +2125,11 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 	}
     } else {
 
+	/*
+	 * Could be waiting in this loop for a while.
+	 * Check if gdb has sent something important, like a ^C
+	 * that we should respond to.
+	 */
 	int read_status;
 	read_status = network_read();
 	if (0 == read_status) {
@@ -2129,11 +2139,6 @@ static int ptrace_wait_async(char *str, size_t len, int step)
 
 	return RET_CONTINUE_WAIT;
     }
-}
-
-int ptrace_wait(char *status_string, size_t status_string_len, int step)
-{
-	return ptrace_wait_async(status_string, status_string_len, step);
 }
 
 int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
@@ -2375,6 +2380,9 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 			 */
 			ret = RET_OK;
 		} else {
+
+		    DBG_PRINT("%s hard case\n", __func__, index);
+
 			/*
 			 * The current thread is not the one that is being switched to.
 			 * So stop the needed thread, and continue the now old current thread
@@ -2386,9 +2394,6 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 			 */
 			PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
 
-			/* Sleep for a a msec */
-			usleep(1000);
-			
 			/*
 			 * Now wait..
 			 * Ripped off logic from normal wait.
@@ -2401,52 +2406,44 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 				int tries = 0;
 				int max_tries = 20;
 				do {
-					wait_ret = ptrace_wait(str, len, 0);
-					/*
-					 * A side effect of wait is that it can set the current tid
-					 * when an event like a break point is hit.  Check to make sure
-					 * this doesn't happen.  We lose the event and continue to try 
-					 * to stop the thread that is requested.
-					 */
-					if (wait_ret == RET_OK) {
-						if (CURRENT_PROCESS_TID != new_tid) {
-							/*
-							 * Double check that the thread did not exit before
-							 * the signal to stop was handled
-							 */
-							if (PROCESS_STATE(index) == PS_EXIT) {
-								/*
-								 * Nothing much to do here about the requested thread.
-								 * When a thread exits, the current thread changes to the main process
-								 * The main process is now in a wait state, so no need to contine in
-								 * this wait/continue loop.  Goto the end and return an error
-								 */
-								goto end;
-							} else {
-								/*
-								 * Keep track of the number of tries
-								 * Don't get stuck in an infinite loop here.
-								 */
-								tries++;
-								if (tries > max_tries) {
-									DBG_PRINT("Exceeded maximume retries to switch threads\n");
-									/* Some thread is waiting.. so goto end and return an error */
-									goto end;
-								} else {
-									/* Abuse the return value */
-									wait_ret = RET_IGNORE;
-								}
-							}
-						}
-					} 
 
-					if (wait_ret == RET_IGNORE) {
-					    ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, 0);
-					}
+				    /*
+				     * Keep track of the number of tries
+				     * Don't get stuck in an infinite loop here.
+				     */
+				    tries++;
+				    if (tries > max_tries) {
+					DBG_PRINT("Exceeded maximume retries to switch threads\n");
+					/* Some thread is waiting.. so goto end and return an error */
+					goto end;
+				    }
+
+				    /* Sleep for a a msec */
+				    usleep(1000);
+
+				    wait_ret = ptrace_wait(str, len, 0, true);
+				    if (wait_ret == RET_OK) {
+					/*
+					 * When an RET_OK was hit, we have something to report
+					 * However the thread handling the event may not be
+					 * the thread we want.
+					 *
+					 * However since everyone is waiting then
+					 * it is ok to switch the current thread
+					 */
+					target_thread_make_current(index);
+				    } else if (wait_ret == RET_IGNORE) {
+					int g = ptrace_arch_signal_to_gdb(SIGINT);
+					ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
+				    }
+
 				} while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
 
-				DBG_PRINT("%s: %s\n", __func__, str);
-				ret = RET_OK;
+				/* 
+				 * ptrace_wait could have thrown an error
+				 * use ptrace_wait's return as this functions return 
+				 */
+				ret = wait_ret;
 			}
 		}
 	}
