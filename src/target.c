@@ -48,7 +48,7 @@ target_state _target = {
 	 * AllStop and NonStop mode for threading.
 	 * Since AllStop is the oldest mode, default to that.
 	 */
-	.nonstop = NS_OFF,
+	.nonstop = NS_ON,
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 1,
