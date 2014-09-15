@@ -1,0 +1,10 @@
+Special instrutions for running on OSX
+
+Deebie must be run by the root user.
+So replace 
+
+> deebie [options] net:port debugee
+
+with 
+
+> sudo deebie [options] net:port debugee

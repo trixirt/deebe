@@ -1,0 +1,207 @@
+DEEBE : Pronounced 'Debbie'
+
+Deebe is a drop in replacement for gdbserver.
+
+-----------------------------------------------------------------------------
+
+To Build 
+Deebe is configured with autoconf.  A pre configure setup 
+requires running the bootstrap.sh script in the toplevel directory.  Once 
+this is done, the normal autoconf project commands of configure, make, 
+make install are done.  The normal build steps are
+
+$ > mkdir path-to-your-build-dir
+$ > cd path-to-src-dir
+$ > ./bootstrap.sh
+$ > cd path-to-your-build-dir
+$ > path-to-src-dir/configure
+$ > make
+$ > su
+$ > make install
+
+The default install location is /usr/local/bin/
+
+----------------------------------------------------------------------------
+
+Dependencies
+
+The reference autoconf versions are
+autoconf-2.68
+automake-1.11.2
+m4-1.4.15
+
+The reference make version is
+make-3.81
+
+The reference gcc version is
+gcc-4.1.2
+
+The reference gdb version is
+gdb-6.5a
+
+----------------------------------------------------------------------------
+
+To Run :
+
+Because deebe is drop-in replacment for gdbserver, the way gdbserver is
+run is the way deebe is run.  The command line arguements gdbserver has,
+deebe also has. etc.  Good documentation on gdbserver exists already.  A
+good place to start is with this wiki.
+
+http://en.wikipedia.org/wiki/Gdbserver
+
+The usual way deebe is used is by either starting a process or attaching
+to a running process on the remote machine, then using gdb on the local
+machine to communicate with deebe.
+
+On the remote machine either
+
+Starting a process
+
+deebe IP_ADDRESS:PORT program arg1 arg2 ..
+
+ex/
+
+deebe 10.123.45.67:2345 /usr/bin/true
+
+Or to attach to running process
+
+deebe IP_ADDRESS:PORT --attach PID
+
+ex/
+
+deebe 10.123.45.67:2345 --attach 54321
+
+On the local machine
+
+Load the program's executable,
+
+(gdb) file path-to-program/program
+
+Connect to deebe
+
+(gdb) target remote IP_ADDRESS:PORT
+
+ex/
+
+(gdb) target remote 10.123.45.65:2345
+
+Once gdb acknowledges the connection, debug as normal.
+
+Deebe support a few additional command line options. They are
+  --forward IP_ADDRESS:PORT
+  --watchdog <minutes>
+
+--forward IP_ADDRESS:PORT
+
+This feature allows debugging of compilated network configurations.
+This option forwards network traffic to another deebe that is does the
+debugging.  Normally there is only a single deebe
+
+GDB -> DEEBE
+
+With the --forward, there can be one or more of intermediate network
+forwarding deebe's.  
+
+GDB -> DEEBE A -> DEEBE B -> DEEBE C
+
+--watchdog <minutes>
+
+This feature instructs deebe to exit after the user defined number of
+minutes without activity. 
+
+-----------------------------------------------------------------------
+
+Hacking Deebe
+
+For people who want to understand what deebe does.
+
+Enabling the debug output.
+The debug output is written to the file /tmp/deebe.log.  The file pointer is
+opened at the being of main.c 
+
+#ifndef DEEBE_RELEASE                                                           
+        FILE *try_log = fopen(LOG_FILENAME, "wt"); 
+	...
+#endif
+
+If this is a release, no output.  To disable the DEEBE_RELEASE #ifdef, 
+comment out this define in global.h
+
+#define DEEBE_RELEASE
+
+Immediately below is this macro that wraps fprintf.
+
+#ifdef DEEBE_RELEASE
+#define DBG_PRINT(fmt, args...)
+#else
+#define DBG_PRINT(fmt, args...) util_log(fmt, ##args)
+#endif
+
+The macro is used for most debugging output.  It's use is also controlled
+on a per feature basis through debug output flags defined at the top of 
+the file/feature of interest.  For example, in network.c the raw input
+and output buffer can be captured to logfile.
+
+...
+
+static bool network_verbose_print_read_buffer = true;
+static bool network_verbose_print_write_buffer = true;
+
+...
+
+And their use later in the file
+
+... 
+
+if (network_verbose_print_read_buffer) {
+	DBG_PRINT("----->\n");
+	util_print_buffer(fp_log, network_in_buffer_current,
+	                  network_in_buffer_total, &network_in_buffer[0]);
+	if (fp_log)
+		fflush(fp_log);
+}
+
+...
+
+if (network_verbose_print_write_buffer) {
+	DBG_PRINT("<-----\n");
+	util_print_buffer(fp_log, network_out_buffer_current,
+	                  network_out_buffer_total, &network_out_buffer[0]);
+	if (fp_log)
+		fflush(fp_log);
+}
+
+-----------------------------------------------------------------------
+
+Submitting patches
+
+YES! Please submit patches
+
+Patches should be generated using the git command
+
+$ > git format-patch <commit id>
+
+Each patch should contain a single logical change and a commit log
+explaining the change.
+
+-----------------------------------------------------------------------
+
+Coding Style
+
+The coding style, with a few exceptions is the linux kernel's coding style.
+
+http://www.kernel.org/doc/Documentation/CodingStyle
+
+Your work can be checked with the linux kernel's style checking script
+checkpatch.pl.  
+
+The exceptions are:
+Line length > 80.
+Initializing static or global variable to 0.
+Use of typedef.
+
+-----------------------------------------------------------------------
+
+
+
