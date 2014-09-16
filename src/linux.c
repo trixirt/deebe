@@ -334,3 +334,161 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
     ret = ptrace(request, tid, 1, sig);
     return ret;
 }
+
+int ptrace_os_gen_thread(pid_t pid, pid_t tid)
+{
+    int ret = RET_ERR;
+    int index;
+    if ((pid < 0) || (tid < 0))
+	goto end;
+
+    index = target_index(tid);
+
+    DBG_PRINT("%s index %d\n", __func__, index);
+    
+    if (index < 0) {
+	/* Not a valid thread */
+    } else if (!target_alive_thread(tid)) {
+	/* dead thread */
+	DBG_PRINT("%s dead %d\n", __func__, index);
+    } else if (_target.current_process == index) {
+	/* The trival case */
+	DBG_PRINT("%s trivial %d\n", __func__, index);
+	ret = RET_OK;
+    } else if (PROCESS_WAIT(index)) {
+	/* We got lucky, the process is already in a wait state */
+	target_thread_make_current(index);
+	
+	DBG_PRINT("%s already waiting %d\n", __func__, index);
+	
+	/*
+	 * Continuing the old current will happen automatically
+	 * when the normal continue/wait logic runs
+	 */
+	ret = RET_OK;
+    } else {
+	
+	DBG_PRINT("%s hard case %x %d\n", __func__, tid, index);
+	
+	/*
+	 * The current thread is not the one that is being switched to.
+	 * So stop the needed thread, and continue the now old current thread
+	 */
+	ptrace_stop(pid, tid);
+	/*
+	 * ptrace_stop send a SIG_INT to the tid
+	 * To seperate this signal from a normal signal, flag it as 'internal'
+	 */
+	PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+	
+	/*
+	 * Now wait..
+	 * Ripped off logic from normal wait.
+	 * TBD : Clean up.
+	 */
+	{
+	    int wait_ret;
+	    char str[128];
+	    size_t len = 128;
+	    int tries = 0;
+	    int max_tries = 20;
+	    do {
+		
+		/*
+		 * Keep track of the number of tries
+		 * Don't get stuck in an infinite loop here.
+		 */
+		tries++;
+		if (tries > max_tries) {
+		    DBG_PRINT("Exceeded maximume retries to switch threads\n");
+		    /* Some thread is waiting.. so goto end and return an error */
+		    goto end;
+		}
+		
+		/* Sleep for a a msec */
+		usleep(1000);
+		
+		wait_ret = ptrace_wait(str, len, 0, true);
+		if (wait_ret == RET_OK) {
+		    DBG_PRINT("%s hard case %s\n", __func__, str);
+		    
+		    
+		    /*
+		     * When an RET_OK was hit, we have something to report
+		     * However the thread handling the event may not be
+		     * the thread we want.
+		     *
+		     * However since everyone is waiting then
+		     * it is ok to switch the current thread
+		     */
+		    target_thread_make_current(index);
+		} else if (wait_ret == RET_IGNORE) {
+		    int g = ptrace_arch_signal_to_gdb(SIGINT);
+		    ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
+		}
+		
+	    } while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
+	    
+	    /* 
+	     * ptrace_wait could have thrown an error
+	     * use ptrace_wait's return as this functions return 
+	     */
+	    ret = wait_ret;
+	}
+    }
+end:
+    return ret;
+}
+
+void ptrace_os_stopped_single(char *str, size_t len, bool debug)
+{
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	bool process_wait = PROCESS_WAIT(index);
+	if (process_wait) {
+	    DBG_PRINT("%s stopped %x looking for %x\n", __func__, index, _target.current_process);	    
+	}
+    }
+
+    if (CURRENT_PROCESS_WAIT) {
+
+		pid_t tid = CURRENT_PROCESS_TID;
+		int wait_status = CURRENT_PROCESS_WAIT_STATUS;
+
+		if (WIFSTOPPED(wait_status)) {
+
+			int s = WSTOPSIG(wait_status);
+			int g = ptrace_arch_signal_to_gdb(s);
+
+			if (s == SIGTRAP) {
+				unsigned long watchpoint_addr = 0;
+				unsigned long pc = 0;
+
+				ptrace_arch_get_pc(tid, &pc);
+			
+				/* Fill out the status string */
+				if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
+					/* A watchpoint was hit */
+				    gdb_stop_string(str, len, g, tid, watchpoint_addr);
+				} else {
+					/* Either a normal breakpoint or a step, it doesn't matter */
+				    gdb_stop_string(str, len, g, tid, 0);
+				}
+
+				if (debug) {
+					DBG_PRINT("stopped at pc 0x%lx\n", pc);
+					if (pc) {
+						uint8_t b[32] = { 0 };
+						size_t read_size = 0;
+						ptrace_read_mem(tid, pc, &b[0], 32,
+								&read_size);
+						util_print_buffer(fp_log, 0, 32, &b[0]);
+					}
+				}
+			} else {
+			    /* A non trap signal */
+			    gdb_stop_string(str, len, g, tid, 0);
+			}
+		}
+	}
+}

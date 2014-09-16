@@ -401,28 +401,43 @@ void ptrace_os_wait(pid_t t)
 
     wait_tid = waitpid(pid, &wait_status, WNOHANG);
 
-    /* DBG_PRINT("%s %x %x %x\n", __func__, pid, wait_tid, wait_status); */
-
     if ((wait_tid == pid) && (-1 != wait_status)) {
 	int wait_index;
-
-	/*
-	 * Need to keep track of new threads being created
-	 * Without this check only those that hit a breakpoint
-	 * would be reported.
-	 *
-	 * This call can change the number of threads in the thread
-	 * list but it will not change the order.
-	 */
-	check_lwplist_for_new_threads(pid);
+	int index;
 
 	/*
 	 * check_lwpinfo returns the index to the tid that
 	 * caused the event.
 	 */
 	wait_index = check_lwpinfo(wait_tid);
-	PROCESS_WAIT(wait_index) = true;
-	PROCESS_WAIT_STATUS(wait_index) = wait_status;
+	/* check_lwpinfo can fail */
+	if (wait_index >= 0) {
+	    PROCESS_WAIT(wait_index) = true;
+	    PROCESS_WAIT_STATUS(wait_index) = wait_status;
+
+	    /* Since we waited on the pid, everyone is stopped */
+	    for (index = 0; index < _target.number_processes; index++) {
+		if (PROCESS_STATE(index) != PS_EXIT) {
+		    PROCESS_STATE(index) = PS_STOP;
+		}
+	    }
+
+	    /*
+	     * Need to keep track of new threads being created
+	     * Without this check only those that hit a breakpoint
+	     * would be reported.
+	     *
+	     * This call can change the number of threads in the thread
+	     * list but it will not change the order.
+	     */
+	    check_lwplist_for_new_threads(pid);
+
+	    DBG_PRINT("%s %x %x %x\n", __func__, pid, wait_tid, wait_status);
+
+	} else {
+	    DBG_PRINT("ERROR %s lwpinfo failed %x %x %x\n", __func__, pid, wait_tid, wait_status);
+	}
+
     }
 }
 
@@ -431,10 +446,15 @@ void ptrace_os_continue_others()
     /* Noop */
 }
 
+/*
+ * FreeBSD continues all threads as a group
+ * There is no control over individual threads.
+ * So always use the pid.
+ */
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
     long ret;
     long request = PT_CONTINUE;
-    pid_t continue_pid = pid;
+    int index;
 
     /*
      * FreeBSD does not notify when a thread exits
@@ -444,13 +464,235 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
      */
     if (step == 1) {
 	ptrace_arch_set_singlestep(tid, &request);
-	continue_pid = tid;
     } else {
 	ptrace_arch_clear_singlestep(tid);
-	continue_pid = pid;
     }
 
-    ret = PTRACE(request, continue_pid, 1, sig);
+    /*
+     * Staring up everyone
+     * XXX out of order, does not handle the error
+     */
+    for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_STATE(index) != PS_EXIT) {
+	    PROCESS_STATE(index) = PS_RUN;
+	}
+    }
+
+    DBG_PRINT("%s %x %x %x\n", __func__, request, pid, sig);
+
+    ret = PTRACE(request, pid, 1, sig);
 
     return ret;
+}
+
+int ptrace_os_gen_thread(pid_t pid, pid_t tid)
+{
+    int ret = RET_ERR;
+    int index;
+    if ((pid < 0) || (tid < 0))
+	goto end;
+
+    /* for (index = 0; index < _target.number_processes; index++) {
+	DBG_PRINT("%s %d %d\n", __func__, index, PROCESS_STATE(index));
+	} */
+
+    index = target_index(tid);
+
+    /* DBG_PRINT("%s index %d %d %d %d\n", __func__, index, PROCESS_STATE(index), PS_STOP, PS_CONT); */
+    
+    if (PROCESS_STATE(index) == PS_STOP) {
+	DBG_PRINT("%s index STOP\n", __func__);
+
+    }
+    if (PROCESS_STATE(index) == PS_CONT) {
+	DBG_PRINT("%s index CONT\n", __func__);
+
+    }
+
+    if (index < 0) {
+	/* Not a valid thread */
+    } else if (!target_alive_thread(tid)) {
+	/* dead thread */
+	DBG_PRINT("%s dead %d\n", __func__, index);
+    } else if (_target.current_process == index) {
+	/* The trival case */
+	DBG_PRINT("%s trivial %d\n", __func__, index);
+	ret = RET_OK;
+    } else if (PROCESS_STATE(index) == PS_RUN) {
+
+	DBG_PRINT("%s hard case %x %d\n", __func__, tid, index);
+	
+	/*
+	 * The current thread is not the one that is being switched to.
+	 * So stop the needed thread, and continue the now old current thread
+	 */
+	ptrace_stop(pid, tid);
+	/*
+	 * ptrace_stop send a SIG_INT to the tid
+	 * To seperate this signal from a normal signal, flag it as 'internal'
+	 */
+	PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+	
+	/*
+	 * Now wait..
+	 * Ripped off logic from normal wait.
+	 * TBD : Clean up.
+	 */
+	{
+	    int wait_ret;
+	    char str[128];
+	    size_t len = 128;
+	    int tries = 0;
+	    int max_tries = 20;
+	    do {
+		
+		/*
+		 * Keep track of the number of tries
+		 * Don't get stuck in an infinite loop here.
+		 */
+		tries++;
+		if (tries > max_tries) {
+		    DBG_PRINT("Exceeded maximume retries to switch threads\n");
+		    /* Some thread is waiting.. so goto end and return an error */
+		    goto end;
+		}
+		
+		/* Sleep for a a msec */
+		usleep(1000);
+		
+		wait_ret = ptrace_wait(str, len, 0, true);
+		if (wait_ret == RET_OK) {
+		    DBG_PRINT("%s hard case %s\n", __func__, str);
+		    /*
+		     * When an RET_OK was hit, we have something to report
+		     * However the thread handling the event may not be
+		     * the thread we want.
+		     *
+		     * However since everyone is waiting then
+		     * it is ok to switch the current thread
+		     */
+		    target_thread_make_current(index);
+		} else if (wait_ret == RET_IGNORE) {
+		    int g = ptrace_arch_signal_to_gdb(SIGINT);
+		    ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
+		}
+		
+	    } while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
+	    
+	    /* 
+	     * ptrace_wait could have thrown an error
+	     * use ptrace_wait's return as this functions return 
+	     */
+	    ret = wait_ret;
+	}
+    } else {
+	/* Assume stopped */
+
+	/* We got lucky, the process is already in a stopped state */
+	target_thread_make_current(index);
+	
+	DBG_PRINT("%s already waiting %d\n", __func__, index);
+	
+	/*
+	 * Continuing the old current will happen automatically
+	 * when the normal continue/wait logic runs
+	 */
+	ret = RET_OK;
+    }
+
+end:
+    return ret;
+}
+
+/*
+ * In FreeBSD all threads single step together.
+ * So the stopped thread may not be the current thread.
+ * This makes it difficult because gdb assume the single stepped
+ * thread is the only thread running and relies on single 
+ * stepping to get past a normal break point.  So if we see
+ * a SIGTRAP on any thread, remap to the current thread assuming
+ * that the non current thread is also reporting the single step
+ * and isn't reporting a normal break point or watch point.
+ * However any other signal's need to be handled normally, the
+ * current thread is set to signalling thread.
+ */
+void ptrace_os_stopped_single(char *str, size_t len, bool debug)
+{
+    int index;
+    for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_WAIT(index))
+	    break;
+    }
+
+    if (index < _target.number_processes) {
+
+	pid_t current_tid = CURRENT_PROCESS_TID;
+	pid_t tid = PROCESS_TID(index);
+	int wait_status = PROCESS_WAIT_STATUS(index);
+	
+	DBG_PRINT("%s %d %x %x : %x\n", __func__, index, current_tid, tid, wait_status);
+
+	if (WIFSTOPPED(wait_status)) {
+	    int s = WSTOPSIG(wait_status);
+	    int g = ptrace_arch_signal_to_gdb(s);
+	    
+	    DBG_PRINT("%s %x %x\n", __func__, s, g);
+
+	    if (s == SIGTRAP) {
+		unsigned long watchpoint_addr = 0;
+		unsigned long pc = 0;
+		
+		ptrace_arch_get_pc(tid, &pc);
+		
+		/* Only check if the current thread is at a watchpoint */
+		if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
+		    /* A watchpoint was hit */
+		    target_thread_make_current(tid);
+		    gdb_stop_string(str, len, g, tid, 0);
+
+		    /*
+		     * process stat points to the true thread to continue
+		     * Not that it matter on FreeBSD as they all go at once
+		     */
+		    PROCESS_STATE(index) = PS_CONT;
+
+		} else {
+		    /*
+		     * Map all tid's to the current tid
+		     *
+		     * Either a normal breakpoint or a step, it doesn't matter
+		     */
+		    target_thread_make_current(tid);
+		    gdb_stop_string(str, len, g, tid, 0);
+		    
+		    /*
+		     * process stat points to the true thread to continue
+		     * Not that it matter on FreeBSD as they all go at once
+		     */
+		    PROCESS_STATE(index) = PS_CONT;
+
+		}
+		
+		if (debug) {
+		    DBG_PRINT("stopped at pc 0x%lx\n", pc);
+		    if (pc) {
+			uint8_t b[32] = { 0 };
+			size_t read_size = 0;
+			ptrace_read_mem(tid, pc, &b[0], 32,
+					&read_size);
+			util_print_buffer(fp_log, 0, 32, &b[0]);
+		    }
+		}
+	    } else {
+		/* A non trap signal, report the true thread */
+		target_thread_make_current(tid);
+		gdb_stop_string(str, len, g, tid, 0);
+		
+		PROCESS_STATE(index) = PS_CONT;
+	    }
+	}
+    }
+    if (strlen(str)) {
+	DBG_PRINT("%s exiting with %s\n", __func__, str);
+    }
 }

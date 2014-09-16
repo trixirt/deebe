@@ -741,7 +741,16 @@ static int _decode_thread_id(const char *in_buf, int64_t *process_id, int64_t *t
 		}
 	} else {
 		in = &in_buf[0];
-		if (!gdb_decode_int64(&in, process_id, '\0')) {
+		/*
+		 * In some cases, the terminating character is not a null
+		 * This happens in vCont;Css:thread;c
+		 * So look for the second ';' and use that as a terminator
+		 */
+		int term = '\0';
+		if (strchr(in, ';'))
+		    term = ';';
+
+		if (!gdb_decode_int64(&in, process_id, term)) {
 			ret = 1;
 		}
 	}
@@ -1174,7 +1183,7 @@ void handle_running_commands(char * const in_buf,
 		   blocking wait */
 		if (t->wait) {
 			ret = t->wait(status_string,
-				      status_string_len, step);
+				      status_string_len, step, false);
 		} else {
 			ret = RET_NOSUPP;
 		}
@@ -1896,7 +1905,7 @@ static int handle_v_command(char * const in_buf,
 			n++;
 
 			int step  = ((n[0] == 'S') || (n[0] == 's')) ? 1 : 0;
-			uint32_t sig = 0;
+			uint8_t sig = 0;
 			bool err = false;
 			int64_t p, t;
 			p = t = -1;
@@ -1904,10 +1913,11 @@ static int handle_v_command(char * const in_buf,
 			char *in = &n[1];
 			if ((n[0] == 'C') ||
 			    (n[0] == 'S')) {
-				if (!gdb_decode_uint32(&in, &sig, '\0')) {
-					err = true;
-				}
+			    gdb_decode_byte(in, &sig);
+			    in += 2;
 			}
+
+			DBG_PRINT("%s %d\n", in, sig);
 
 			/* 
 			 * Handle the case where the continue applies to a specific thread 
@@ -1917,6 +1927,12 @@ static int handle_v_command(char * const in_buf,
 			    if (in[0] == ':') {
 				if (0 == _decode_thread_id(&in[1], &p, &t)) {
 				    target->set_gen_thread(p, t);
+
+				    /*
+				     * Sending signals to individual threads is not
+				     * supported.  
+				     */
+				    sig = 0;
 				}
 			    }
 			}
@@ -1948,7 +1964,7 @@ static int handle_v_command(char * const in_buf,
 					}
 
 					ret = target->wait(out_buf,
-							   out_buf_len, step);
+							   out_buf_len, step, false);
 					
 
 
@@ -2848,8 +2864,6 @@ int rp_hex_nibble(char in)
 	return  -1;
 }
 
-
-
 /* Decode exactly 4 bytes of hex from a longer string, and return the result
    as an unsigned 32-bit value */
 static int rp_decode_4bytes(const char *in, uint32_t *val)
@@ -3372,4 +3386,19 @@ void gdb_interface_put_console(char *b) {
     if (esize > 0) {
 	gdb_interface_put_packet(&ebuf[0], esize+1);
     }
+}
+
+/*
+ * Generate the gdb 'thread:xxxxxxx' string used by the stop events
+ * When there is a single thread, return an empty string.
+ */
+void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long watch_addr)
+{
+    char tstr[32] = "";
+    char wstr[32] = "";
+    if (target_number_threads() > 0)
+	snprintf(&tstr[0], 32, "thread:%x;", tid);
+    if (watch_addr) 
+	snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
+    snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
 }
