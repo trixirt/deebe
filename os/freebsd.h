@@ -75,4 +75,6 @@ void ptrace_os_wait(pid_t tid);
 void ptrace_os_continue_others();
 int os_thread_kill(int tid, int sig);
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
+int ptrace_os_gen_thread(pid_t pid, pid_t tid);
+void ptrace_os_stopped_single(char *str, size_t len, bool debug);
 #endif
