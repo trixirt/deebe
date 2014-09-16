@@ -1932,7 +1932,8 @@ static int handle_v_command(char * const in_buf,
 				     * Sending signals to individual threads is not
 				     * supported.  
 				     */
-				    sig = 0;
+				    if (target_number_threads() != 1)
+					sig = 0;
 				}
 			    }
 			}
