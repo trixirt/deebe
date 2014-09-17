@@ -88,12 +88,12 @@ void ptrace_arch_clear_singlestep(pid_t pid)
 	/* TBD */
 }
 
-void ptrace_arch_read_greg()
+void ptrace_arch_read_greg(pit_t tid)
 {
 	/* TBD */
 }
 
-void ptrace_arch_write_greg()
+void ptrace_arch_write_greg(pid_t tid)
 {
 	/* TBD */
 }
@@ -140,12 +140,12 @@ bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 	return ret;
 }
 
-void ptrace_arch_read_fxreg()
+void ptrace_arch_read_fxreg(pid_t tid)
 {
 	/* stub */
 }
 
-void ptrace_arch_write_fxreg()
+void ptrace_arch_write_fxreg(pid_t tid)
 {
 	/* stub */
 }

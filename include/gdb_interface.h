@@ -319,7 +319,9 @@ struct gdb_target_s {
 	   implemented is non 0 */
 	int (*wait)(char *status_string,
 		    size_t status_string_len,
-	    int step);
+		    int step,
+		    bool skip_continue_others
+	    );
 
 	/* From signal handler, pass a general signal to a waiting process */
     void (*quick_signal)(pid_t pid, pid_t tid, int sig);
@@ -440,6 +442,7 @@ void gdb_interface_init();
 int gdb_interface_packet();
 int gdb_interface_quick_packet();
 void gdb_interface_put_console(char *b);
+void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long watch_addr);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);
