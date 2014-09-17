@@ -179,15 +179,24 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
-#ifdef PT_GETXSTATE
-#define GDB_GREG_MAX 49
-#else
+/* with PT_GETXSTATE */
+#define GDB_GREG_MAX_X 49
+/* without PT_GETXSTATE */
 #define GDB_GREG_MAX 40
-#endif
 
 int ptrace_arch_gdb_greg_max()
 {
-	return GDB_GREG_MAX;
+  int size;
+  /*
+   * fxreg may not be supported.
+   * So check the size of the register before returning
+   */
+  if (_target.fxreg_size)
+    size = GDB_GREG_MAX_X;
+  else
+    size = GDB_GREG_MAX;
+
+  return size;
 }
 
 void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
@@ -205,23 +214,26 @@ void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 }
 
 
-void ptrace_arch_read_fxreg(pid_t tid, size_t size)
+void ptrace_arch_read_fxreg(pid_t tid)
 {
 #ifdef PT_GETXSTATE
-	/*
-	 * Even if this is defined, the kernel
-	 * can return and eror of 'no support'
-	 */
-    _read_reg(tid, PT_GETXSTATE, PT_SETXSTATE,
-		  &_target.fxreg, &_target.fxreg_rw,
-		  &_target.fxreg_size);
+  /*
+   * Even if this is defined, the kernel
+   * can return and eror of 'no support'
+   */
+  _read_reg(tid, PT_GETXSTATE, PT_SETXSTATE,
+	    &_target.fxreg, &_target.fxreg_rw,
+	    &_target.fxreg_size);
 #endif
 }
 
 void ptrace_arch_write_fxreg(pid_t tid)
 {
 #ifdef PT_SETXSTATE
+  /* Do not bother with writing if there is nothing to write */
+  if (_target.fxreg_size) {
     _write_reg(tid, PT_SETXSTATE, _target.fxreg);
+  }
 #endif
 }
 
@@ -255,11 +267,6 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 void ptrace_arch_option_set_thread(pid_t pid)
 {
 	ptrace_os_option_set_thread(pid);
-}
-
-bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
-{
-    return ptrace_os_wait_new_thread(out_pid, out_status);
 }
 
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)

@@ -258,6 +258,7 @@ bool _read_reg(pid_t tid, int GET, int SET,
 	size_t buf_size = REG_MAX_SIZE;
 	uint8_t *a = NULL;
 	a = (uint8_t *) malloc(buf_size);
+
 	if (a) {
 		uint8_t *b = NULL;
 		b = (uint8_t *) malloc(buf_size);
@@ -285,7 +286,7 @@ bool _read_reg(pid_t tid, int GET, int SET,
 				if (_read_reg_verbose) {
 					char str[128];
 					memset(&str[0], 0, 128);
-					DBG_PRINT("Error reading registers, status is %d\n", ptrace_status);
+					DBG_PRINT("Error reading registers %d, status is %d\n", GET, ptrace_status);
 					if (0 == strerror_r(errno, &str[0], 128)) {
 						DBG_PRINT("Error %d %s\n", errno, str);
 					}
@@ -659,10 +660,10 @@ int ptrace_restart(void)
 				close(gPipeStdout[0]);
 				/* Replace with pipe output, dup2 takes care of the closing */
 				if (-1 == dup2(gPipeStdout[1], STDOUT_FILENO)) {
-				    /* fprintf(stderr, "Dup2 failed.. \n"); */
+				    fprintf(stderr, "Dup2 failed.. \n"); 
 				}
 				if (-1 == dup2(gPipeStdout[1], STDERR_FILENO)) {
-				    /* fprintf(stderr, "Dup2 failed.. \n"); */
+				    fprintf(stderr, "Dup2 failed.. \n"); 
 				} 
 			    }
 			    
@@ -778,7 +779,7 @@ int ptrace_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 
 	if (_read_greg(tid)) {
 		if (_read_freg(tid)) {
-			ptrace_arch_read_fxreg(tid, buf_size);
+			ptrace_arch_read_fxreg(tid);
 		} else {
 			if (_read_reg_verbose) {
 				DBG_PRINT("Error reading floating point registers\n");
@@ -872,7 +873,7 @@ int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 
 	} else if (is_reg(gdb, &c, &fxrll[0])) {
 
-		ptrace_arch_read_fxreg(tid, 0x1000 /* XXX FIX */);
+		ptrace_arch_read_fxreg(tid);
 
 		if (fxrll[c].off < _target.fxreg_size) {
 			/* Success */
@@ -984,7 +985,7 @@ int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, siz
 
 	} else if (is_reg(gdb, &c, &fxrll[0])) {
 
-		ptrace_arch_read_fxreg(tid, 0x1000);
+		ptrace_arch_read_fxreg(tid);
 		/*
 		 * It is possible for the fx reg read to fail
 		 * because the registers are not supported or

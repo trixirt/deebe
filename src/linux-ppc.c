@@ -327,7 +327,7 @@ bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 	return ret;
 }
 
-void ptrace_arch_read_fxreg(pid_t tid, size_t size)
+void ptrace_arch_read_fxreg(pid_t tid)
 {
 	ptrace_os_read_fxreg(tid);
 }

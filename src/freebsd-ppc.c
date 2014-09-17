@@ -333,7 +333,7 @@ bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 	return ret;
 }
 
-void ptrace_arch_read_fxreg(pid_t pid, size_t size)
+void ptrace_arch_read_fxreg(pid_t pid)
 {
 	/* stub */
 }

@@ -173,7 +173,7 @@ void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 	_write_greg(tid);
 }
 
-void ptrace_arch_read_fxreg(pid_t tid, size_t size)
+void ptrace_arch_read_fxreg(pid_t tid)
 {
 #ifdef PT_GETXMMREGS
     _read_reg(tid, PT_GETXMMREGS, PT_SETXMMREGS,

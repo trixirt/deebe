@@ -89,7 +89,7 @@ bool ptrace_arch_add_watchpoint(pid_t pid, int type, unsigned long addr,
 bool ptrace_arch_remove_watchpoint(pid_t pid, int type, unsigned long addr,
 				   size_t len);
 bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr);
-void ptrace_arch_read_fxreg(pid_t tid, size_t size);
+void ptrace_arch_read_fxreg(pid_t tid);
 void ptrace_arch_write_fxreg(pid_t tid);
 void ptrace_arch_read_dbreg(pid_t tid);
 void ptrace_arch_write_dbreg(pid_t tid);

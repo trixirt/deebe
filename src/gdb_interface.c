@@ -1917,8 +1917,6 @@ static int handle_v_command(char * const in_buf,
 			    in += 2;
 			}
 
-			DBG_PRINT("%s %d\n", in, sig);
-
 			/* 
 			 * Handle the case where the continue applies to a specific thread 
 			 * Look for ':<thread-id> '
