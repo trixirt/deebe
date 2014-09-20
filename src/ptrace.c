@@ -429,7 +429,7 @@ void _write_reg(pid_t tid, long SET, void *reg)
 {
 	if (0 != PTRACE_GETSET(SET, tid, 0, reg)) {
 		if (_write_reg_verbose) {
-			DBG_PRINT("Error : Write register\n");
+		  DBG_PRINT("Error : Write register %d : %s\n", SET, strerror(errno));
 		}
 	}
 }
@@ -496,7 +496,7 @@ void _write_freg(pid_t tid)
 void _write_dbreg(pid_t tid)
 {
 #ifdef PT_GETDBREGS
-	_write_reg(tid, PT_SETDBREGS, _target.dbreg);
+  _write_reg(tid, PT_SETDBREGS, _target.dbreg);
 #else
 	ptrace_arch_write_dbreg(tid);
 #endif
