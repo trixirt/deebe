@@ -61,7 +61,7 @@ union u_drc {
 		unsigned  rw3:2;
 		unsigned len3:2;
 	} b;
-	unsigned int v;
+	unsigned long v;
 };
 
 union u_drs {
@@ -75,7 +75,7 @@ union u_drs {
 		unsigned  bs:1;
 		unsigned  bt:1;
 	} b;
-	unsigned int v;
+	unsigned long v;
 };
 
 #define DEBUG_ADDR_0  0

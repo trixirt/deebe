@@ -149,7 +149,7 @@ struct reg_location_list fxrll[] = {
 };
 
 /* 
- * GDB 7.7 complains when mmx is include
+ * GDB 7.7 complains when mmx is included
  * so only include gpr and fpr.
  */
 #define GDB_GREG_MAX 32
