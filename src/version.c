@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Juniper Networks, Inc.
+ * Copyright (c) 2013-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -33,12 +33,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-static char *_version = "deebe 6.5";
+static char *_version = "deebe 7.7";
 static char *_copyright = \
-	"Copyright (C) 2012-2013 Juniper Networks \n"
+	"Copyright (C) 2012-2014 Juniper Networks \n"
 	"gdb protocol interface :\n"
 	"Copyright (C) 1999-2001 Quality Quorum, Inc.\n"
-	;	
+	;
 static char *_license = \
 "Juniper Networks Propietary License\n\n"
 "gdb protocol interface :\n"
