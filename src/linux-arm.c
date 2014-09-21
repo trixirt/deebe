@@ -137,68 +137,69 @@ static uint32_t bkpt[1] = {
 #if 0
 
 static long _arm_version = -1;
-void arm_version() {
-  char b[1024];
-  char *var, *val;
-  memset(b, 0, 1024);
-
-  FILE *fp = fopen("/proc/cpuinfo", "rt");
-  if (NULL != fp) {
-    while (!feof(fp)) {
-      char *s = fgets(&b[0], 1024, fp);
-      if (s != NULL) {
-	int i;
-	var = s;
-	val = NULL;
-	for (i = 0; i < strlen(s) - 1; i++) {
-	  if (s[i] == ':') {
-	    s[i] = '\0';
-	    val = &s[i+1];
-	    break;
-	  }
-	}
-	if (val) {
-	  char *str = "CPU architecture";
-	  if (!strncmp(str, var, strlen(str))) {
-	    unsigned long ver;
-	    char *endptr;
-	    ver = strtoul(val, &endptr, 10);
-	    if (ver > 0) {
-	      _arm_version = ver;
-	    }
-	    break;
-	  }
-	}
+void arm_version()
+{
+	char b[1024];
+	char *var, *val;
 	memset(b, 0, 1024);
-      } else {
-	break;
-      }
-    }
-    fclose(fp);
-  }
-  /* If there was a problem, go with an ok default */
-  if (_arm_version == 0)
-    _arm_version = 6;
+
+	FILE *fp = fopen("/proc/cpuinfo", "rt");
+	if (NULL != fp) {
+		while (!feof(fp)) {
+			char *s = fgets(&b[0], 1024, fp);
+			if (s != NULL) {
+				int i;
+				var = s;
+				val = NULL;
+				for (i = 0; i < strlen(s) - 1; i++) {
+					if (s[i] == ':') {
+						s[i] = '\0';
+						val = &s[i+1];
+						break;
+					}
+				}
+				if (val) {
+					char *str = "CPU architecture";
+					if (!strncmp(str, var, strlen(str))) {
+						unsigned long ver;
+						char *endptr;
+						ver = strtoul(val, &endptr, 10);
+						if (ver > 0)
+							_arm_version = ver;
+						break;
+					}
+				}
+				memset(b, 0, 1024);
+			} else {
+				break;
+			}
+		}
+		fclose(fp);
+	}
+	/* If there was a problem, go with an ok default */
+	if (_arm_version == 0)
+		_arm_version = 6;
 }
 #endif
 
-size_t ptrace_arch_swbreak_size() {
+size_t ptrace_arch_swbreak_size()
+{
 #ifdef ARM_SWBRK
-  return 4;
+	return 4;
 #else
-  return 0;
+	return 0;
 #endif
 }
 
 int ptrace_arch_swbreak_insn(void *bdata)
 {
-  int ret = RET_NOSUPP;
+	int ret = RET_NOSUPP;
 #ifdef ARM_SWBRK
-  /* Use bkpt */
-  memcpy(bdata, &bkpt[0], 4);
-  ret = RET_OK;
+	/* Use bkpt */
+	memcpy(bdata, &bkpt[0], 4);
+	ret = RET_OK;
 #endif
-  return ret;
+	return ret;
 }
 
 void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
@@ -302,12 +303,12 @@ void ptrace_arch_option_set_thread(pid_t pid)
 
 bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
 {
-    return ptrace_os_wait_new_thread(out_pid, out_status);
+	return ptrace_os_wait_new_thread(out_pid, out_status);
 }
 
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
-    return ptrace_os_check_new_thread(pid, status, out_pid);
+	return ptrace_os_check_new_thread(pid, status, out_pid);
 }
 
 void ptrace_arch_read_dbreg(pid_t tid)
