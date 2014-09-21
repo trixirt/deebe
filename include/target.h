@@ -58,23 +58,23 @@ enum process_state {
 };
 
 enum nonstop_state {
-  NS_ON = 0,
-  NS_OFF = 0,
+	NS_ON = 0,
+	NS_OFF = 0,
 };
 
 typedef struct target_process_rec {
-    pid_t pid;
-    pid_t tid;
-    enum process_state ps;
-    int ws; /* wait status */
-    bool w; /* waiting ? */
-    int sig; /* signal */
-    long syscall; /* the most recent syscall */
+	pid_t pid;
+	pid_t tid;
+	enum process_state ps;
+	int ws; /* wait status */
+	bool w; /* waiting ? */
+	int sig; /* signal */
+	long syscall; /* the most recent syscall */
 } target_process;
 
 typedef struct target_state_rec {
 	int no_ack;
-  enum nonstop_state nonstop;
+	enum nonstop_state nonstop;
 	int multiprocess;
 	bool syscall_enter;
 	int step;
