@@ -238,6 +238,10 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
+size_t ptrace_arch_swbreak_size() {
+  return 4;
+}
+
 int ptrace_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_ERR;

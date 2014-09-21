@@ -84,7 +84,6 @@ int ptrace_arch_gdb_greg_max()
 #define GDB_LR    67
 #define GDB_CNT   68
 #define GDB_XER   69
-#define GDB_MQ    70 /* Not supported */
 
 #define GP(n) GRLL(gp##n,			\
 		   regs.gpr,			\
@@ -168,7 +167,7 @@ struct reg_location_list grll[] = {
 #define GDB_FPR30 0x3E
 #define GDB_FPR31 0x3F
 
-#define GDB_FPSCR 71
+#define GDB_FPSCR 70
 #define GDB_LAST GDB_FPSCR
 
 #define FP(NAME, n)					\
@@ -198,45 +197,49 @@ struct reg_location_list frll[] = {
 /*
  * FreeBSD as of 9.0 does not support altivec
  */
-#define GDB_VR0  0x48
-#define GDB_VR1  0x49
-#define GDB_VR2  0x4A
-#define GDB_VR3  0x4B
-#define GDB_VR4  0x4C
-#define GDB_VR5  0x4D
-#define GDB_VR6  0x4E
-#define GDB_VR7  0x4F
-#define GDB_VR8  0x50
-#define GDB_VR9  0x51
-#define GDB_VR10 0x52
-#define GDB_VR11 0x53
-#define GDB_VR12 0x54
-#define GDB_VR13 0x55
-#define GDB_VR14 0x56
-#define GDB_VR15 0x57
-#define GDB_VR16 0x58
-#define GDB_VR17 0x59
-#define GDB_VR18 0x5A
-#define GDB_VR19 0x5B
-#define GDB_VR20 0x5C
-#define GDB_VR21 0x5D
-#define GDB_VR22 0x5E
-#define GDB_VR23 0x5F
-#define GDB_VR24 0x60
-#define GDB_VR25 0x61
-#define GDB_VR26 0x62
-#define GDB_VR27 0x63
-#define GDB_VR28 0x64
-#define GDB_VR29 0x65
-#define GDB_VR30 0x66
-#define GDB_VR31 0x67
-#define GDB_VSCR 0x68
-#define GDB_VSAV 0x69
+#define GDB_VR0  (GDB_LAST + 1)
+#define GDB_VR1  (GDB_VR0 + 1)
+#define GDB_VR2  (GDB_VR0 + 2)
+#define GDB_VR3  (GDB_VR0 + 3)
+#define GDB_VR4  (GDB_VR0 + 4)
+#define GDB_VR5  (GDB_VR0 + 5)
+#define GDB_VR6  (GDB_VR0 + 6)
+#define GDB_VR7  (GDB_VR0 + 7)
+#define GDB_VR8  (GDB_VR0 + 8)
+#define GDB_VR9  (GDB_VR0 + 9)
+#define GDB_VR10 (GDB_VR0 + 10)
+#define GDB_VR11 (GDB_VR0 + 11)
+#define GDB_VR12 (GDB_VR0 + 12)
+#define GDB_VR13 (GDB_VR0 + 13)
+#define GDB_VR14 (GDB_VR0 + 14)
+#define GDB_VR15 (GDB_VR0 + 15)
+#define GDB_VR16 (GDB_VR0 + 16)
+#define GDB_VR17 (GDB_VR0 + 17)
+#define GDB_VR18 (GDB_VR0 + 18)
+#define GDB_VR19 (GDB_VR0 + 19)
+#define GDB_VR20 (GDB_VR0 + 20)
+#define GDB_VR21 (GDB_VR0 + 21)
+#define GDB_VR22 (GDB_VR0 + 22)
+#define GDB_VR23 (GDB_VR0 + 23)
+#define GDB_VR24 (GDB_VR0 + 24)
+#define GDB_VR25 (GDB_VR0 + 25)
+#define GDB_VR26 (GDB_VR0 + 26)
+#define GDB_VR27 (GDB_VR0 + 27)
+#define GDB_VR28 (GDB_VR0 + 28)
+#define GDB_VR29 (GDB_VR0 + 29)
+#define GDB_VR30 (GDB_VR0 + 30)
+#define GDB_VR31 (GDB_VR0 + 31)
+#define GDB_VSCR (GDB_VR0 + 32)
+#define GDB_VSAV (GDB_VR0 + 33)
 
 /* Extended */
 struct reg_location_list fxrll[] = {
 	{0},
 };
+
+size_t ptrace_arch_swbreak_size() {
+  return 4;
+}
 
 int ptrace_arch_swbreak_insn(void *bdata)
 {
@@ -276,9 +279,6 @@ bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size)
 	bool ret = false;
 	/* msr not tracked in freebsd */
 	if (GDB_MSR == reg) {
-		*pad_size = 4;
-		ret = true;
-	} else if (GDB_MQ == reg) {
 		*pad_size = 4;
 		ret = true;
 	} else if ((GDB_VR0 <= reg) &&
@@ -357,4 +357,14 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
 	_read_greg(tid);
+}
+
+void ptrace_arch_option_set_thread(pid_t pid)
+{
+    ptrace_os_option_set_thread(pid);
+}
+
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+    return ptrace_os_check_new_thread(pid, status, out_pid);
 }
