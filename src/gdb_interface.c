@@ -180,13 +180,11 @@ static void gdb_interface_log_local(int level, const char *fmt, ...)
 		DBG_PRINT("debug:     ");
 		break;
 	}
-
 	if (fp_log) {
 		va_start(args, fmt);
-		vfprintf (fp_log, fmt, args);
+		vfprintf(fp_log, fmt, args);
 		va_end(args);
 	}
-
 	DBG_PRINT("\n");
 }
 
@@ -259,13 +257,11 @@ typedef struct {
 	const char *help;
 } RP_RCMD_TABLE;
 
-
 static void gdb_interface_ack()
 {
 	int do_ack = 1;
-	if (gdb_interface_target && gdb_interface_target->no_ack) {
+	if (gdb_interface_target && gdb_interface_target->no_ack)
 		do_ack = gdb_interface_target->no_ack();
-	}
 	if (do_ack) {
 		char *str = "+";
 		dbg_sock_write((unsigned char *)str, strlen(str));
@@ -275,9 +271,8 @@ static void gdb_interface_ack()
 static void gdb_interface_nak()
 {
 	int do_ack = 1;
-	if (gdb_interface_target && gdb_interface_target->no_ack) {
+	if (gdb_interface_target && gdb_interface_target->no_ack)
 		do_ack = gdb_interface_target->no_ack();
-	}
 	if (do_ack) {
 		char *str = "-";
 		dbg_sock_write((unsigned char *)str, strlen(str));
@@ -303,10 +298,8 @@ static int gdb_interface_put_packet(const char *buf, size_t size)
 
 	/* Copy the packet into buf2, encapsulate it, and give
 	   it a checksum. */
-
 	d = buf2;
 	*d++ = '$';
-
 	csum = 0;
 	/* Normal text packet */
 	if (size == 0) {
@@ -324,25 +317,19 @@ static int gdb_interface_put_packet(const char *buf, size_t size)
 			*d++ = *s++;
 		}
 	}
-
 	/* Add the sumcheck to the end of the message */
 	*d++ = '#';
 	*d++ = hex[(csum >> 4) & 0xf];
 	*d++ = hex[(csum & 0xf)];
-
 	/* Do not null terminate binary transfers */
-	if (0 == size) {
+	if (0 == size)
 		*d = '\0';
-	}
-
 	/* Send it over and over until we get a positive ack. */
 	len = d - buf2;
-
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG2,
 			  ": sending packet: %d bytes: %s...",
 			  len,
 			  buf2);
-
 	ret = dbg_sock_write(buf2, len);
 	if (ret == 0) {
 		/* Something went wrong */
@@ -351,7 +338,6 @@ static int gdb_interface_put_packet(const char *buf, size_t size)
 	} else {
 		ret = 0;
 	}
-
 	return ret;
 }
 
@@ -702,12 +688,10 @@ void handle_search_memory_command(char *in_buf,
 	uint32_t pattern;
 	uint32_t mask;
 	char *in;
-
 	/* Format: taddr:PP,MM
 	   Search backwards starting at address addr for a match with the
 	   supplied pattern PP and mask MM. PP and MM are 4 bytes. addr
 	   must be at least 3 digits. */
-
 	in = &in_buf[1];
 	if (!gdb_decode_uint64(&in, &addr, ':')) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
@@ -724,7 +708,9 @@ void handle_search_memory_command(char *in_buf,
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
 }
 
-static int _decode_thread_id(const char *in_buf, int64_t *process_id, int64_t *thread_id) {
+static int _decode_thread_id(const char *in_buf,
+			     int64_t *process_id, int64_t *thread_id)
+{
 	int ret = 0; /* assume ok */
 	const char *in;
 	*process_id = 0; /* Any process */
@@ -735,9 +721,8 @@ static int _decode_thread_id(const char *in_buf, int64_t *process_id, int64_t *t
 		if (!gdb_decode_int64(&in, process_id, '.')) {
 			ret = 1;
 		} else {
-			if (!gdb_decode_int64(&in, thread_id, '\0')) {
+			if (!gdb_decode_int64(&in, thread_id, '\0'))
 				ret = 1;
-			}
 		}
 	} else {
 		in = &in_buf[0];
@@ -748,11 +733,9 @@ static int _decode_thread_id(const char *in_buf, int64_t *process_id, int64_t *t
 		 */
 		int term = '\0';
 		if (strchr(in, ';'))
-		    term = ';';
-
-		if (!gdb_decode_int64(&in, process_id, term)) {
+			term = ';';
+		if (!gdb_decode_int64(&in, process_id, term))
 			ret = 1;
-		}
 	}
 	return ret;
 }
@@ -773,7 +756,7 @@ void handle_thread_commands(char * const in_buf,
 		int cmd_type = cmd_type = in_buf[1];
 		int64_t p, t;
 		if (_decode_thread_id(&in_buf[2], &p, &t)) {
-			gdb_interface_write_retval(RET_ERR, out_buf);		
+			gdb_interface_write_retval(RET_ERR, out_buf);
 		} else {
 			/* Thread is ignored for now */
 			if (cmd_type == 'c') {
@@ -789,7 +772,6 @@ void handle_thread_commands(char * const in_buf,
 				  ": Bad H command");
 	}
 }
-
 
 void handle_query_current_signal(char *out_buf, int out_buf_len, gdb_target *t)
 {
@@ -1231,10 +1213,8 @@ int handle_kill_command(char * const in_buf,
 		}
 		return  FALSE;
 	}
-
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 			  ": remote proxy restarting");
-
 	/* Let us do our best while starting system */
 	if (cmdline_once) {
 		/*
@@ -1243,11 +1223,8 @@ int handle_kill_command(char * const in_buf,
 		 */
 		return -1;
 	}
-
 	ret = t->restart();
-
 	ASSERT(ret != RET_NOSUPP);
-
 	if (ret != RET_OK) {
 		/* There is no point in continuing */
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
@@ -1255,7 +1232,6 @@ int handle_kill_command(char * const in_buf,
 				  t->name);
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		gdb_interface_put_packet(out_buf, 0);
-
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 				  ": will wait for a new connection");
 		return  FALSE;
@@ -1271,19 +1247,17 @@ void handle_thread_alive_command(char * const in_buf,
 {
 	int ret;
 	int alive;
-
 	/* Is thread alive? */
 	/* This is a deprecated feature of the remote debug protocol */
 	int64_t p, t;
 	if (_decode_thread_id(&in_buf[1], &p, &t)) {
-		gdb_interface_write_retval(RET_ERR, out_buf);		
+		gdb_interface_write_retval(RET_ERR, out_buf);
 	} else {
 		ret = target->is_thread_alive(p, t, &alive);
-		if ((ret != RET_OK) || !alive) {
+		if ((ret != RET_OK) || !alive)
 			gdb_interface_write_retval(RET_ERR, out_buf);
-		} else {
+		else
 			gdb_interface_write_retval(RET_OK, out_buf);
-		}
 	}
 }
 
@@ -1294,11 +1268,9 @@ int handle_restart_target_command(char * const in_buf,
 				  gdb_target *t)
 {
 	int ret;
-
 	/* Restarting the target is only supported in the extended protocol. */
 	if (!extended_protocol)
 		return  FALSE;
-
 	/* Let us do our best to restart the system */
 	ret = t->restart();
 	if (ret != RET_OK) {
@@ -1308,7 +1280,6 @@ int handle_restart_target_command(char * const in_buf,
 				  t->name);
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		gdb_interface_put_packet(out_buf, 0);
-
 		if (cmdline_once) {
 			/*
 			 * If the current target cannot restart,
@@ -1318,12 +1289,11 @@ int handle_restart_target_command(char * const in_buf,
 			gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 					  ": target is not restartable. Exiting");
 		}
-
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 				  ": will wait for a new connection");
-		return  -1;
+		return -1;
 	}
-	return  TRUE;
+	return TRUE;
 }
 
 void handle_detach_command(char * const in_buf,
@@ -1333,20 +1303,14 @@ void handle_detach_command(char * const in_buf,
 			   gdb_target *t)
 {
 	int ret = RET_NOSUPP;
-
-	if (t->detach) {
+	if (t->detach)
 		ret = t->detach(CURRENT_PROCESS_TID);
-	} else {
+	else
 		t->disconnect();
-	}
-
 	gdb_interface_write_retval(ret, out_buf);
-
 	/* Note: The current GDB does not expect a reply */
 	gdb_interface_put_packet(out_buf, 0);
-
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO, ": debugger detached");
-
 	if (cmdline_once) {
 		/*
 		 * If the current target cannot restart,
@@ -1356,7 +1320,6 @@ void handle_detach_command(char * const in_buf,
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 				  ": target is not restartable. Exiting");
 	}
-
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 			  ": will wait for a new connection");
 }
@@ -1402,7 +1365,6 @@ void handle_query_command(char * const in_buf,
 	char *cp;
 	char str[128];
 	char *n = in_buf + 1;
-
 	if (in_len == 1) {
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
 				  ": bad 'q' command received");
@@ -1412,7 +1374,6 @@ void handle_query_command(char * const in_buf,
 		uint64_t text;
 		uint64_t data;
 		uint64_t bss;
-
 		/* Get the program segment offsets */
 		ret = t->offsets_query(&text, &data, &bss);
 		if (ret == RET_OK) {
@@ -1426,7 +1387,6 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "CRC:", 4) == 0) {
 		/* Find the CRC32 value of the specified memory area */
 		cp = &in_buf[5];
@@ -1434,7 +1394,6 @@ void handle_query_command(char * const in_buf,
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		}
-
 		if (!gdb_decode_uint32(&cp, &len, '\0')) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
@@ -1446,43 +1405,34 @@ void handle_query_command(char * const in_buf,
 			gdb_interface_write_retval(ret, out_buf);
 		return;
 	}
-
-
 	if (strncmp(in_buf + 1, "Symbol::", 8) == 0) {
 		gdb_interface_write_retval(RET_OK, out_buf);
 		return;
 	}
-
-
 	if (strncmp(in_buf + 1, "Symbol:", 7) == 0) {
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 		return;
 	}
-
 	sprintf(str, "TStatus");
 	if (strncmp(n, str, strlen(str)) == 0) {
 		/* sprintf(out_buf, "T0"); */
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "ThreadExtraInfo,", 16) == 0) {
 		char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
 		const char *in;
 		int64_t thread_id;
-
 		if (t->threadextrainfo_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
 			return;
 		}
-
 		in = &in_buf[17];
 		ret = gdb_decode_int64(&in, &thread_id, '\0');
 		if (!ret) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		}
-
 		ret = t->threadextrainfo_query(
 			thread_id, data_buf,
 			GDB_INTERFACE_PARAM_DATABYTES_MAX);
@@ -1502,13 +1452,11 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "fThreadInfo", 11) == 0) {
 		if (t->threadinfo_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
 			return;
 		}
-
 		ret = t->threadinfo_query(1, out_buf, out_buf_len);
 		switch (ret) {
 		case RET_OK:
@@ -1523,13 +1471,11 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "sThreadInfo", 11) == 0) {
 		if (t->threadinfo_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
 			return;
 		}
-
 		ret = t->threadinfo_query(0, out_buf, out_buf_len);
 		switch (ret) {
 		case RET_OK:
@@ -1544,19 +1490,16 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "fProcessInfo", 12) == 0) {
 		/* Get first string of process info */
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "sProcessInfo", 12) == 0) {
 		/* Get subsequent string of process info */
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 		return;
 	}
-
 	if (strncmp(in_buf + 1, "Rcmd,", 5) == 0) {
 		/* Remote command */
 		rp_target_out_valid = TRUE;
@@ -1568,16 +1511,13 @@ void handle_query_command(char * const in_buf,
 		gdb_interface_write_retval(ret, out_buf);
 		return;
 	}
-
 	sprintf(str, "Supported");
 	if (strncmp(n, str, strlen(str)) == 0) {
-
 		/* Features supported */
 		if (t->supported_features_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
 			return;
 		}
-
 		ret = t->supported_features_query(out_buf, out_buf_len);
 		switch (ret) {
 		case RET_OK:
@@ -1592,7 +1532,6 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
 	sprintf(str, "Attached:");
 	if (strncmp(n, str, strlen(str)) == 0) {
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
@@ -1604,7 +1543,6 @@ void handle_query_command(char * const in_buf,
 		sprintf(out_buf, "0");
 		return;
 	}
-
 	sprintf(str, "Search:memory:");
 	if (strncmp(n, str, strlen(str)) == 0) {
 		n += strlen(str);
@@ -1681,13 +1619,10 @@ void handle_query_command(char * const in_buf,
 		}
 		return;
 	}
-
-
 	switch (in_buf[1]) {
 	case 'C':
 		/* Current thread query */
 		ret = t->current_thread_query(&process, &thread);
-
 		if (ret == RET_OK)
 			sprintf(out_buf, "QC%"PRIx64".%"PRIx64, process, thread);
 		else
@@ -1703,13 +1638,11 @@ void handle_query_command(char * const in_buf,
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			break;
 		}
-
 		found = malloc(max_found * sizeof(gdb_thread_ref));
 		if (found == NULL) {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			break;
 		}
-
 		ret = t->list_query(first,
 				    &arg,
 				    found,
@@ -1721,16 +1654,13 @@ void handle_query_command(char * const in_buf,
 			gdb_interface_write_retval(ret, out_buf);
 			break;
 		}
-
 		ret = rp_encode_list_query_response(count,
 						    done,
 						    &arg,
 						    found,
 						    out_buf,
 						    out_buf_len);
-
 		free(found);
-
 		if (!ret)
 			gdb_interface_write_retval(RET_ERR, out_buf);
 		break;
@@ -1741,18 +1671,15 @@ void handle_query_command(char * const in_buf,
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			break;
 		}
-
 		info.thread_id.val = 0;
 		info.display[0] = 0;
 		info.thread_name[0] = 0;
 		info.more_display[0] = 0;
-
 		ret = t->process_query(&mask, &ref, &info);
 		if (ret != RET_OK) {
 			gdb_interface_write_retval(ret, out_buf);
 			break;
 		}
-
 		ret = rp_encode_process_query_response(mask,
 						       &ref,
 						       &info,
@@ -1777,29 +1704,22 @@ static int gdb_decode_break(char *in,
 			    unsigned int *len)
 {
 	uint8_t val;
-
 	ASSERT(in != NULL);
 	ASSERT(*in != '\0');
 	ASSERT(type != NULL);
 	ASSERT(addr != NULL);
 	ASSERT(len != NULL);
-
 	in++;
 	if (!gdb_decode_nibble(in, &val))
 		return  FALSE;
 	in++;
-
 	if (*in++ != ',')
 		return  FALSE;
-
 	*type = val;
-
 	if (!gdb_decode_uint64(&in, addr, ','))
 		return  FALSE;
-
 	if (!gdb_decode_uint32(&in, len, '\0'))
 		return  FALSE;
-
 	return  TRUE;
 }
 
@@ -1813,21 +1733,17 @@ static void handle_breakpoint_command(char * const in_buf,
 	unsigned int len;
 	int type;
 	int ret;
-
 	ret = gdb_decode_break(in_buf, &type, &addr, &len);
 	if (!ret) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
-
 	if (in_buf[0] == 'Z')
 		ret = t->add_break(CURRENT_PROCESS_TID, type, addr, len);
 	else
 		ret = t->remove_break(CURRENT_PROCESS_TID, type, addr, len);
-
 	gdb_interface_write_retval(ret, out_buf);
 }
-
 
 #define GDB_OPEN_RDONLY        0x0
 #define GDB_OPEN_WRONLY        0x1
@@ -1871,11 +1787,9 @@ static int handle_v_command(char * const in_buf,
 	char *n = in_buf;
 	bool handled = false;
 	bool binary_cmd = false;
-
 	sprintf(str, "vCont");
 	if (strncmp(str, n, strlen(str)) == 0) {
 		n += strlen(str);
-
 		if (n[0] == '?') {
 			/*
 			 * Normally this would be ok to handle
@@ -1898,86 +1812,74 @@ static int handle_v_command(char * const in_buf,
 			 *
 			 * If threading is supported, (it is), vCont must be supported
 			 */
-		  sprintf (out_buf, "vCont;c;C;s;S");
-		  handled = true;
-
+			sprintf(out_buf, "vCont;c;C;s;S");
+			handled = true;
 		} else if (n[0] == ';') {
 			n++;
-
-			int step  = ((n[0] == 'S') || (n[0] == 's')) ? 1 : 0;
+			int step = ((n[0] == 'S') || (n[0] == 's')) ? 1 : 0;
 			uint8_t sig = 0;
 			bool err = false;
 			int64_t p, t;
 			p = t = -1;
-
 			char *in = &n[1];
 			if ((n[0] == 'C') ||
 			    (n[0] == 'S')) {
-			    gdb_decode_byte(in, &sig);
-			    in += 2;
+				gdb_decode_byte(in, &sig);
+				in += 2;
 			}
-
-			/* 
-			 * Handle the case where the continue applies to a specific thread 
+			/*
+			 * Handle the case where the continue applies to a specific thread
 			 * Look for ':<thread-id> '
 			 */
 			if (strlen(in) > 2) {
-			    if (in[0] == ':') {
-				if (0 == _decode_thread_id(&in[1], &p, &t)) {
-				    target->set_gen_thread(p, t);
-
-				    /*
-				     * Sending signals to individual threads is not
-				     * supported.  
-				     */
-				    if (target_number_threads() != 1)
-					sig = 0;
+				if (in[0] == ':') {
+					if (0 == _decode_thread_id(&in[1], &p, &t)) {
+						target->set_gen_thread(p, t);
+						/*
+						 * Sending signals to individual threads is not
+						 * supported.
+						 */
+						if (target_number_threads() != 1)
+							sig = 0;
+					}
 				}
-			    }
 			}
-
 			if (!err) {
-			    ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
-			    if (RET_OK == ret) {
-				if (target->wait) {
-				    /* 
-				     * Sometimes 'wait' is used internally  
-				     * If wait returns an ignore status, do not send 
-				     * update to gdb, continue and go back to waiting
-				     */
-				    do {
-
-					/* Check for Debugee console output */
-					if (gPipeStdout[0] > 0) {
-					    char buf[1024];
-					    ssize_t read_size;
-					    while (0 < (read_size = read(gPipeStdout[0], &buf[0], 1023))) {
-						/* gdb_interface_put_console depends on string to be null terminated*/
-						buf[read_size] = 0; 
-						/* Out to deebe console */
-						fprintf(stdout, "%s", buf);
-						/* Back to gdb */
-						gdb_interface_put_console(buf);
-						network_write();
-					    }
+				ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
+				if (RET_OK == ret) {
+					if (target->wait) {
+						/*
+						 * Sometimes 'wait' is used internally
+						 * If wait returns an ignore status, do not send
+						 * update to gdb, continue and go back to waiting
+						 */
+						do {
+							/* Check for Debugee console output */
+							if (gPipeStdout[0] > 0) {
+								char buf[1024];
+								ssize_t read_size;
+								while (0 < (read_size = read(gPipeStdout[0], &buf[0], 1023))) {
+									/* gdb_interface_put_console depends on string to be null terminated */
+									buf[read_size] = 0;
+									/* Out to deebe console */
+									fprintf(stdout, "%s", buf);
+									/* Back to gdb */
+									gdb_interface_put_console(buf);
+									network_write();
+								}
+							}
+							ret = target->wait(out_buf,
+									   out_buf_len, step, false);
+							if (ret == RET_IGNORE) {
+								target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
+							}
+						} while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
+						handled = true;
 					}
-
-					ret = target->wait(out_buf,
-							   out_buf_len, step, false);
-					
-
-
-					if (ret == RET_IGNORE) {
-					    target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
-					}
-				    } while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
-				    handled = true;
 				}
-			    }
 			}
 		}
 	}
-
 	sprintf(str, "vFile:");
 	if (strncmp(str, n, strlen(str)) == 0) {
 		static int s_fd = -1;
@@ -1987,7 +1889,6 @@ static int handle_v_command(char * const in_buf,
 		if (strncmp(str, n, strlen(str)) == 0) {
 			n += strlen(str);
 			handled = true;
-
 			/*
 			 * Looking for
 			 * PATHNAME, FLAGS, MODE
@@ -2048,7 +1949,6 @@ static int handle_v_command(char * const in_buf,
 										GDB_OPEN_FLAG(flag, gdb_flag, TRUNC);
 										GDB_OPEN_FLAG(flag, gdb_flag, EXCL);
 									}
-
 									GDB_OPEN_MODE(mode, gdb_mode, IXOTH);
 									GDB_OPEN_MODE(mode, gdb_mode, IWOTH);
 									GDB_OPEN_MODE(mode, gdb_mode, IROTH);
@@ -2065,7 +1965,6 @@ static int handle_v_command(char * const in_buf,
 										/* Success */
 										ret = RET_OK;
 									}
-
 									/* Good or ill, send the fd as the response */
 									sprintf(out_buf, "F%x", s_fd);
 								} else {
@@ -2080,14 +1979,12 @@ static int handle_v_command(char * const in_buf,
 							/* Error */
 							sprintf(out_buf, "F%d", -1);
 						}
-
 						free(filepath);
 						filepath = NULL;
 					} else {
 						/* Error */
 						sprintf(out_buf, "F%d", -1);
 					}
-
 				} else {
 					/* Error */
 					sprintf(out_buf, "F%d", -1);
@@ -2097,32 +1994,25 @@ static int handle_v_command(char * const in_buf,
 				sprintf(out_buf, "F%d", -1);
 			}
 		}
-
-
 		sprintf(str, "unlink:");
 		if (strncmp(str, n, strlen(str)) == 0) {
 			n += strlen(str);
 			handled = true;
-
 			/* Looking for PATHNAME */
 			char *fe;
 			fe = NULL;
 			fe = n + strlen(n);
-
 			if (fe && 0 < fe - n) {
-
 				/*
 				 * Add 1 for null
 				 * Divide by 2 to go from encoded to raw
 				 */
 				char *filepath = (char *)
 					malloc(1 + (fe - n) / 2);
-
 				if (filepath) {
 					uint8_t *tp = NULL;
 					char *t = NULL;
 					int status = -1;
-
 					for (t = n, tp = (uint8_t *) filepath;
 					     t < fe && status; t += 2, tp++) {
 						status = gdb_decode_byte(t, tp);
@@ -2130,7 +2020,6 @@ static int handle_v_command(char * const in_buf,
 					tp[0] = 0; /* null terminate */
 					if (status) {
 						status = unlink(filepath);
-
 						/*
 						 * Good or ill, send the
 						 * status as the response
@@ -2140,27 +2029,22 @@ static int handle_v_command(char * const in_buf,
 						/* Error */
 						sprintf(out_buf, "F%d", -1);
 					}
-
 					free(filepath);
 					filepath = NULL;
 				} else {
 					/* Error */
 					sprintf(out_buf, "F%d", -1);
 				}
-
 			} else {
 				/* Error */
 				sprintf(out_buf, "F%d", -1);
 			}
 		}
-
-
 		sprintf(str, "pwrite:");
 		if (strncmp(str, n, strlen(str)) == 0) {
 			int try_fd = -1;
 			n += strlen(str);
 			handled = true;
-
 			/*
 			 * Looking for
 			 * FD, OFFSET, DATA
@@ -2190,7 +2074,6 @@ static int handle_v_command(char * const in_buf,
 						 * -3 for end of buffer #XY crc check
 						 */
 						if ((n - in_buf) < in_len) {
-
 							if (off != lseek(s_fd, off, SEEK_SET)) {
 								/* Error */
 								sprintf(out_buf, "F%d", -1);
@@ -2198,7 +2081,6 @@ static int handle_v_command(char * const in_buf,
 								size_t bytes_to_write = 0;
 								size_t bytes_written = 0;
 								bytes_to_write = in_len - (n - in_buf);
-
 								/* Data is binary, no need to decode */
 								bytes_written = write(s_fd, n, bytes_to_write);
 								sprintf(out_buf, "F%zx", bytes_written);
@@ -2220,13 +2102,11 @@ static int handle_v_command(char * const in_buf,
 				sprintf(out_buf, "F%d", -1);
 			}
 		}
-
 		sprintf(str, "pread:");
 		if (strncmp(str, n, strlen(str)) == 0) {
 			int try_fd = -1;
 			n += strlen(str);
 			handled = true;
-
 			/*
 			 * Looking for
 			 * FD, SIZE, OFFSET
@@ -2237,14 +2117,12 @@ static int handle_v_command(char * const in_buf,
 				if (try_fd == s_fd) {
 					/* Move past comma */
 					n = end + 1;
-
 					size_t size;
 					end = NULL;
 					size = strtol(n, &end, 16);
 					if (end != n && size > 1) {
 						/* Move past comma */
 						n = end + 1;
-
 						off_t off;
 						end = NULL;
 						/*
@@ -2256,7 +2134,6 @@ static int handle_v_command(char * const in_buf,
 						if (end != n && off >= 0) {
 							/* Move past comma */
 							n = end + 1;
-
 							if (off != lseek(s_fd, off, SEEK_SET)) {
 								/* Error */
 								sprintf(out_buf, "F%d", -1);
@@ -2267,7 +2144,6 @@ static int handle_v_command(char * const in_buf,
 									size_t preamble_size = 0;
 									size_t escaped_size = 0;
 									uint8_t *dst = NULL;
-
 									/* The fs read */
 									bytes_read = read(s_fd, buf, size);
 									/* The preamble size */
@@ -2283,7 +2159,6 @@ static int handle_v_command(char * const in_buf,
 									binary_cmd = true;
 									free(buf);
 									buf = NULL;
-
 								} else {
 									/* Error */
 									sprintf(out_buf, "F%d", -1);
@@ -2306,25 +2181,20 @@ static int handle_v_command(char * const in_buf,
 				sprintf(out_buf, "F%d", -1);
 			}
 		}
-
-
 		sprintf(str, "close:");
 		if (strncmp(str, n, strlen(str)) == 0) {
 			int try_fd = -1;
 			n += strlen(str);
 			handled = true;
-
 			end = NULL;
 			try_fd = strtol(n, &end, 10);
 			if (end != n) {
 				if (try_fd == s_fd) {
 					int status = close(s_fd);
 					s_fd = -1;
-
 					sprintf(out_buf, "F%d", status);
-					if (0 == status) {
+					if (0 == status)
 						ret = RET_OK;
-					}
 				} else {
 					/* Error */
 					sprintf(out_buf, "F%d", -1);
@@ -2335,21 +2205,16 @@ static int handle_v_command(char * const in_buf,
 			}
 		}
 	}
-
 	if (!handled) {
 		/* Error */
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 	}
-
 	if (!binary_cmd) {
 		gdb_interface_ack();
 		gdb_interface_put_packet(out_buf, 0);
 	}
-
 	return ret;
 }
-
-
 
 static void handle_general_set_command(char * const in_buf,
 				       int in_len,
@@ -2358,10 +2223,8 @@ static void handle_general_set_command(char * const in_buf,
 				       gdb_target *t)
 {
 	int ret = RET_ERR;
-	if (t->general_set) {
+	if (t->general_set)
 		ret = t->general_set(in_buf, out_buf, out_buf_len);
-	}
-
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -3279,7 +3142,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'q':
 				handle_query_command(in_buf,
 						     in_len,
@@ -3289,7 +3151,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'Q':
 				handle_general_set_command(in_buf,
 							   in_len,
@@ -3299,7 +3160,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'R':
 				handle_restart_target_command(in_buf,
 							      in_len,
@@ -3309,7 +3169,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 't':
 				handle_search_memory_command(in_buf,
 							     in_len,
@@ -3319,7 +3178,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'T':
 				handle_thread_alive_command(in_buf,
 							    in_len,
@@ -3329,7 +3187,6 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'Z':
 			case 'z':
 				handle_breakpoint_command(in_buf,
@@ -3340,17 +3197,14 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
-
 			case 'v':
 				binary_cmd = true;
 				/* Handled below */
 				break;
-
 			default:
 				DBG_PRINT("gdb_interface : unhandle command\n");
 				break;
 			}
-
 			if (!binary_cmd) {
 				gdb_interface_ack();
 				gdb_interface_put_packet(out_buf, 0);
@@ -3377,27 +3231,28 @@ int gdb_interface_packet()
 }
 
 /* b can be no more than 1024 and must be null terminated */
-void gdb_interface_put_console(char *b) {
-    int esize;
-    char ebuf[2049]; /* 1 for 'O', 2 * buf */
-    ebuf[0] = 'O';
-    esize = rp_encode_string(b, &ebuf[1], 2048);
-    if (esize > 0) {
-	gdb_interface_put_packet(&ebuf[0], esize+1);
-    }
+void gdb_interface_put_console(char *b)
+{
+	int esize;
+	char ebuf[2049]; /* 1 for 'O', 2 * buf */
+	ebuf[0] = 'O';
+	esize = rp_encode_string(b, &ebuf[1], 2048);
+	if (esize > 0)
+		gdb_interface_put_packet(&ebuf[0], esize+1);
 }
 
 /*
  * Generate the gdb 'thread:xxxxxxx' string used by the stop events
  * When there is a single thread, return an empty string.
  */
-void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long watch_addr)
+void gdb_stop_string(char *str, size_t len, int sig,
+		     pid_t tid, unsigned long watch_addr)
 {
-    char tstr[32] = "";
-    char wstr[32] = "";
-    if (target_number_threads() > 0)
-	snprintf(&tstr[0], 32, "thread:%x;", tid);
-    if (watch_addr) 
-	snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
-    snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
+	char tstr[32] = "";
+	char wstr[32] = "";
+	if (target_number_threads() > 0)
+		snprintf(&tstr[0], 32, "thread:%x;", tid);
+	if (watch_addr)
+		snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
+	snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
 }
