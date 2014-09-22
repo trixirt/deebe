@@ -555,7 +555,6 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 			break;
 	}
 	if (index < _target.number_processes) {
-		pid_t current_tid = CURRENT_PROCESS_TID;
 		pid_t tid = PROCESS_TID(index);
 		int wait_status = PROCESS_WAIT_STATUS(index);
 		if (WIFSTOPPED(wait_status)) {
@@ -588,7 +587,6 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 					 * Not that it matter on FreeBSD as they all go at once
 					 */
 					PROCESS_STATE(index) = PS_CONT;
-
 				}
 			} else {
 				/* A non trap signal, report the true thread */
