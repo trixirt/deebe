@@ -173,7 +173,7 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
-void ptrace_arch_read_fxreg(pid_t tid, size_t size)
+void ptrace_arch_read_fxreg(pid_t tid)
 {
 	/* part of fp regs */
 }
