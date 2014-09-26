@@ -105,6 +105,11 @@ arm*-*-linux-*)
 	TD_SRC='target_ptrace.$(OBJEXT) linux-arm.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
+arm*-*-freebsd*)
+	os=freebsd
+	TD_SRC='target_ptrace.$(OBJEXT) freebsd-arm.$(OBJEXT) freebsd.$(OBJEXT)'
+	;;
+
 x86_64-apple-darwin*)
 	# x64 osx
 	os=osx
