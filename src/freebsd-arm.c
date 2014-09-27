@@ -114,6 +114,7 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
+#ifdef ARM_SWBRK
 static uint32_t bkpt[1] = {
 	/*
 	 * bkpt
@@ -129,15 +130,26 @@ static uint32_t bkpt[1] = {
 #else
 	0xe7f000f0
 #endif
-
 };
+#endif
+
+size_t ptrace_arch_swbreak_size()
+{
+#ifdef ARM_SWBRK
+	return 4;
+#else
+	return 0;
+#endif
+}
 
 int ptrace_arch_swbreak_insn(void *bdata)
 {
-	int ret = RET_ERR;
+	int ret = RET_NOSUPP;
+#ifdef ARM_SWBRK
 	/* Use bkpt */
 	memcpy(bdata, &bkpt[0], 4);
 	ret = RET_OK;
+#endif
 	return ret;
 }
 
@@ -231,4 +243,14 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
 	_read_greg(tid);
+}
+
+void ptrace_arch_option_set_thread(pid_t pid)
+{
+    ptrace_os_option_set_thread(pid);
+}
+
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+    return ptrace_os_check_new_thread(pid, status, out_pid);
 }
