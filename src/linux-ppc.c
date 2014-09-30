@@ -259,10 +259,10 @@ void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
 }
 void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 {
-	_read_greg(pid_t tid);
+	_read_greg(tid);
 	memcpy(_target.reg + offsetof(struct user, regs.nip), &pc,
 	       sizeof(unsigned long));
-	_write_greg(pid_t tid);
+	_write_greg(tid);
 }
 
 void ptrace_arch_set_singlestep(/*@unused@*/pid_t pid,
@@ -355,4 +355,29 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 			     void *arg3, void *arg4, void *ret)
 {
 	_read_greg(tid);
+}
+
+void ptrace_arch_option_set_thread(pid_t pid)
+{
+	ptrace_os_option_set_thread(pid);
+}
+
+bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
+{
+	return ptrace_os_wait_new_thread(out_pid, out_status);
+}
+
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+	return ptrace_os_check_new_thread(pid, status, out_pid);
+}
+
+void ptrace_arch_read_dbreg(pid_t tid)
+{
+  /* noop */
+}
+
+void ptrace_arch_write_dbreg(pid_t tid)
+{
+  /* noop */
 }
