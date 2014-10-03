@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -32,9 +32,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "target_ptrace.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <string.h>
+#include <sys/types.h>
+#include "gdb_interface.h"
 #include "global.h"
-#include "os.h"
 
 static bool x86_verbose = false;
 union u_drc {

@@ -32,9 +32,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "target_ptrace.h"
-#include "global.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/user.h>
+#include "dptrace.h"
 #include "os.h"
+#include "target.h"
 
 #define GDB_RAX       0
 #define GDB_RBX       1

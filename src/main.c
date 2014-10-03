@@ -33,17 +33,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-
+#include "cmdline.h"
+#include "gdb_interface.h"
 #define DECL_GLOBAL
 #include "global.h"
 #undef DECL_GLOBAL
-
-#include "cmdline.h"
 #include "network.h"
 #include "watchdog.h"
 

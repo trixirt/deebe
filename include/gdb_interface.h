@@ -41,6 +41,7 @@
 #define _PROXY_H_
 
 #include <sys/types.h>
+#include <stdint.h>
 
 typedef void (*log_func)(int level, const char *string, ...);
 

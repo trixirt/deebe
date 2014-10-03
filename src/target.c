@@ -32,14 +32,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdint.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <signal.h>
-#include <fcntl.h>
 
-#include "target.h"
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "global.h"
+#include "target.h"
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */

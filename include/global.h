@@ -65,6 +65,9 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 #define DBG_PRINT(fmt, args...) util_log(fmt, ##args)
 #endif
 
+extern int host_signal_to_gdb(int sig);
+extern int host_signal_from_gdb(int gdb);
+
 #ifndef DECL_GLOBAL
 
 /* cmdline */
@@ -100,16 +103,10 @@ extern size_t network_in_buffer_total;
 extern gdb_target *gdb_interface_target;
 extern int gdb_interface_debug_level;
 extern log_func gdb_interface_log;
-
 extern FILE *fp_log;
-
 extern bool gDebugeeRunning;
-
-/* host signal mappings */
-extern int host_signal_to_gdb(int sig);
-extern int host_signal_from_gdb(int gdb);
-
 extern int gPipeStdout[2];
+
 #else
 
 /* cmdline */

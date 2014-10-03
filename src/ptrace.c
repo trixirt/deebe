@@ -33,24 +33,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdint.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <signal.h>
+#include <errno.h>
 #include <fcntl.h>
-
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "breakpoint.h"
+#include "dptrace.h"
+#include "dsignal.h"
+#include "gdb_interface.h"
 #include "global.h"
 #include "network.h"
 #include "os.h"
-#include "util.h"
-#include "dsignal.h"
-#include "dptrace.h"
 #include "target.h"
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include "util.h"
 
 static bool _general_set_verbose = true;
 static bool _read_mem_verbose = true;

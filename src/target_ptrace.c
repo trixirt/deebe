@@ -32,9 +32,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "global.h"
-#include "target_ptrace.h"
+
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include "config.h"
 #include "dptrace.h"
+#include "gdb_interface.h"
+#include "target.h"
+#include "target_ptrace.h"
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {

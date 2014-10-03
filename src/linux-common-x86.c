@@ -32,8 +32,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "target_ptrace.h"
-#include "os.h"
+
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/user.h>
+#include "dptrace.h"
+#include "target.h"
 #include "global.h"
 
 void ptrace_arch_set_singlestep(/*@unused@*/pid_t pid, long *request)
