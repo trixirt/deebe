@@ -57,8 +57,6 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 		exit(-1);						     \
 	} while (0)
 
-/* In developement.. */
-#define DEEBE_RELEASE__
 #ifdef DEEBE_RELEASE
 #define DBG_PRINT(fmt, args...)
 #else
