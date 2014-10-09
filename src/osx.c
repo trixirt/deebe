@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013-2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -58,7 +58,7 @@ void osx_report_kernel_error(FILE *fp, kern_return_t kret)
 	}
 }
 
-int osx_read_registers(uint8_t *data, uint8_t *avail,
+int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 		       size_t buf_size, size_t *read_size)
 {
 	/*
@@ -119,16 +119,16 @@ int osx_read_registers(uint8_t *data, uint8_t *avail,
 	return ret;
 }
 
-int osx_read_single_register(unsigned int gdb, uint8_t *data,
+int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 			     uint8_t *avail, size_t buf_size, size_t *read_size)
 {
 	return RET_NOSUPP;
 }
-int osx_write_registers(uint8_t *data, size_t size)
+int osx_write_registers(pid_t tid, uint8_t *data, size_t size)
 {
 	return RET_NOSUPP;
 }
-int osx_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
+int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, size_t size)
 {
 	return RET_NOSUPP;
 }
@@ -140,4 +140,34 @@ void ptrace_arch_read_dbreg()
 
 void ptrace_arch_write_dbreg()
 {
+}
+
+bool ptrace_os_new_thread(pid_t tid, int status) {
+    bool ret = false;
+    return ret;
+}
+
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
+{
+	bool ret = false;
+	return ret;
+}
+
+void ptrace_os_continue_others() {
+}
+
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
+	long ret = 0;
+	return ret;
+}
+
+void ptrace_os_wait(pid_t t) {
+}
+
+int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
+    int ret = RET_ERR;
+    return ret;
+}
+
+void ptrace_os_stopped_single(char *str, size_t len, bool debug) {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -55,6 +55,9 @@ int ptrace_arch_gdb_greg_max()
 	return GDB_GREG_MAX;
 }
 
+size_t ptrace_arch_swbreak_size() {
+  return 0;
+}
 int ptrace_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_ERR;
@@ -69,11 +72,11 @@ int ptrace_arch_add_break(int type, unsigned long addr,
 	return ret;
 }
 
-void ptrace_arch_get_pc(unsigned long *pc)
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
 {
 	/* TBD */
 }
-void ptrace_arch_set_pc(unsigned long pc)
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
 {
 	/* TBD */
 }
@@ -88,7 +91,7 @@ void ptrace_arch_clear_singlestep(pid_t pid)
 	/* TBD */
 }
 
-void ptrace_arch_read_greg(pit_t tid)
+void ptrace_arch_read_greg(pid_t tid)
 {
 	/* TBD */
 }
@@ -160,8 +163,12 @@ bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
 	return false;
 }
 
-void ptrace_arch_get_syscall(void *id, void *arg1,
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1,
 			     void *arg2, void *arg3, void *arg4, void *ret)
+{
+}
+
+void ptrace_arch_option_set_thread(pid_t pid)
 {
 }
 

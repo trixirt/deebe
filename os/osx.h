@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2014, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -54,17 +54,25 @@ void arch_read_greg();
 void arch_write_greg();
 
 extern void osx_report_kernel_error(FILE *fp, kern_return_t kret);
-extern int osx_read_registers(uint8_t *data, uint8_t *avail,
+extern int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 			      size_t buf_size, size_t *read_size);
-extern int osx_read_single_register(unsigned int gdb, uint8_t *data,
+extern int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 				    uint8_t *avail, size_t buf_size,
 				    size_t *read_size);
-extern int osx_write_registers(uint8_t *data, size_t size);
-extern int osx_write_single_register(unsigned int gdb, uint8_t *data,
+extern int osx_write_registers(pid_t tid, uint8_t *data, size_t size);
+extern int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 				     size_t size);
 bool osx_arch_read_registers(thread_act_t tid);
 
 /* OSX ptrace returns int */
 #define ptrace_return_t int
+
+bool ptrace_os_new_thread(pid_t tid, int status);
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid);
+void ptrace_os_continue_others();
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
+void ptrace_os_wait(pid_t t);
+int ptrace_os_gen_thread(pid_t pid, pid_t tid);
+void ptrace_os_stopped_single(char *str, size_t len, bool debug);
 
 #endif
