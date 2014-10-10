@@ -53,7 +53,7 @@ AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([gethostbyname memmove memset select socket strchr strdup strtol timer_create timer_settime])
 
-ti_src="cmdline.c main.c ptrace.c network.c gdb_interface.c target_skeleton.c watchdog.c"
+ti_src="cmdline.c main.c ptrace.c network.c gdb_interface.c target_skeleton.c watchdog.c lldb_interface.c"
 
 case ${target} in
 

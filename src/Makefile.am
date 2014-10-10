@@ -6,6 +6,7 @@ deebe_SOURCES = \
 	breakpoint.c \
 	cmdline.c \
 	gdb_interface.c \
+	lldb_interface.c \
 	main.c \
 	network.c \
 	ptrace.c \
