@@ -36,7 +36,9 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
+#ifndef NO_CONFIG
 #include "config.h"
+#endif
 #include "dptrace.h"
 #include "gdb_interface.h"
 #include "target.h"
