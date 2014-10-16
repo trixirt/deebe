@@ -1209,32 +1209,34 @@ int _ptrace_resume(pid_t pid, pid_t tid, int step, int gdb_sig)
 	int ret = RET_ERR;
 	int sig;
 	int index = target_index(tid);
-	sig = ptrace_arch_signal_from_gdb(gdb_sig);
-	if (sig < 0) {
-		sig = 0;
-	}
-	/*
-	 * Manage the process state
-	 * Since we are going from stopped to running,
-	 * set the state to PS_RUN.
-	 * Also clear the wait flag and reset the wait status
-	 */
-	PROCESS_STATE(index) = PS_RUN;
-	PROCESS_WAIT(index) = false;
-	PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
-	if (sig) {
-		PROCESS_STATE(index) = PS_SIG_PENDING;
-	} else {
+	if (index >= 0) {
+		sig = ptrace_arch_signal_from_gdb(gdb_sig);
+		if (sig < 0) {
+			sig = 0;
+		}
+		/*
+		 * Manage the process state
+		 * Since we are going from stopped to running,
+		 * set the state to PS_RUN.
+		 * Also clear the wait flag and reset the wait status
+		 */
 		PROCESS_STATE(index) = PS_RUN;
-	}
-	/* TODO : Map sig to arg4 */
-	if (0 == ptrace_os_continue(pid, tid, step, sig)) {
-		ret = RET_OK;
-	} else {
-		PROCESS_STATE(index) = PS_ERR;
-		/* Failure */
-		if (_resume_current_verbose) {
-			DBG_PRINT("%s Error tid %x index %d step %d sig %d : %s\n", __func__, tid, index, step, sig, strerror(errno));
+		PROCESS_WAIT(index) = false;
+		PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
+		if (sig) {
+			PROCESS_STATE(index) = PS_SIG_PENDING;
+		} else {
+			PROCESS_STATE(index) = PS_RUN;
+		}
+		/* TODO : Map sig to arg4 */
+		if (0 == ptrace_os_continue(pid, tid, step, sig)) {
+			ret = RET_OK;
+		} else {
+			PROCESS_STATE(index) = PS_ERR;
+			/* Failure */
+			if (_resume_current_verbose) {
+				DBG_PRINT("%s Error tid %x index %d step %d sig %d : %s\n", __func__, tid, index, step, sig, strerror(errno));
+			}
 		}
 	}
 	return ret;
@@ -2117,9 +2119,11 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 		int index;
 		/* Normal case */
 		index = target_index(key);
-		pid_t new_pid = PROCESS_PID(index);
-		pid_t new_tid = PROCESS_TID(index);
-		ret = ptrace_os_gen_thread(new_pid, new_tid);
+		if (index >= 0) {
+			pid_t new_pid = PROCESS_PID(index);
+			pid_t new_tid = PROCESS_TID(index);
+			ret = ptrace_os_gen_thread(new_pid, new_tid);
+		}
 	}
 	return ret;
 }
