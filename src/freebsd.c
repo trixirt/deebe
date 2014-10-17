@@ -508,7 +508,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 					 * However since everyone is waiting then
 					 * it is ok to switch the current thread
 					 */
-					target_thread_make_current(index);
+					target_thread_make_current(tid);
 				} else if (wait_ret == RET_IGNORE) {
 					int g = ptrace_arch_signal_to_gdb(SIGINT);
 					ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
@@ -523,7 +523,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 	} else {
 		/* Assume stopped */
 		/* We got lucky, the process is already in a stopped state */
-		target_thread_make_current(index);
+		target_thread_make_current(tid);
 		/*
 		 * Continuing the old current will happen automatically
 		 * when the normal continue/wait logic runs

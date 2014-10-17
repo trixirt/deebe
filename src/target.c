@@ -206,6 +206,8 @@ bool target_thread_make_current(pid_t tid)
 
 	DBG_PRINT("%s %x %d\n", __func__, tid, index);
 	
+    } else {
+	DBG_PRINT("%s ERROR Invalid tid %x\n", __func__, tid);
     }
     return ret;
 }
