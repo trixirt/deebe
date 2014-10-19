@@ -62,6 +62,17 @@ void ptrace_os_option_set_syscall(pid_t pid)
 
 void ptrace_os_option_set_thread(pid_t pid)
 {
+  /*
+   * Need to query PT_LWPINFO to get the tid of the main process
+   */
+  if (PROCESS_TID(0) == PROCESS_PID(0)) {
+#ifdef PT_LWPINFO
+	struct ptrace_lwpinfo lwpinfo = { 0 };
+	if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
+	  PROCESS_TID(0) = lwpinfo.pl_lwpid;
+	}
+#endif
+  }
 }
 
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
@@ -247,31 +258,21 @@ static void check_lwplist_for_new_threads(pid_t pid)
 					pid_t new_tid = lwpid_list[i];
 					pid_t parent = target_get_pid();
 					/*
-					 * The first time this is hit, it is the main thread of
-					 * the parent process.  Set the parent process tid to
-					 * this value so the first and second threads will be
-					 * handled the same.
+					 * The tread has not quite been born
+					 * Waiting for it now does not work.
+					 * So defer waiting for it by adding the new thread
+					 * but setting it's state to PRE_START
+					 *
+					 * Since the new thread is not in a wait state, set the
+					 * wait flag to false.
 					 */
-					if (PROCESS_TID(0) == PROCESS_PID(0)) {
-						PROCESS_TID(0) = new_tid;
+					if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+					  DBG_PRINT("%s error allocating new thread\n", __func__);
 					} else {
-						/*
-						 * The tread has not quite been born
-						 * Waiting for it now does not work.
-						 * So defer waiting for it by adding the new thread
-						 * but setting it's state to PRE_START
-						 *
-						 * Since the new thread is not in a wait state, set the
-						 * wait flag to false.
-						 */
-						if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
-							DBG_PRINT("%s error allocating new thread\n", __func__);
-						} else {
-							int index = target_index(new_tid);
-							PROCESS_STATE(index) = PS_PRE_START;
-						}
-						break;
+					  int index = target_index(new_tid);
+					  PROCESS_STATE(index) = PS_PRE_START;
 					}
+					break;
 				}
 			} /* lwps loop */
 		}
