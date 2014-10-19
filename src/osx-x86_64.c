@@ -206,3 +206,23 @@ bool osx_arch_read_registers(thread_act_t tid)
 #endif
 	return ret;
 }
+
+bool ptrace_arch_support_hardware_breakpoints()
+{
+  return false;
+}
+bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+					 size_t len)
+{
+  return false;
+}
+bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+					    size_t len)
+{
+  return false;
+}
+
+bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+{
+  return false;
+}

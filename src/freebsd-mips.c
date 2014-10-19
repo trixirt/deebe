@@ -350,3 +350,23 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 {
 	_read_greg(tid);
 }
+
+bool ptrace_arch_support_hardware_breakpoints()
+{
+  return false;
+}
+bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+					 size_t len)
+{
+  return false;
+}
+bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+					    size_t len)
+{
+  return false;
+}
+
+bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+{
+  return false;
+}

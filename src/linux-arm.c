@@ -320,3 +320,23 @@ void ptrace_arch_write_dbreg(pid_t tid)
 {
   /* noop */
 }
+
+bool ptrace_arch_support_hardware_breakpoints()
+{
+  return false;
+}
+bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+					 size_t len)
+{
+  return false;
+}
+bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+					    size_t len)
+{
+  return false;
+}
+
+bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+{
+  return false;
+}

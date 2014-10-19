@@ -71,7 +71,7 @@ static bool _write_reg_verbose = true;
 static bool _wait_partial_verbose = true;
 static bool _wait_verbose = true;
 static bool _add_break_verbose = true;
-static bool _remove_break_verbose = false;
+static bool _remove_break_verbose = true;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
 static bool _stop_verbose = true;
@@ -1409,7 +1409,25 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 			  __func__, type, kaddr, len);
 	}
 
-	if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
+	if (type == GDB_INTERFACE_BP_HARDWARE) {
+	  if (ptrace_arch_support_hardware_breakpoints()) {
+	    if (ptrace_arch_add_hardware_breakpoint(tid, addr, len)) {
+	      ret = RET_OK;
+	      if (_add_break_verbose) {
+		DBG_PRINT("OK setting hardware breakpoint at 0x%lx\n", kaddr);
+	      }
+	    } else {
+	      if (_add_break_verbose) {
+		DBG_PRINT("ERROR setting hardware breakpoint at 0x%lx\n", kaddr);
+	      }
+	    }
+	  } else {
+	    ret = RET_NOSUPP;
+	    if (_add_break_verbose) {
+	      DBG_PRINT("Hardware breakpoint is not supported\n");
+	    }
+	  }
+	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
@@ -1499,7 +1517,26 @@ int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len)
 		DBG_PRINT("%s %d %lx %zu\n",
 			  __func__, type, kaddr, len);
 	}
-	if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
+
+	if (type == GDB_INTERFACE_BP_HARDWARE) {
+	  if (ptrace_arch_support_hardware_breakpoints()) {
+	    if (ptrace_arch_remove_hardware_breakpoint(tid, addr, len)) {
+	      ret = RET_OK;
+	      if (_remove_break_verbose) {
+		DBG_PRINT("OK removing hardware breakpoint at 0x%lx\n", kaddr);
+	      }
+	    } else {
+	      if (_remove_break_verbose) {
+		DBG_PRINT("ERROR removing hardware breakpoint at 0x%lx\n", kaddr);
+	      }
+	    }
+	  } else {
+	    ret = RET_NOSUPP;
+	    if (_add_break_verbose) {
+	      DBG_PRINT("Hardware breakpoint is not supported\n");
+	    }
+	  }
+	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
 		if (ptrace_arch_support_watchpoint(type)) {
@@ -1759,21 +1796,6 @@ static void _stopped_all(char *str, size_t len)
 	/* This does not work for FreeBSD as the threads are not free running */
 	for (index = 0; no_event && index < _target.number_processes; index++) {
 		bool process_wait = PROCESS_WAIT(index);
-#if 0
-		if (process_wait) {
-			/*
-			 * When running in AllStop
-			 * Only check for either the current thread or any new threads
-			 * The other threads can keep on waiting
-			 */
-			if (NS_OFF == _target.nonstop) {
-				if (!((index == target_current_index()) ||
-				      (PS_START == PROCESS_STATE(index)))) {
-					process_wait = false;
-				}
-			}
-		}
-#endif
 		if (process_wait) {
 			pid_t tid = PROCESS_TID(index);
 			int wait_status = PROCESS_WAIT_STATUS(index);
@@ -1781,14 +1803,18 @@ static void _stopped_all(char *str, size_t len)
 				int s = WSTOPSIG(wait_status);
 				int g = ptrace_arch_signal_to_gdb(s);
 				if (s == SIGTRAP) {
-					unsigned long watchpoint_addr = 0;
 					unsigned long pc = 0;
+					unsigned long watch_addr = 0;
 					bool valid = false;
 					ptrace_arch_get_pc(tid, &pc);
 					/* Fill out the status string */
-					if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
-						/* A watchpoint was hit */
-						gdb_stop_string(str, len, g, tid, watchpoint_addr);
+					if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+						gdb_stop_string(str, len, g, tid, 0);
+						target_thread_make_current(tid);
+						valid = true;
+						no_event = false;
+					} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+						gdb_stop_string(str, len, g, tid, watch_addr);
 						target_thread_make_current(tid);
 						valid = true;
 						no_event = false;
