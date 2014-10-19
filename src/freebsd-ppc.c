@@ -368,3 +368,23 @@ bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
     return ptrace_os_check_new_thread(pid, status, out_pid);
 }
+
+bool ptrace_arch_support_hardware_breakpoints()
+{
+  return false;
+}
+bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+					 size_t len)
+{
+  return false;
+}
+bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+					    size_t len)
+{
+  return false;
+}
+
+bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+{
+  return false;
+}

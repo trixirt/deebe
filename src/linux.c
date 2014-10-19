@@ -461,15 +461,15 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 			int g = ptrace_arch_signal_to_gdb(s);
 
 			if (s == SIGTRAP) {
-				unsigned long watchpoint_addr = 0;
 				unsigned long pc = 0;
-
+				unsigned long watch_addr = 0;
 				ptrace_arch_get_pc(tid, &pc);
-			
 				/* Fill out the status string */
-				if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
+				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+				  gdb_stop_string(str, len, g, tid, 0);
+				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
-				    gdb_stop_string(str, len, g, tid, watchpoint_addr);
+				    gdb_stop_string(str, len, g, tid, watch_addr);
 				} else {
 					/* Either a normal breakpoint or a step, it doesn't matter */
 				    gdb_stop_string(str, len, g, tid, 0);

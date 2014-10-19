@@ -64,6 +64,27 @@ union u_drc {
 	unsigned long v;
 };
 
+#define DBP_DEBUG_CONTROL(v) \
+  DBG_PRINT("dbc.l0 %d\n", v.b.l0);     \
+  DBG_PRINT("dbc.g0 %d\n", v.b.g0);     \
+  DBG_PRINT("dbc.l1 %d\n", v.b.l1);     \
+  DBG_PRINT("dbc.g1 %d\n", v.b.g1);     \
+  DBG_PRINT("dbc.l2 %d\n", v.b.l2);     \
+  DBG_PRINT("dbc.g2 %d\n", v.b.g2);     \
+  DBG_PRINT("dbc.l3 %d\n", v.b.l3);     \
+  DBG_PRINT("dbc.g3 %d\n", v.b.g3);     \
+  DBG_PRINT("dbc.le %d\n", v.b.le);     \
+  DBG_PRINT("dbc.ge %d\n", v.b.ge);     \
+  DBG_PRINT("dbc.gd %d\n", v.b.gd);     \
+  DBG_PRINT("dbc.rw0 %d\n", v.b.rw0);   \
+  DBG_PRINT("dbc.len0 %d\n", v.b.len0); \
+  DBG_PRINT("dbc.rw1 %d\n", v.b.rw1);   \
+  DBG_PRINT("dbc.len1 %d\n", v.b.len1); \
+  DBG_PRINT("dbc.rw2 %d\n", v.b.rw2);   \
+  DBG_PRINT("dbc.len2 %d\n", v.b.len2); \
+  DBG_PRINT("dbc.rw3 %d\n", v.b.rw3);   \
+  DBG_PRINT("dbc.len3 %d\n", v.b.len3)
+
 union u_drs {
 	struct {
 		unsigned  b0:1;
@@ -78,12 +99,22 @@ union u_drs {
 	unsigned long v;
 };
 
+#define DBP_DEBUG_STATUS(v) \
+  DBG_PRINT("drs.b0 %d\n", v.b.b0);     \
+  DBG_PRINT("drs.b1 %d\n", v.b.b1);     \
+  DBG_PRINT("drs.b2 %d\n", v.b.b2);     \
+  DBG_PRINT("drs.b3 %d\n", v.b.b3)
+
 #define DEBUG_ADDR_0  0
 #define DEBUG_ADDR_1  1
 #define DEBUG_ADDR_2  2
 #define DEBUG_ADDR_3  3
 #define DEBUG_STATUS  6
 #define DEBUG_CONTROL 7
+
+#define DEBUG_EXECUTE 0
+#define DEBUG_WRITE   1
+#define DEBUG_ACCESS  3
 
 extern bool x86_read_debug_reg(pid_t pid, size_t reg, void *val);
 extern bool x86_write_debug_reg(pid_t pid, size_t reg, void *val);
@@ -126,168 +157,317 @@ bool _supported_access(unsigned long addr, size_t len)
 		/* At least 4 byte aligned */
 		if (0 == (addr & 0x3))
 			ret = true;
+	} else if ((8 == sizeof(void *)) &&
+		   (8 == len)) {
+		/* At least 8 byte aligned */
+	  if (0 == (addr & 0x7))
+	    ret = true;
 	}
 	return ret;
+}
+
+static bool _add_hw_debug(pid_t pid, int type, unsigned long addr, size_t _len) {
+  bool ret = false;
+  if (_supported_access(addr, _len)) {
+    union u_drc drc;
+    unsigned char len = _len - 1;
+    unsigned char rw = DEBUG_EXECUTE;
+    
+    if (type == GDB_INTERFACE_BP_WRITE_WATCH)
+      rw = DEBUG_WRITE;
+    else if (type == GDB_INTERFACE_BP_ACCESS_WATCH)
+      rw = DEBUG_ACCESS;
+
+    if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
+      if ((0 == drc.b.l0) &&
+	  (0 == drc.b.g0)) {
+	drc.b.l0 = 1;
+	drc.b.rw0 = rw;
+	drc.b.len0 = len;
+	if (x86_write_debug_reg(
+				pid, DEBUG_ADDR_0,
+				&addr)) {
+	  ret = x86_write_debug_reg(
+				    pid, DEBUG_CONTROL,
+				    &drc);
+	}
+      } else if ((0 == drc.b.l1) &&
+		 (0 == drc.b.g1)) {
+	drc.b.l1 = 1;
+	drc.b.rw1 = rw;
+	drc.b.len1 = len;
+	if (x86_write_debug_reg(
+				pid, DEBUG_ADDR_1,
+				&addr)) {
+	  ret = x86_write_debug_reg(
+				    pid, DEBUG_CONTROL,
+				    &drc);
+	}
+      } else if ((0 == drc.b.l2) &&
+		 (0 == drc.b.g2)) {
+	drc.b.l2 = 1;
+	drc.b.rw2 = rw;
+	drc.b.len2 = len;
+	if (x86_write_debug_reg(
+				pid, DEBUG_ADDR_2,
+				&addr)) {
+	  ret = x86_write_debug_reg(
+				    pid, DEBUG_CONTROL,
+				    &drc);
+	}
+      } else if ((0 == drc.b.l3) &&
+		 (0 == drc.b.g3)) {
+	drc.b.l3 = 1;
+	drc.b.rw3 = rw;
+	drc.b.len3 = len;
+	if (x86_write_debug_reg(
+				pid, DEBUG_ADDR_3,
+				&addr)) {
+	  ret = x86_write_debug_reg(
+				    pid, DEBUG_CONTROL,
+				    &drc);
+	}
+      }
+    }
+  }
+  return ret;
 }
 
 bool ptrace_arch_add_watchpoint(pid_t pid, int type,
 				unsigned long addr, size_t len)
 {
+  bool ret = false;
+  if (ptrace_arch_support_watchpoint(type))
+    ret = _add_hw_debug(pid, type, addr, len);
+  return ret;
+}
+
+bool ptrace_arch_add_hardware_breakpoint(pid_t pid, unsigned long addr, size_t len)
+{
+  bool ret = false;
+  ret = _add_hw_debug(pid, GDB_INTERFACE_BP_HARDWARE, addr, len);
+  return ret;
+}
+
+bool static _remove_hw_debug(pid_t pid, unsigned long addr, size_t _len, bool hwbrk)
+{
 	bool ret = false;
-	if (ptrace_arch_support_watchpoint(type)) {
-		if (_supported_access(addr, len)) {
-			union u_drc drc;
-			if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
-				if ((0 == drc.b.l0) &&
-				    (0 == drc.b.g0)) {
-					drc.b.l0 = 1;
-					drc.b.rw0 = (type == GDB_INTERFACE_BP_WRITE_WATCH) ? 1 : 3;
-					drc.b.len0 = len - 1;
-					if (x86_write_debug_reg(
-						    pid, DEBUG_ADDR_0,
-						    &addr)) {
-						ret = x86_write_debug_reg(
-							pid, DEBUG_CONTROL,
-							&drc);
-					}
-				} else if ((0 == drc.b.l1) &&
-					   (0 == drc.b.g1)) {
-					drc.b.l1 = 1;
-					drc.b.rw1 = (type == GDB_INTERFACE_BP_WRITE_WATCH) ? 1 : 3;
-					drc.b.len1 = len - 1;
-					if (x86_write_debug_reg(
-						    pid, DEBUG_ADDR_1,
-						    &addr)) {
-						ret = x86_write_debug_reg(
-							pid, DEBUG_CONTROL,
-							&drc);
-					}
-				} else if ((0 == drc.b.l2) &&
-					   (0 == drc.b.g2)) {
-					drc.b.l2 = 1;
-					drc.b.rw2 = (type == GDB_INTERFACE_BP_WRITE_WATCH) ? 1 : 3;
-					drc.b.len2 = len - 1;
-					if (x86_write_debug_reg(
-						    pid, DEBUG_ADDR_2,
-						    &addr)) {
-						ret = x86_write_debug_reg(
-							pid, DEBUG_CONTROL,
-							&drc);
-					}
-				} else if ((0 == drc.b.l3) &&
-					   (0 == drc.b.g3)) {
-					drc.b.l3 = 1;
-					drc.b.rw3 = ((type == GDB_INTERFACE_BP_WRITE_WATCH) ? 1 : 3);
-					drc.b.len3 = len - 1;
-					if (x86_write_debug_reg(
-						    pid, DEBUG_ADDR_3,
-						    &addr)) {
-						ret = x86_write_debug_reg(
-							pid, DEBUG_CONTROL,
-							&drc);
-					}
-				}
-			}
+	if (addr && _supported_access(addr, _len)) {
+	  union u_drc drc;
+	  if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
+	    unsigned long r_addr = 0;
+	    bool ok = true;
+
+	    if (x86_read_debug_reg(pid, DEBUG_ADDR_0, &r_addr)) {
+	      if (r_addr == addr) {
+		ok = true;
+		if (hwbrk) {
+		  if (drc.b.rw0 != DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		} else {
+		  if (drc.b.rw0 == DEBUG_EXECUTE) {
+		    ok = false;
+		  }
 		}
+		if (ok) {
+		  r_addr = 0;
+		  x86_write_debug_reg(pid, DEBUG_ADDR_0, &r_addr);
+		  drc.b.l0 = 0;
+		  ret = x86_write_debug_reg(pid, DEBUG_CONTROL, &drc);
+		  goto end;
+		}
+	      }
+	    }
+
+	    if (x86_read_debug_reg(pid, DEBUG_ADDR_1, &r_addr)) {
+	      if (r_addr == addr) {
+
+		ok = true;
+		if (hwbrk) {
+		  if (drc.b.rw1 != DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		} else {
+		  if (drc.b.rw1 == DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		}
+		if (ok) {
+		  r_addr = 0;
+		  x86_write_debug_reg(pid, DEBUG_ADDR_1, &r_addr);
+		  drc.b.l1 = 0;
+		  ret = x86_write_debug_reg(pid, DEBUG_CONTROL, &drc);
+		  goto end;
+		}
+	      }
+	    }
+
+	    if (x86_read_debug_reg(pid, DEBUG_ADDR_2, &r_addr)) {
+	      if (r_addr == addr) {
+		ok = true;
+		if (hwbrk) {
+		  if (drc.b.rw2 != DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		} else {
+		  if (drc.b.rw2 == DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		}
+		if (ok) {
+		  r_addr = 0;
+		  x86_write_debug_reg(pid, DEBUG_ADDR_2, &r_addr);
+		  drc.b.l2 = 0;
+		  ret = x86_write_debug_reg(pid, DEBUG_CONTROL, &drc);
+		  goto end;
+		}
+	      }
+	    }
+
+	    if (x86_read_debug_reg(pid, DEBUG_ADDR_3, &r_addr)) {
+	      if (r_addr == addr) {
+		ok = true;
+		if (hwbrk) {
+		  if (drc.b.rw3 != DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		} else {
+		  if (drc.b.rw3 == DEBUG_EXECUTE) {
+		    ok = false;
+		  }
+		}
+		if (ok) {
+		  r_addr = 0;
+		  x86_write_debug_reg(pid, DEBUG_ADDR_3, &r_addr);
+		  drc.b.l3 = 0;
+		  ret = x86_write_debug_reg(pid, DEBUG_CONTROL, &drc);
+		  goto end;
+		}
+	      }
+	    }
+	    DBP_DEBUG_CONTROL(drc);
+	  }
 	}
+ end:
 	return ret;
 }
 
 bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
-				   unsigned long addr, size_t len)
+				   unsigned long addr, size_t _len)
 {
-	bool ret = false;
-	if (ptrace_arch_support_watchpoint(type)) {
-		if (_supported_access(addr, len)) {
-			union u_drc drc;
-			if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
-				unsigned long r_addr = 0;
-				if ((x86_read_debug_reg(
-					     pid, DEBUG_ADDR_0, &r_addr)) &&
-				    (r_addr == addr) &&
-				    ((len - 1) == drc.b.len0)) {
-					/* Does not handle a double tap */
-					drc.b.l0 = 0;
-					ret = x86_write_debug_reg(
-						pid, DEBUG_CONTROL, &drc);
-				} else if ((x86_read_debug_reg(
-						    pid, DEBUG_ADDR_1,
-						    &r_addr)) &&
-					   (r_addr == addr) &&
-					   ((len - 1) == drc.b.len1)) {
-					/* Does not handle a double tap */
-					drc.b.l1 = 0;
-					ret = x86_write_debug_reg(
-						pid, DEBUG_CONTROL, &drc);
-				} else if ((x86_read_debug_reg(
-						    pid, DEBUG_ADDR_2,
-						    &r_addr)) &&
-					   (r_addr == addr) &&
-					   ((len - 1) == drc.b.len2)) {
-					/* Does not handle a double tap */
-					drc.b.l2 = 0;
-					ret = x86_write_debug_reg(
-						pid, DEBUG_CONTROL, &drc);
-				} else if ((x86_read_debug_reg(
-						    pid, DEBUG_ADDR_3,
-						    &r_addr)) &&
-					   (r_addr == addr) &&
-					   ((len - 1) == drc.b.len3)) {
-					/* Does not handle a double tap */
-					drc.b.l3 = 0;
-					ret = x86_write_debug_reg(
-						pid, DEBUG_CONTROL, &drc);
-				}
-			}
-		}
+  bool ret = false;
+  if (ptrace_arch_support_watchpoint(type))
+    ret = _remove_hw_debug(pid, addr,  _len, false);
+  return ret;
+}
+
+bool ptrace_arch_remove_hardware_breakpoint(pid_t pid, unsigned long addr, size_t _len)
+{
+  bool ret = false;
+  ret = _remove_hw_debug(pid, addr, _len, true);
+  return ret;
+}
+
+static int _hit_hw_debug(pid_t pid, unsigned long *addr, bool hwbrk) {
+  int ret = -1;
+  union u_drc drc;
+  unsigned long r_addr = 0;
+  if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
+    
+    if (x86_verbose)
+      DBG_PRINT("%s : drc %x\n", __func__, drc.v);
+    union u_drs drs;
+    if (x86_read_debug_reg(pid, DEBUG_STATUS, &drs)) {
+      if (x86_verbose)
+	DBG_PRINT("%s : drs %x\n", __func__, drs.v);
+      
+      if (drs.b.b0 && ((1 == drc.b.l0) ||
+		       (1 == drc.b.g0))) {
+	ret = x86_read_debug_reg(pid,
+				 DEBUG_ADDR_0, &r_addr);
+	if (hwbrk) {
+	  if (r_addr == *addr) {
+	    ret = drc.b.rw0;
+	    goto end;
+	  }
+	} else {
+	  *addr = r_addr;
+	  ret = drc.b.rw0;
+	  goto end;
 	}
-	return ret;
+	
+      } else if (drs.b.b1 && ((1 == drc.b.l1) ||
+			      (1 == drc.b.g1))) {
+	ret = x86_read_debug_reg(pid, DEBUG_ADDR_1,
+				 &r_addr);
+	if (hwbrk) {
+	  if (r_addr == *addr) {
+	    ret = drc.b.rw1;
+	    goto end;
+	  }
+	} else {
+	  *addr = r_addr;
+	  ret = drc.b.rw1;
+	  goto end;
+	}
+      } else if (drs.b.b2 && ((1 == drc.b.l2) ||
+			      (1 == drc.b.g2))) {
+	ret = x86_read_debug_reg(pid, DEBUG_ADDR_2,
+				 &r_addr);
+	if (hwbrk) {
+	  if (r_addr == *addr) {
+	    ret = drc.b.rw2;
+	    goto end;
+	  }
+	} else {
+	  *addr = r_addr;
+	  ret = drc.b.rw2;
+	  goto end;
+	}
+      } else if (drs.b.b3 && ((1 == drc.b.l3) ||
+			      (1 == drc.b.g3))) {
+	ret = x86_read_debug_reg(pid, DEBUG_ADDR_3,
+				 &r_addr);
+	if (hwbrk) {
+	  if (r_addr == *addr) {
+	    ret = drc.b.rw3;
+	    goto end;
+	  }
+	} else {
+	  *addr = r_addr;
+	  ret = drc.b.rw3;
+	  goto end;
+	}
+      }
+    }
+  }
+ end:
+  return ret;
+
 }
 
 bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 {
-	bool ret = false;
-	union u_drc drc;
-	if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
-
-		if (x86_verbose)
-			DBG_PRINT("%s : drc %x\n", __func__, drc.v);
-		union u_drs drs;
-		if (x86_read_debug_reg(pid, DEBUG_STATUS, &drs)) {
-			if (x86_verbose)
-				DBG_PRINT("%s : drs %x\n", __func__, drs.v);
-
-			if (drs.b.b0 && ((1 == drc.b.l0) ||
-					 (1 == drc.b.g0))) {
-				ret = x86_read_debug_reg(pid,
-							 DEBUG_ADDR_0, addr);
-				if (x86_verbose)
-					DBG_PRINT("%s : addr %lx\n",
-						  __func__, *addr);
-
-			} else if (drs.b.b1 && ((1 == drc.b.l1) ||
-						(1 == drc.b.g1))) {
-				ret = x86_read_debug_reg(pid, DEBUG_ADDR_1,
-							 addr);
-				if (x86_verbose)
-					DBG_PRINT("%s : addr %lx\n",
-						  __func__, *addr);
-			} else if (drs.b.b2 && ((1 == drc.b.l2) ||
-						(1 == drc.b.g2))) {
-				ret = x86_read_debug_reg(pid, DEBUG_ADDR_2,
-							 addr);
-				if (x86_verbose)
-					DBG_PRINT("%s : addr %lx\n",
-						  __func__, *addr);
-			} else if (drs.b.b3 && ((1 == drc.b.l3) ||
-						(1 == drc.b.g3))) {
-				ret = x86_read_debug_reg(pid, DEBUG_ADDR_3,
-							 addr);
-				if (x86_verbose)
-					DBG_PRINT("%s : addr %lx\n",
-						  __func__, *addr);
-			}
-		}
-	}
-	return ret;
+  bool ret = false;
+  int status = _hit_hw_debug(pid, addr, false);
+  if ((status == DEBUG_WRITE) ||
+      (status == DEBUG_ACCESS))
+    ret = true;
+  return ret;
 }
+
+bool ptrace_arch_hit_hardware_breakpoint(pid_t pid, unsigned long addr)
+{
+  bool ret = false;
+  int status = _hit_hw_debug(pid, &addr, true);
+  if (status == DEBUG_EXECUTE)
+    ret = true;
+  return ret;
+}
+
+bool ptrace_arch_support_hardware_breakpoints() {
+  return true;
+}
+
+

@@ -561,14 +561,21 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 			int s = WSTOPSIG(wait_status);
 			int g = ptrace_arch_signal_to_gdb(s);
 			if (s == SIGTRAP) {
-				unsigned long watchpoint_addr = 0;
 				unsigned long pc = 0;
+				unsigned long watch_addr = 0;
 				ptrace_arch_get_pc(tid, &pc);
-				/* Only check if the current thread is at a watchpoint */
-				if (ptrace_arch_hit_watchpoint(tid, &watchpoint_addr)) {
-					/* A watchpoint was hit */
+				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
 					target_thread_make_current(tid);
 					gdb_stop_string(str, len, g, tid, 0);
+					/*
+					 * process stat points to the true thread to continue
+					 * Not that it matter on FreeBSD as they all go at once
+					 */
+					PROCESS_STATE(index) = PS_CONT;
+				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+					/* A watchpoint was hit */
+					target_thread_make_current(tid);
+					gdb_stop_string(str, len, g, tid, watch_addr);
 					/*
 					 * process stat points to the true thread to continue
 					 * Not that it matter on FreeBSD as they all go at once
