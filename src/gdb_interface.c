@@ -1617,10 +1617,21 @@ void handle_query_command(char * const in_buf,
 	case 'C':
 		/* Current thread query */
 		ret = t->current_thread_query(&process, &thread);
-		if (ret == RET_OK)
-			sprintf(out_buf, "QC%"PRIx64".%"PRIx64, process, thread);
-		else
+		if (ret == RET_OK) {
+		  /*
+		   * On FreeBSD the thread id is not known until later
+		   * Until that happens the thread id is process id.
+		   * Do not report this back to gdb because then it will
+		   * be confused when the thread is is set later.
+		   */
+		  if (process != thread) {
+		    sprintf(out_buf, "QC%"PRIx64".%"PRIx64, process, thread);
+		  } else {
+		    sprintf(out_buf, "QC%"PRIx64"", process);
+		  }
+		} else {
 			gdb_interface_write_retval(ret, out_buf);
+		}
 		break;
 	case 'L':
 		/* Thread list query */
