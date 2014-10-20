@@ -55,8 +55,8 @@
 
 static bool network_verbose = false;
 static bool network_verbose_timeout = false;
-static bool network_verbose_print_read_buffer = false;
-static bool network_verbose_print_write_buffer = false;
+static bool network_verbose_print_read_buffer = true;
+static bool network_verbose_print_write_buffer = true;
 
 #define NO_TIMEOUT_PROGRESS
 
