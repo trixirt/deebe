@@ -348,7 +348,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
     
     if (index < 0) {
 	/* Not a valid thread */
-    } else if (!target_alive_thread(tid)) {
+    } else if (!target_is_alive_thread(tid)) {
 	/* dead thread */
 	DBG_PRINT("%s dead %d\n", __func__, index);
     } else if (_target.current_process == index) {
