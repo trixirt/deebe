@@ -1974,12 +1974,16 @@ int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 {
 	int ret = RET_OK;
 	static int n;
+	pid_t t;
 	if (first)
-		n = 0;
+		n = -1;
 	else
 		n++;
-	if (n < _target.number_processes) {
-		pid_t t = PROCESS_TID(n);
+	if (n == -1) {
+		t = PROCESS_PID(0);
+		sprintf(out_buf, "m %x", t);
+	} else if (n < _target.number_processes) {
+		t = PROCESS_TID(n);
 		sprintf(out_buf, "m %x", t);
 	} else {
 		sprintf(out_buf, "l");
@@ -2145,6 +2149,13 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 		int index;
 		/* Normal case */
 		index = target_index(key);
+		if (index < 0) {
+		  /* gdb can pass in the process id, assume this means index == 0 */
+		  /* XXX may not work for linux */
+		  if (target_is_alive_process(key)) {
+		    index = 0;
+		  }
+		}
 		if (index >= 0) {
 			pid_t new_pid = PROCESS_PID(index);
 			pid_t new_tid = PROCESS_TID(index);

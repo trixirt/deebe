@@ -122,9 +122,11 @@ int target_number_threads();
 pid_t target_get_pid();
 bool target_dead_thread(pid_t tid);
 void target_all_dead_thread();
-bool target_alive_thread(pid_t tid);
+bool target_is_alive_thread(pid_t tid);
+bool target_is_alive_process(pid_t pid);
 int target_index(pid_t tid);
 bool target_is_tid(pid_t tid);
+bool target_is_pid(pid_t pid);
 bool target_thread_make_current(pid_t tid);
 int target_current_index();
 

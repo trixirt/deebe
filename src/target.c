@@ -151,16 +151,31 @@ void target_all_dead_thread(pid_t tid)
     }
 }
 
-bool target_alive_thread(pid_t tid) 
+bool target_is_alive_thread(pid_t tid) 
 {
     bool ret = false;
     int index;
    
     for (index = 0; index < _target.number_processes; index++) {
 	if (tid == PROCESS_TID(index)) {
-	    PROCESS_STATE(index) = PS_START;
+	  if (PROCESS_STATE(index) != PS_EXIT)
 	    ret = true;
-	    break;
+	  break;
+	}
+    }
+    return ret;
+}
+
+bool target_is_alive_process(pid_t pid) 
+{
+    bool ret = false;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (pid == PROCESS_PID(index)) {
+	  if (PROCESS_STATE(index) != PS_EXIT)
+	    ret = true;
+	  break;
 	}
     }
     return ret;
@@ -173,9 +188,22 @@ bool target_is_tid(pid_t tid)
    
     for (index = 0; index < _target.number_processes; index++) {
 	if (tid == PROCESS_TID(index)) {
-	    if (PROCESS_STATE(index) != PS_EXIT)
-		ret = true;
-	    break;
+	  ret = true;
+	  break;
+	}
+    }
+    return ret;
+}
+
+bool target_is_pid(pid_t pid)
+{
+    bool ret = false;
+    int index;
+   
+    for (index = 0; index < _target.number_processes; index++) {
+	if (pid == PROCESS_PID(index)) {
+	  ret = true;
+	  break;
 	}
     }
     return ret;

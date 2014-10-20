@@ -57,7 +57,13 @@ int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_bu
     if (index >= 0) {
 	sprintf(out_buf, "Thread %d", index + 1);
 	ret = RET_OK;
-    } 
+    } else {
+      /* gdb can also pass in the process id */
+      if (target_is_alive_process(thread_id)) {
+	sprintf(out_buf, "Main Process");
+	ret = RET_OK;
+      }
+    }
     return ret;
 }
 
@@ -85,7 +91,11 @@ int ptrace_is_thread_alive(int64_t pid, int64_t tid,
     key = pid;
   }
 
-  out_alive = target_alive_thread(key);
+  out_alive = target_is_alive_thread(key);
+  if (!out_alive) {
+    /* gdb can pass in a process id, so check processes too */
+    out_alive = target_is_alive_process(key);
+  }
 
   *alive = out_alive;
   return RET_OK;
