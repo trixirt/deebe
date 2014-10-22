@@ -8,6 +8,7 @@ deebe_SOURCES = \
 	gdb_interface.c \
 	lldb_interface.c \
 	main.c \
+	memory.c \
 	network.c \
 	ptrace.c \
 	signal.c \
