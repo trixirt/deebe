@@ -32,9 +32,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "os.h"
+#include "../os/osx.h"
 #include "global.h"
 #include "dptrace.h"
+#include <mach/mach.h>
+#include <mach/task_info.h>
 
 struct reg_location_list grll[] = {
 	{0},
@@ -170,12 +172,36 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1,
 
 void ptrace_arch_option_set_thread(pid_t pid)
 {
+  fprintf(stderr, "%s %x \n", __func__, pid);
+  kern_return_t status;
+  if (PROCESS_TID(0) == PROCESS_PID(0)) {
+    task_t task;
+    status = task_for_pid(mach_task_self (), pid, &task);
+    if (KERN_SUCCESS == status) {
+      thread_array_t threads;
+      mach_msg_type_number_t num_threads;
+      status = task_threads(task, &threads, &num_threads);
+      if (KERN_SUCCESS == status) {
+	if (num_threads > 0) {
+	  PROCESS_TID(0) = threads[0];
+	  fprintf(stderr, "%s %x : %x\n", __func__, pid, PROCESS_TID(0));
+	} else {
+	  DBG_PRINT("ERROR : %s : unexpected number of threads %d\n", __func__, num_threads);
+	}
+      } else {
+	DBG_PRINT("ERROR : %s : failed to get thread info for pid %x : %d\n", __func__, pid, status);
+      }
+    } else {
+      DBG_PRINT("ERROR : %s : failed to get osx task from pid %x : %d\n", __func__, pid, status);
+    }
+  } else {
+    DBG_PRINT("ERROR : %s : called when pid != tid\n", __func__);
+  }
 }
 
 bool osx_arch_read_registers(thread_act_t tid)
 {
 	bool ret = false;
-#if 0
 	if (0 == _target.reg_size) {
 		_target.reg = malloc(sizeof(x86_thread_state64_t));
 		if (_target.reg)
@@ -203,7 +229,6 @@ bool osx_arch_read_registers(thread_act_t tid)
 			fprintf(stderr, "\n");
 		}
 	}
-#endif
 	return ret;
 }
 

@@ -36,7 +36,7 @@
 #include <mach/mach_traps.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
-#include "os.h"
+#include "../os/osx.h"
 #include "gdb_interface.h"
 #include "target.h"
 
@@ -61,62 +61,23 @@ void osx_report_kernel_error(FILE *fp, kern_return_t kret)
 int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 		       size_t buf_size, size_t *read_size)
 {
-	/*
-	 * XXX
-	 * Assumes single threaded
-	 */
-	int ret = RET_ERR;
-#if 0
-	task_t task = 0;
-	kern_return_t kret;
-
-	kret = task_for_pid(mach_task_self(), tstate.cpid, &task);
-	if (KERN_SUCCESS == kret) {
-		thread_act_array_t threads;
-		mach_msg_type_number_t cnt;
-		kret = task_threads(task, &threads, &cnt);
-		if (KERN_SUCCESS == kret) {
-			if (0 == cnt) {
-				fprintf(stderr, "Error number of threads is 0 for pid %d\n", tstate.cpid);
-			} else {
-				if (1 < cnt) {
-					fprintf(stderr, "Warning number of threads is %d for pid %d\n", cnt, tstate.cpid);
-					fprintf(stderr, "ONLY USING THE FIRST THREAD\n");
-				}
-				if (osx_arch_read_registers(threads[0])) {
-					size_t transfer_size = _target.reg_size;
-					if (transfer_size > buf_size) {
-						transfer_size = buf_size;
-						fprintf(stderr, "Warning expecting transfer buffer to be at least %zu but got %zu\n",
-							_target.reg_size, buf_size);
-					}
-					memcpy(data, _target.reg,
-					       transfer_size);
-					memset(avail, 0xff, transfer_size);
-					*read_size = transfer_size;
-					ret = RET_OK;
-				} else {
-					/* Failure */
-					fprintf(stderr,
-						"Error in arch functions\n");
-				}
-			}
-		} else {
-			fprintf(stderr,
-				"Error getting the osx threads pid %d reason :",
-				tstate.cpid);
-			osx_report_kernel_error(stderr, kret);
-			fprintf(stderr, "\n");
-		}
-	} else {
-		fprintf(stderr,
-			"Error getting the osx task for pid %d reason :",
-			tstate.cpid);
-		osx_report_kernel_error(stderr, kret);
-		fprintf(stderr, "\n");
-	}
-#endif
-	return ret;
+  int ret = RET_ERR;
+  if (osx_arch_read_registers(tid)) {
+    size_t transfer_size = _target.reg_size;
+    if (transfer_size > buf_size) {
+      transfer_size = buf_size;
+      DBG_PRINT("Warning expecting transfer buffer to be at least %zu but got %zu\n",
+	      _target.reg_size, buf_size);
+    }
+    memcpy(data, _target.reg, transfer_size);
+    memset(avail, 0xff, transfer_size);
+    *read_size = transfer_size;
+    ret = RET_OK;
+  } else {
+    /* Failure */
+    DBG_PRINT("Error in arch functions\n");
+  }
+  return ret;
 }
 
 int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
@@ -164,8 +125,8 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
 void ptrace_os_wait(pid_t t) {
 }
 
-int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
-    int ret = RET_ERR;
+int os_gen_thread(pid_t pid, pid_t tid) {
+    int ret = RET_OK;
     return ret;
 }
 

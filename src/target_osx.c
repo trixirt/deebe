@@ -34,7 +34,7 @@
  */
 #include "global.h"
 #include "dptrace.h"
-#include "os.h"
+#include "../os/osx.h"
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {
@@ -51,11 +51,6 @@ gdb_state _gdb_state = {
 };
 
 int osx_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
-{
-	return RET_NOSUPP;
-}
-
-int osx_set_gen_thread(int64_t process_id, int64_t thread_id)
 {
 	return RET_NOSUPP;
 }
@@ -118,7 +113,7 @@ gdb_target osx_target = {
 	.kill                     = ptrace_kill,
 	.restart                  = ptrace_restart,
 	.stop                     = ptrace_stop,
-	.set_gen_thread           = osx_set_gen_thread,
+	.set_gen_thread           = target_set_gen_thread,
 	.set_ctrl_thread          = osx_set_ctrl_thread,
 	.is_thread_alive          = osx_is_thread_alive,
 	.read_registers           = osx_read_registers,

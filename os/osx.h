@@ -72,7 +72,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 void ptrace_os_continue_others();
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 void ptrace_os_wait(pid_t t);
-int ptrace_os_gen_thread(pid_t pid, pid_t tid);
+int os_gen_thread(pid_t pid, pid_t tid);
 void ptrace_os_stopped_single(char *str, size_t len, bool debug);
 
 #endif

@@ -54,7 +54,11 @@
 #include "gdb_interface.h"
 #include "global.h"
 #include "network.h"
+#ifdef XCODE
+#include "../os/osx.h"
+#else
 #include "os.h"
+#endif
 #include "target.h"
 #include "util.h"
 
@@ -2130,37 +2134,3 @@ void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 	ptrace_arch_get_syscall(tid, id, arg1, arg2, arg3, arg4, ret);
 }
 
-int ptrace_set_gen_thread(int64_t pid, int64_t tid)
-{
-	int ret = RET_ERR;
-	int64_t key;
-	if (_target.multiprocess) {
-		/* pid and tid are valid */
-		key = tid;
-	} else {
-		/* only pid is valid, but it is really tid */
-		key = pid;
-	}
-	if ((key == 0) ||
-	    (key == -1)) {
-		/* TODO HANDLE */
-		ret = RET_OK;
-	} else {
-		int index;
-		/* Normal case */
-		index = target_index(key);
-		if (index < 0) {
-		  /* gdb can pass in the process id, assume this means index == 0 */
-		  /* XXX may not work for linux */
-		  if (target_is_alive_process(key)) {
-		    index = 0;
-		  }
-		}
-		if (index >= 0) {
-			pid_t new_pid = PROCESS_PID(index);
-			pid_t new_tid = PROCESS_TID(index);
-			ret = ptrace_os_gen_thread(new_pid, new_tid);
-		}
-	}
-	return ret;
-}

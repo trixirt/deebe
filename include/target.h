@@ -150,4 +150,7 @@ extern struct reg_location_list frll[];
 /* Extended */
 extern struct reg_location_list fxrll[];
 
+/* Used by the target ops structure */
+int target_set_gen_thread(int64_t pid, int64_t tid);
+
 #endif

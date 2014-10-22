@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include "global.h"
 #include "target.h"
+#include "os.h"
 
 target_state _target = {
 	.no_ack = 0, /* ack until it is ok not to */
@@ -252,4 +253,39 @@ void _target_debug_print() {
 int target_current_index()
 {
 	return _target.current_process;
+}
+
+int target_set_gen_thread(int64_t pid, int64_t tid)
+{
+	int ret = RET_ERR;
+	int64_t key;
+	if (_target.multiprocess) {
+		/* pid and tid are valid */
+		key = tid;
+	} else {
+		/* only pid is valid, but it is really tid */
+		key = pid;
+	}
+	if ((key == 0) ||
+	    (key == -1)) {
+		/* TODO HANDLE */
+		ret = RET_OK;
+	} else {
+		int index;
+		/* Normal case */
+		index = target_index(key);
+		if (index < 0) {
+		  /* gdb can pass in the process id, assume this means index == 0 */
+		  /* XXX may not work for linux */
+		  if (target_is_alive_process(key)) {
+		    index = 0;
+		  }
+		}
+		if (index >= 0) {
+			pid_t new_pid = PROCESS_PID(index);
+			pid_t new_tid = PROCESS_TID(index);
+			ret = os_gen_thread(new_pid, new_tid);
+		}
+	}
+	return ret;
 }
