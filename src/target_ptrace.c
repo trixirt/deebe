@@ -43,6 +43,7 @@
 #include "gdb_interface.h"
 #include "target.h"
 #include "target_ptrace.h"
+#include "memory.h"
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {
@@ -136,6 +137,32 @@ static int ptrace_query_current_signal(int *s)
 	return ret;
 }
 
+static size_t ptrace_memory_access_size()
+{
+  return sizeof(ptrace_return_t);
+}
+
+static bool ptrace_memory_copy_read(pid_t tid, void *dst, void *src)
+{
+  bool ret = false;
+  ptrace_return_t val;
+  errno = 0;
+  val = ptrace(PT_READ_D, tid, src, 0);
+  if (0 == errno) {
+    memcpy(dst, &val, sizeof(val));
+    ret = true;
+  }
+  return ret;
+}
+
+static bool ptrace_memory_copy_write(pid_t tid, void *dst, void *src)
+{
+  bool ret = false;
+  if (0 == ptrace(PT_WRITE_D, tid, dst, src))
+    ret = true;
+  return ret;
+}
+
 gdb_target ptrace_target = {
 	.next                     = NULL,
 	.name                     = "ptrace",
@@ -159,8 +186,11 @@ gdb_target ptrace_target = {
 	.write_registers          = ptrace_write_registers,
 	.read_single_register     = ptrace_read_single_register,
 	.write_single_register    = ptrace_write_single_register,
-	.read_mem                 = ptrace_read_mem,
-	.write_mem                = ptrace_write_mem,
+	.memory_access_size       = ptrace_memory_access_size,
+    .memory_copy_write = ptrace_memory_copy_write,
+    .memory_copy_read = ptrace_memory_copy_read,
+	.read_mem                 = memory_read_gdb,
+	.write_mem                = memory_write_gdb,
 	.resume_from_current      = ptrace_resume_from_current,
 	.resume_from_addr         = ptrace_resume_from_addr,
 	.go_waiting               = ptrace_go_waiting,

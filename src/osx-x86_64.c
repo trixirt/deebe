@@ -224,9 +224,7 @@ bool osx_arch_read_registers(thread_act_t tid)
 				ret = true;
 			}
 		} else {
-			fprintf(stderr, "problem getting registers reason : ");
-			osx_report_kernel_error(stderr, kret);
-			fprintf(stderr, "\n");
+			fprintf(stderr, "problem getting registers\n");
 		}
 	}
 	return ret;

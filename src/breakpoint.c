@@ -60,7 +60,7 @@ void _breakpoint_print(struct breakpoint *bpl)
 
 struct breakpoint *breakpoint_find(struct breakpoint *bpl,
 				   /*@unused@*/int debug_level,
-				   unsigned long addr) {
+				   void *addr) {
 
 	struct breakpoint *ret = NULL;
 	struct breakpoint *p = bpl;
@@ -77,7 +77,7 @@ struct breakpoint *breakpoint_find(struct breakpoint *bpl,
 }
 
 void breakpoint_remove(struct breakpoint **bpl,
-		       int debug_level, unsigned long addr) {
+		       int debug_level, void *addr) {
 	struct breakpoint *bp = NULL;
 	bp = breakpoint_find(*bpl, debug_level, addr);
 	if (bp) {
@@ -102,7 +102,7 @@ void breakpoint_remove(struct breakpoint **bpl,
 }
 
 struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
-				  unsigned long addr,
+				  void *addr,
 				  int type, size_t len) {
 	/*@null@*/struct breakpoint *ret = NULL;
 	struct breakpoint *bp = NULL;
@@ -126,7 +126,7 @@ struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
 			if (!bp->data) {
 				if (debug_level) {
 					fprintf(fp_log,
-						"INTERNAL ERROR Allocating breakpoint at 0x%lx\n",
+						"INTERNAL ERROR Allocating breakpoint at %p\n",
 						addr);
 				}
 				free(bp);
@@ -136,7 +136,7 @@ struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
 				if (!bp->bdata) {
 					if (debug_level) {
 						fprintf(fp_log,
-							"INTERNAL ERROR Allocating breakpoint at 0x%lx\n",
+							"INTERNAL ERROR Allocating breakpoint at %p\n",
 							addr);
 					}
 					free(bp->data);
@@ -162,7 +162,7 @@ struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
 		} else {
 			if (debug_level) {
 				fprintf(fp_log,
-					"INTERNAL ERROR Allocating breakpoint at 0x%lx\n",
+					"INTERNAL ERROR Allocating breakpoint at %p\n",
 					addr);
 			}
 		}
@@ -170,7 +170,7 @@ struct breakpoint *breakpoint_add(struct breakpoint **bpl, int debug_level,
 	return ret;
 }
 
-static void _leading(struct breakpoint *bp, unsigned long addr,
+static void _leading(struct breakpoint *bp, void *addr,
 		     /*@unused@*/size_t len,
 		     size_t *leading) {
 	*leading = 0;
@@ -178,7 +178,7 @@ static void _leading(struct breakpoint *bp, unsigned long addr,
 		*leading = addr - bp->addr;
 }
 
-static void _trailing(struct breakpoint *bp, unsigned long addr,
+static void _trailing(struct breakpoint *bp, void *addr,
 		      /*@unused@*/size_t len,
 		      size_t *trailing) {
 	*trailing = 0;
@@ -188,7 +188,7 @@ static void _trailing(struct breakpoint *bp, unsigned long addr,
 
 void breakpoint_adjust_read_buffer(struct breakpoint *bpl,
 				   int debug_level,
-				   unsigned long addr,
+				   void *addr,
 				   size_t len,
 				   void *buffer)
 {
@@ -220,7 +220,7 @@ void breakpoint_adjust_read_buffer(struct breakpoint *bpl,
 
 void breakpoint_adjust_write_buffer(struct breakpoint *bpl,
 				    int debug_level,
-				    unsigned long addr,
+				    void *addr,
 				    size_t len,
 				    void *buffer)
 {

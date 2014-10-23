@@ -35,4 +35,16 @@
 #ifndef _MEMORY_H
 #define _MEMORY_H
 
+#include <unistd.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+		size_t *read_size, bool breakpoint_check);
+int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+		    size_t *read_size);
+int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
+		 size_t size, bool breakpoint_check);
+int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
+
 #endif

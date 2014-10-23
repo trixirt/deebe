@@ -39,24 +39,7 @@
 #include "../os/osx.h"
 #include "gdb_interface.h"
 #include "target.h"
-
-void osx_report_kernel_error(FILE *fp, kern_return_t kret)
-{
-	switch (kret) {
-	case KERN_SUCCESS: /* 0 */
-		fprintf(fp, "success!, what are you doing here?");
-		break;
-	case KERN_INVALID_ARGUMENT: /* 4 */
-		fprintf(fp, "invalid argument");
-		break;
-	case KERN_FAILURE: /* 5 */
-		fprintf(fp, "generic kernel failure");
-		break;
-	default:
-		fprintf(fp, "code %d\n", kret);
-		break;
-	}
-}
+#include "global.h"
 
 int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 		       size_t buf_size, size_t *read_size)

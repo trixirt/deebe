@@ -255,6 +255,9 @@ struct gdb_target_s {
 				     size_t write_size);
 
 	/*=================== Memory Access =====================*/
+  size_t (*memory_access_size)();
+  bool (*memory_copy_read)(pid_t tid, void *dst, void *src);
+  bool (*memory_copy_write)(pid_t tid, void *dst, void *src);
 
 	/* Read memory, buf is 4-bytes aligned and it is in target
 	   byte order */

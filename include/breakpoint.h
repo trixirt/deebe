@@ -40,7 +40,7 @@
 struct breakpoint;
 struct breakpoint {
 	int type;
-	unsigned long addr;
+  void *addr;
 	size_t len;
 	int ref_count;
 	void *data;
@@ -52,22 +52,22 @@ struct breakpoint {
 void _breakpoint_print(struct breakpoint *bpl);
 /*@null@*/struct breakpoint *breakpoint_find(struct breakpoint *bpl,
 					      int debug_level,
-					      unsigned long addr);
+					      void *addr);
 void breakpoint_remove(struct breakpoint **bpl, int debug_level,
-		       unsigned long addr);
+		       void *addr);
 /*@null@*/struct breakpoint *breakpoint_add(struct breakpoint **bpl,
 					    int debug_level,
-					    unsigned long addr, int type,
+					    void *addr, int type,
 					    size_t len);
 void breakpoint_adjust_read_buffer(struct breakpoint *bpl,
 				   int debug_level,
-				   unsigned long addr,
+				   void *addr,
 				   size_t len,
 				   void *buffer);
 
 void breakpoint_adjust_write_buffer(struct breakpoint *bpl,
 				    int debug_level,
-				    unsigned long addr,
+				    void *addr,
 				    size_t len,
 				    void *buffer);
 
