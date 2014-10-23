@@ -259,21 +259,6 @@ struct gdb_target_s {
   bool (*memory_copy_read)(pid_t tid, void *dst, void *src);
   bool (*memory_copy_write)(pid_t tid, void *dst, void *src);
 
-	/* Read memory, buf is 4-bytes aligned and it is in target
-	   byte order */
-	int (*read_mem)(pid_t tid,
-			uint64_t addr,
-			unsigned char *buf,
-			size_t req_size,
-			size_t *actual_size);
-
-	/* Write memory, buf is 4-bytes aligned and it is in target
-	   byte order */
-	int (*write_mem)(pid_t tid,
-			 uint64_t addr,
-			 unsigned char *buf,
-			 size_t req_size);
-
 	/*================ Resume/Wait  ============================*/
 
 	/* Resume from current address, if not supported it

@@ -79,6 +79,7 @@
 #include "global.h"
 #include "network.h"
 #include "target.h"
+#include "memory.h"
 
 static void dbg_sock_putchar(int c)
 {
@@ -1011,7 +1012,7 @@ void handle_read_memory_command(char * const in_buf,
 	if (len > ((RP_VAL_DBG_PBUFSIZ - 32)/2))
 		len = (RP_VAL_DBG_PBUFSIZ - 32)/2;
 
-	ret = t->read_mem(CURRENT_PROCESS_TID, addr, data_buf, len, &read_len);
+	ret = memory_read_gdb(CURRENT_PROCESS_TID, addr, data_buf, len, &read_len);
 	switch (ret) {
 	case RET_OK:
 		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
@@ -1067,7 +1068,7 @@ void handle_write_memory_command(char * const in_buf,
 		return;
 	}
 
-	ret = t->write_mem(CURRENT_PROCESS_TID, addr, data_buf, len);
+	ret = memory_write_gdb(CURRENT_PROCESS_TID, addr, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -1557,38 +1558,34 @@ void handle_query_command(char * const in_buf,
 						if (pattern_len <= len) {
 							uint8_t *read_buf = (uint8_t *) malloc(len);
 							if (read_buf) {
-								if (t->read_mem) {
-									size_t bytes_read;
-									if (RET_OK == t->read_mem(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
-										if (bytes_read == len) {
-											void *found = NULL;
-											found = memmem(read_buf, len, pattern, pattern_len);
-											if (NULL != found) {
-												uint64_t loc = addr;
-												loc += (found - (void *)read_buf);
-												sprintf(out_buf, "1,%016"PRIx64"", loc);
-											} else {
-												/* Not found */
-												sprintf(out_buf, "0");
-											}
-										} else {
-											/* Expected to read what was fed in */
-											gdb_interface_write_retval(RET_ERR, out_buf);
-										}
-									} else {
-										/* A memory read error */
-										gdb_interface_write_retval(RET_ERR, out_buf);
-									}
-								} else {
-									/* Had to check.. */
-									gdb_interface_write_retval(RET_ERR, out_buf);
-								}
-								free(read_buf);
-								read_buf = NULL;
+							  size_t bytes_read;
+							  if (RET_OK == memory_read_gdb(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
+							    if (bytes_read == len) {
+							      void *found = NULL;
+							      found = memmem(read_buf, len, pattern, pattern_len);
+							      if (NULL != found) {
+								uint64_t loc = addr;
+								loc += (found - (void *)read_buf);
+								sprintf(out_buf, "1,%016"PRIx64"", loc);
+							      } else {
+								/* Not found */
+								sprintf(out_buf, "0");
+							      }
+							    } else {
+							      /* Expected to read what was fed in */
+							      gdb_interface_write_retval(RET_ERR, out_buf);
+							    }
+							  } else {
+							    /* A memory read error */
+							    gdb_interface_write_retval(RET_ERR, out_buf);
+							  }
 							} else {
-								/* An internal error */
-								gdb_interface_write_retval(RET_ERR, out_buf);
+							  /* Had to check.. */
+							  gdb_interface_write_retval(RET_ERR, out_buf);
 							}
+							free(read_buf);
+							read_buf = NULL;
+
 						} else {
 							/* Impossible to find pattern is greater than read length */
 							sprintf(out_buf, "0");
