@@ -154,7 +154,6 @@ int memory_write(pid_t pid, uint64_t addr, uint8_t *data,
 	if (a) {
 		int err = 0;
 		size_t i = 0;
-		void *l = NULL;
 		size_t offset;
 		/*
 		 * If there is leading or trailing data, the
@@ -165,10 +164,9 @@ int memory_write(pid_t pid, uint64_t addr, uint8_t *data,
 		if (leading) {
 			i = 0;
 			offset = i * tran_size;
-			l = (void *)(kb_addr + i * tran_size);
 			if (!gdb_interface_target->memory_copy_read(pid, a + offset, kb_addr + offset)) {
 				if (_write_mem_verbose) {
-					DBG_PRINT("Error with reading data at %p\n", l);
+					DBG_PRINT("Error with reading data at %p\n", kb_addr + offset);
 				}
 				err = 1;
 			}
@@ -180,7 +178,7 @@ int memory_write(pid_t pid, uint64_t addr, uint8_t *data,
 			  offset = i * tran_size;
 			  if (!gdb_interface_target->memory_copy_read(pid, a + offset, kb_addr + offset)) {
 			    if (_write_mem_verbose) {
-			      DBG_PRINT("Error with reading data at %p\n", l);
+			      DBG_PRINT("Error with reading data at %p\n", kb_addr + offset);
 			    }
 			    err = 1;
 			  }
@@ -204,7 +202,7 @@ int memory_write(pid_t pid, uint64_t addr, uint8_t *data,
 			  offset = i * tran_size;
 			  if (!gdb_interface_target->memory_copy_write(pid, kb_addr + offset, a + offset)) {
 			    if (_write_mem_verbose) {
-			      DBG_PRINT("Error with reading data at %p\n", l);
+			      DBG_PRINT("Error with writing data at %p\n", kb_addr + offset);
 			    }
 			    err = 1;
 			  }
