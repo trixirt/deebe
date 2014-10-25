@@ -53,7 +53,6 @@
 void arch_read_greg();
 void arch_write_greg();
 
-extern void osx_report_kernel_error(FILE *fp, kern_return_t kret);
 extern int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 			      size_t buf_size, size_t *read_size);
 extern int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
