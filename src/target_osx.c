@@ -124,11 +124,26 @@ static bool osx_memory_copy_read(pid_t pid, void *dst, void *src)
     status = mach_vm_region(task, &address, &size, flavor, (vm_region_info_t)&info, &info_count, &object_name);
     if (KERN_SUCCESS == status) {
       mach_vm_size_t num_read = 0;
+      if (!(info.protection & VM_PROT_READ)) {
+	/* Change protection to allow read */
+	vm_prot_t protection = info.protection | VM_PROT_READ;
+	status = mach_vm_protect(task, address, 1, false, /* set_maximum */ protection);
+	if (KERN_SUCCESS != status) {
+	  DBG_PRINT("ERROR : %s setting read protection failed status %d\n", __func__, status);
+	}
+      } 
       status = mach_vm_read_overwrite(task, address, 1, (mach_vm_address_t)dst, &num_read);
       if ((KERN_SUCCESS == status) && (1 == num_read)) {
 	ret = true;
       } else {
 	DBG_PRINT("ERROR : %s read failed status %d num_read %d\n", __func__, status, num_read);
+      }
+      if (!(info.protection & VM_PROT_READ)) {
+	/* Restore the old protection */
+	status = mach_vm_protect(task, address, 1, false, /* set_maximum */ info.protection);
+	if (KERN_SUCCESS != status) {
+	  DBG_PRINT("ERROR : %s restoring protection failed status %d\n", __func__, status);
+	}
       }
     } else {
       DBG_PRINT("ERROR : %s getting vm region info %d\n", __func__, status);
@@ -142,8 +157,52 @@ static bool osx_memory_copy_read(pid_t pid, void *dst, void *src)
 bool osx_memory_copy_write(pid_t pid, void *dst, void *src)
 {
   bool ret = false;
-//  if (0 == ptrace(PT_WRITE_D, tid, dst, src))
-//    ret = true;
+  task_t task;
+  kern_return_t status;
+  status = task_for_pid(mach_task_self (), pid, &task);
+  if (KERN_SUCCESS == status) {
+    mach_vm_address_t address = (mach_vm_address_t)dst;
+    mach_vm_size_t size;
+    vm_region_flavor_t flavor = VM_REGION_BASIC_INFO_64;
+    vm_region_basic_info_data_64_t info = {0};
+    mach_msg_type_number_t info_count = VM_REGION_BASIC_INFO_COUNT_64;
+    mach_port_t object_name;
+    status = mach_vm_region(task, &address, &size, flavor, (vm_region_info_t)&info, &info_count, &object_name);
+    if (KERN_SUCCESS == status) {
+      /*
+       * DEBUGGING CODE
+       *
+       * DBG_PRINT("Region info\n");
+       * DBG_PRINT("\tprotection     %x\n", info.protection);
+       * DBG_PRINT("\tmax_protection %x\n", info.max_protection);
+       */
+      if (!(info.protection & VM_PROT_WRITE)) {
+	/* Change protection to allow write */
+	vm_prot_t protection = info.protection | VM_PROT_WRITE;
+	status = mach_vm_protect(task, address, 1, false, /* set_maximum */ protection);
+	if (KERN_SUCCESS != status) {
+	  DBG_PRINT("ERROR : %s setting write protection failed status %d\n", __func__, status);
+	}
+      } 
+      status = mach_vm_write(task, address, (vm_offset_t)src, 1);
+      if (KERN_SUCCESS == status) {
+	ret = true;
+      } else {
+	DBG_PRINT("ERROR : %s write failed status %d\n", __func__, status);
+      }
+      if (!(info.protection & VM_PROT_WRITE)) {
+	/* Restore the old protection */
+	status = mach_vm_protect(task, address, 1, false, /* set_maximum */ info.protection);
+	if (KERN_SUCCESS != status) {
+	  DBG_PRINT("ERROR : %s restoring protection failed status %d\n", __func__, status);
+	}
+      }
+    } else {
+      DBG_PRINT("ERROR : %s getting vm region info %d\n", __func__, status);
+    }
+  } else {
+    DBG_PRINT("ERROR : %s getting task failed status %d\n", __func__, status);
+  }
   return ret;
 }
 
