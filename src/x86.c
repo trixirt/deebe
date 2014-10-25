@@ -123,7 +123,7 @@ union u_drs {
 extern bool x86_read_debug_reg(pid_t pid, size_t reg, void *val);
 extern bool x86_write_debug_reg(pid_t pid, size_t reg, void *val);
 
-int ptrace_arch_swbreak_insn(void *bdata)
+int breakpoint_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_ERR;
 	/* Illegal instruction is 0xcc or 'int3' */
@@ -133,12 +133,12 @@ int ptrace_arch_swbreak_insn(void *bdata)
 	return ret;
 }
 
-size_t ptrace_arch_swbreak_size()
+size_t breakpoint_arch_swbreak_size()
 {
   return 1;
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool breakpoint_arch_support_watchpoint(int type)
 {
 	bool ret = false;
 	if ((GDB_INTERFACE_BP_WRITE_WATCH == type) ||
@@ -237,16 +237,16 @@ static bool _add_hw_debug(pid_t pid, int type, unsigned long addr, size_t _len) 
   return ret;
 }
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_add_watchpoint(pid_t pid, int type,
 				unsigned long addr, size_t len)
 {
   bool ret = false;
-  if (ptrace_arch_support_watchpoint(type))
+  if (breakpoint_arch_support_watchpoint(type))
     ret = _add_hw_debug(pid, type, addr, len);
   return ret;
 }
 
-bool ptrace_arch_add_hardware_breakpoint(pid_t pid, unsigned long addr, size_t len)
+bool breakpoint_arch_add_hardware_breakpoint(pid_t pid, unsigned long addr, size_t len)
 {
   bool ret = false;
   ret = _add_hw_debug(pid, GDB_INTERFACE_BP_HARDWARE, addr, len);
@@ -357,7 +357,7 @@ bool static _remove_hw_debug(pid_t pid, unsigned long addr, size_t _len, bool hw
 	return ret;
 }
 
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_remove_watchpoint(pid_t pid, int type,
 				   unsigned long addr, size_t _len)
 {
   bool ret = false;
@@ -366,7 +366,7 @@ bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
   return ret;
 }
 
-bool ptrace_arch_remove_hardware_breakpoint(pid_t pid, unsigned long addr, size_t _len)
+bool breakpoint_arch_remove_hardware_breakpoint(pid_t pid, unsigned long addr, size_t _len)
 {
   bool ret = false;
   ret = _remove_hw_debug(pid, addr, _len, true);
@@ -451,7 +451,7 @@ static int _hit_hw_debug(pid_t pid, unsigned long *addr, bool hwbrk) {
 
 }
 
-bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
+bool breakpoint_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 {
   bool ret = false;
   int status = _hit_hw_debug(pid, addr, false);
@@ -461,7 +461,7 @@ bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
   return ret;
 }
 
-bool ptrace_arch_hit_hardware_breakpoint(pid_t pid, unsigned long addr)
+bool breakpoint_arch_hit_hardware_breakpoint(pid_t pid, unsigned long addr)
 {
   bool ret = false;
   int status = _hit_hw_debug(pid, &addr, true);
@@ -470,7 +470,7 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t pid, unsigned long addr)
   return ret;
 }
 
-bool ptrace_arch_support_hardware_breakpoints() {
+bool breakpoint_arch_support_hardware_breakpoints() {
   return true;
 }
 

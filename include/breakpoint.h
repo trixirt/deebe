@@ -36,6 +36,7 @@
 #define BREAKPOINT_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 struct breakpoint;
 struct breakpoint {
@@ -70,5 +71,19 @@ void breakpoint_adjust_write_buffer(struct breakpoint *bpl,
 				    void *addr,
 				    size_t len,
 				    void *buffer);
+
+int breakpoint_add_gdb(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len);
+int breakpoint_remove_gdb(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len);
+bool breakpoint_arch_support_hardware_breakpoints();
+bool breakpoint_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,	size_t len);
+bool breakpoint_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr, size_t len);
+bool breakpoint_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc);
+bool breakpoint_arch_support_watchpoint(int type);
+bool breakpoint_arch_add_watchpoint(pid_t tid, int type, unsigned long addr,
+				size_t len);
+bool breakpoint_arch_remove_watchpoint(pid_t tid, int type, unsigned long addr,
+				   size_t len);
+int breakpoint_arch_swbreak_insn(void *bdata);
+size_t breakpoint_arch_swbreak_size();
 
 #endif

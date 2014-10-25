@@ -465,9 +465,9 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				unsigned long watch_addr = 0;
 				ptrace_arch_get_pc(tid, &pc);
 				/* Fill out the status string */
-				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+				if (breakpoint_arch_hit_hardware_breakpoint(tid, pc)) {
 				  gdb_stop_string(str, len, g, tid, 0);
-				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+				} else if (breakpoint_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
 				    gdb_stop_string(str, len, g, tid, watch_addr);
 				} else {

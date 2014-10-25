@@ -73,8 +73,6 @@ static bool _resume_syscall_verbose = false;
 static bool _write_reg_verbose = true;
 static bool _wait_partial_verbose = true;
 static bool _wait_verbose = true;
-static bool _add_break_verbose = true;
-static bool _remove_break_verbose = true;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
 static bool _stop_verbose = true;
@@ -1199,210 +1197,6 @@ int ptrace_raw_query(char *in_buf, char *out_buf, size_t out_buf_size)
 	return RET_ERR;
 }
 
-int ptrace_add_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len)
-{
-	int ret = RET_ERR;
-	void *kaddr = (void *) addr;
-
-	ret = RET_ERR;
-	if (_add_break_verbose) {
-		DBG_PRINT("%s %d %lx %zu\n",
-			  __func__, type, kaddr, len);
-	}
-
-	if (type == GDB_INTERFACE_BP_HARDWARE) {
-	  if (ptrace_arch_support_hardware_breakpoints()) {
-	    if (ptrace_arch_add_hardware_breakpoint(tid, addr, len)) {
-	      ret = RET_OK;
-	      if (_add_break_verbose) {
-		DBG_PRINT("OK setting hardware breakpoint at 0x%lx\n", kaddr);
-	      }
-	    } else {
-	      if (_add_break_verbose) {
-		DBG_PRINT("ERROR setting hardware breakpoint at 0x%lx\n", kaddr);
-	      }
-	    }
-	  } else {
-	    ret = RET_NOSUPP;
-	    if (_add_break_verbose) {
-	      DBG_PRINT("Hardware breakpoint is not supported\n");
-	    }
-	  }
-	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
-	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
-	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
-		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_add_watchpoint(tid,
-						       type, addr, len)) {
-				ret = RET_OK;
-				if (_add_break_verbose) {
-					DBG_PRINT("OK setting watchpoint at 0x%lx\n", kaddr);
-				}
-			} else {
-				if (_add_break_verbose) {
-					DBG_PRINT("ERROR setting watchpoint at 0x%lx\n", kaddr);
-				}
-			}
-		} else {
-			ret = RET_NOSUPP;
-			if (_add_break_verbose) {
-				DBG_PRINT("Watchpoints type %d is not supported\n", type);
-			}
-		}
-	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
-		/* Add to general list first */
-		struct breakpoint *bp = NULL;
-		size_t arch_brkpt_len = ptrace_arch_swbreak_size();
-		bp = breakpoint_add(&_target.bpl, _add_break_verbose,
-				    kaddr, type, arch_brkpt_len);
-		if (bp) {
-			/* Get the arch specific break insn */
-			ret = ptrace_arch_swbreak_insn(bp->bdata);
-			if (ret == RET_OK) {
-				size_t read_size;
-				/* Read and save off the memory location that the break is goint to */
-				ret = memory_read(pid, addr, bp->data,
-						  bp->len, &read_size,
-						  false);
-				if (ret == RET_OK) {
-					/* Now write the sw break insn in it's place */
-					ret = memory_write(pid, addr, bp->bdata,
-							   bp->len, false);
-					if (ret == RET_OK) {
-						if (_add_break_verbose) {
-							DBG_PRINT("OK setting breakpoint at 0x%lx\n", kaddr);
-						}
-					} else {
-						/* Failure */
-						if (_add_break_verbose) {
-							DBG_PRINT("ERROR writing breakpoint at 0x%lx\n", kaddr);
-						}
-						breakpoint_remove(&_target.bpl, _add_break_verbose, kaddr);
-					}
-				} else {
-					/* Failure */
-					if (_add_break_verbose) {
-						DBG_PRINT("ERROR reading data for breakpoint at 0x%lx\n", kaddr);
-					}
-					breakpoint_remove(&_target.bpl,
-							  _add_break_verbose,
-							  kaddr);
-				}
-			} else {
-				/* Failure */
-				if (_add_break_verbose) {
-					DBG_PRINT("INTERNAL ERROR with ARCH breakpoint at 0x%lx\n", kaddr);
-				}
-				breakpoint_remove(&_target.bpl,
-						  _add_break_verbose, kaddr);
-			}
-		} else {
-			if (_add_break_verbose) {
-				DBG_PRINT("INTERNAL ERROR creating breakpoint at 0x%lx\n", kaddr);
-			}
-		}
-	} else {
-		if (_add_break_verbose) {
-			DBG_PRINT("Warning unsupported breakpoint type %d at 0x%lx\n", type, kaddr);
-		}
-		ret = RET_NOSUPP;
-	}
-	return ret;
-}
-
-int ptrace_remove_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len)
-{
-	int ret = RET_ERR;
-	void *kaddr = (void *) addr;
-	if (_remove_break_verbose) {
-		DBG_PRINT("%s %d %p %zu\n",
-			  __func__, type, kaddr, len);
-	}
-
-	if (type == GDB_INTERFACE_BP_HARDWARE) {
-	  if (ptrace_arch_support_hardware_breakpoints()) {
-	    if (ptrace_arch_remove_hardware_breakpoint(tid, addr, len)) {
-	      ret = RET_OK;
-	      if (_remove_break_verbose) {
-		DBG_PRINT("OK removing hardware breakpoint at %p\n", kaddr);
-	      }
-	    } else {
-	      if (_remove_break_verbose) {
-		DBG_PRINT("ERROR removing hardware breakpoint at %p\n", kaddr);
-	      }
-	    }
-	  } else {
-	    ret = RET_NOSUPP;
-	    if (_add_break_verbose) {
-	      DBG_PRINT("Hardware breakpoint is not supported\n");
-	    }
-	  }
-	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
-	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
-	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
-		if (ptrace_arch_support_watchpoint(type)) {
-			if (ptrace_arch_remove_watchpoint(tid, type, addr, len)) {
-				ret = RET_OK;
-				if (_remove_break_verbose) {
-					DBG_PRINT("OK removing watchpoint at %p\n", kaddr);
-				}
-			} else {
-				if (_remove_break_verbose) {
-					DBG_PRINT("ERROR removing watchpoint at %p\n", kaddr);
-				}
-			}
-		} else {
-			ret = RET_NOSUPP;
-			if (_remove_break_verbose) {
-				DBG_PRINT("Watchpoint type %d is not supported\n", type);
-			}
-		}
-	} else if (type == GDB_INTERFACE_BP_SOFTWARE) {
-		struct breakpoint *bp = NULL;
-		bp = breakpoint_find(_target.bpl, _remove_break_verbose, kaddr);
-		if (bp) {
-			/*
-			 * Only really remove the breakpoint if it's reference count
-			 * is one.
-			 */
-			if (1 == bp->ref_count) {
-				ret = memory_write(pid, addr,
-						   bp->data, bp->len,
-						   false);
-				if (ret == RET_OK) {
-					breakpoint_remove(&_target.bpl,
-							  _remove_break_verbose,
-							  kaddr);
-					if (_add_break_verbose) {
-						DBG_PRINT("OK removing breakpoint at %p\n", kaddr);
-					}
-				} else {
-					/* Failure */
-					if (_add_break_verbose) {
-						DBG_PRINT("ERROR restoring data for breakpoint at %p\n", kaddr);
-					}
-				}
-			} else {
-				/* This just decrements the ref_count */
-				breakpoint_remove(&_target.bpl,
-						  _remove_break_verbose, kaddr);
-				ret = RET_OK;
-			}
-		} else {
-			if (_add_break_verbose) {
-				DBG_PRINT("Warning problem removing breakpoint at %p\n", kaddr);
-			}
-		}
-	} else {
-		if (_remove_break_verbose) {
-			DBG_PRINT("Warning unsupported breakpoint type %d at %p\n", type, kaddr);
-		}
-		ret = RET_NOSUPP;
-	}
-
-	return ret;
-}
-
 static void _deliver_sig()
 {
 #if 0
@@ -1610,12 +1404,12 @@ static void _stopped_all(char *str, size_t len)
 					bool valid = false;
 					ptrace_arch_get_pc(tid, &pc);
 					/* Fill out the status string */
-					if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+					if (breakpoint_arch_hit_hardware_breakpoint(tid, pc)) {
 						gdb_stop_string(str, len, g, tid, 0);
 						target_thread_make_current(tid);
 						valid = true;
 						no_event = false;
-					} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+					} else if (breakpoint_arch_hit_watchpoint(tid, &watch_addr)) {
 						gdb_stop_string(str, len, g, tid, watch_addr);
 						target_thread_make_current(tid);
 						valid = true;

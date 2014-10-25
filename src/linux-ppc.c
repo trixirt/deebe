@@ -238,11 +238,11 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
-size_t ptrace_arch_swbreak_size() {
+size_t breakpoint_arch_swbreak_size() {
   return 4;
 }
 
-int ptrace_arch_swbreak_insn(void *bdata)
+int breakpoint_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_ERR;
 	/* Illegal instruction is 0's */
@@ -305,27 +305,27 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return host_signal_from_gdb(gdb);
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool breakpoint_arch_support_watchpoint(int type)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_add_watchpoint(pid_t pid, int type,
 				unsigned long addr, size_t len)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_remove_watchpoint(pid_t pid, int type,
 				   unsigned long addr, size_t len)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
+bool breakpoint_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 {
 	bool ret = false;
 	return ret;
@@ -382,22 +382,22 @@ void ptrace_arch_write_dbreg(pid_t tid)
   /* noop */
 }
 
-bool ptrace_arch_support_hardware_breakpoints()
+bool breakpoint_arch_support_hardware_breakpoints()
 {
   return false;
 }
-bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+bool breakpoint_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
 					 size_t len)
 {
   return false;
 }
-bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+bool breakpoint_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
 					    size_t len)
 {
   return false;
 }
 
-bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+bool breakpoint_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
 {
   return false;
 }

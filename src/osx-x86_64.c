@@ -57,12 +57,15 @@ int ptrace_arch_gdb_greg_max()
 	return GDB_GREG_MAX;
 }
 
-size_t ptrace_arch_swbreak_size() {
-  return 0;
+size_t breakpoint_arch_swbreak_size() {
+  return 1;
 }
-int ptrace_arch_swbreak_insn(void *bdata)
+int breakpoint_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_ERR;
+	/* Illegal instruction is 0xcc or 'int3' */
+	memset(bdata, 0xcc, 1);
+	ret = RET_OK;
 	return ret;
 }
 
@@ -119,27 +122,27 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return 0;
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool breakpoint_arch_support_watchpoint(int type)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_add_watchpoint(pid_t pid, int type,
 				unsigned long addr, size_t len)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
+bool breakpoint_arch_remove_watchpoint(pid_t pid, int type,
 				   unsigned long addr, size_t len)
 {
 	bool ret = false;
 	return ret;
 }
 
-bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
+bool breakpoint_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
 {
 	bool ret = false;
 	return ret;
@@ -228,22 +231,22 @@ bool osx_arch_read_registers(thread_act_t tid)
 	return ret;
 }
 
-bool ptrace_arch_support_hardware_breakpoints()
+bool breakpoint_arch_support_hardware_breakpoints()
 {
   return false;
 }
-bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
+bool breakpoint_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
 					 size_t len)
 {
   return false;
 }
-bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
+bool breakpoint_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
 					    size_t len)
 {
   return false;
 }
 
-bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
+bool breakpoint_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
 {
   return false;
 }

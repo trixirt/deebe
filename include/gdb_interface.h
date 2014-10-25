@@ -351,11 +351,6 @@ struct gdb_target_s {
 	   the nearest future.  */
 	int (*raw_query)(char *in_buf, char *out_buf, size_t out_buf_size);
 
-	/*============ Breakpoints ===========================*/
-
-  int (*add_break)(pid_t pid, pid_t tid, int type, uint64_t addr, size_t length);
-  int (*remove_break)(pid_t pid, pid_t tid, int type, uint64_t addr, size_t length);
-
 	/* Query thread info */
 	int (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
 

@@ -80,6 +80,7 @@
 #include "network.h"
 #include "target.h"
 #include "memory.h"
+#include "breakpoint.h"
 
 static void dbg_sock_putchar(int c)
 {
@@ -1740,9 +1741,9 @@ static void handle_breakpoint_command(char * const in_buf,
 		return;
 	}
 	if (in_buf[0] == 'Z')
-	  ret = t->add_break(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
+	  ret = breakpoint_add_gdb(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
 	else
-	  ret = t->remove_break(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
+	  ret = breakpoint_remove_gdb(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 

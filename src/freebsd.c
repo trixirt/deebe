@@ -565,7 +565,7 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				unsigned long pc = 0;
 				unsigned long watch_addr = 0;
 				ptrace_arch_get_pc(tid, &pc);
-				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+				if (breakpoint_arch_hit_hardware_breakpoint(tid, pc)) {
 					target_thread_make_current(tid);
 					gdb_stop_string(str, len, g, tid, 0);
 					/*
@@ -573,7 +573,7 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 					 * Not that it matter on FreeBSD as they all go at once
 					 */
 					PROCESS_STATE(index) = PS_CONT;
-				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+				} else if (breakpoint_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
 					target_thread_make_current(tid);
 					gdb_stop_string(str, len, g, tid, watch_addr);
