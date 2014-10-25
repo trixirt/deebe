@@ -36,6 +36,8 @@
 #include "dptrace.h"
 #include "memory.h"
 #include "../os/osx.h"
+#include <mach/mach.h>
+#include <mach/mach_vm.h>
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {
@@ -80,9 +82,11 @@ int osx_list_query(int first, gdb_thread_ref *arg,
 	return RET_ERR;
 }
 
-int osx_current_thread_query(int64_t *process_id, int64_t *thread_id)
+int osx_current_thread_query(int64_t *pid, int64_t *tid)
 {
-	return RET_ERR;
+  *pid = CURRENT_PROCESS_PID;
+  *tid = CURRENT_PROCESS_TID;
+  return RET_OK;
 }
 
 static int osx_query_current_signal(int *s)
@@ -101,24 +105,41 @@ static int osx_query_current_signal(int *s)
 
 static size_t osx_memory_access_size()
 {
-  /* XXX fix me */
-  return 4;
+  return 1;
 }
 
-static bool osx_memory_copy_read(pid_t tid, void *dst, void *src)
+static bool osx_memory_copy_read(pid_t pid, void *dst, void *src)
 {
   bool ret = false;
-  ptrace_return_t val = 0;
-  errno = 0;
-  // val = ptrace(PT_READ_D, tid, src, 0);
-  if (0 == errno) {
-    memcpy(dst, &val, sizeof(val));
-    ret = true;
+  task_t task;
+  kern_return_t status;
+  status = task_for_pid(mach_task_self (), pid, &task);
+  if (KERN_SUCCESS == status) {
+    mach_vm_address_t address = (mach_vm_address_t)src;
+    mach_vm_size_t size;
+    vm_region_flavor_t flavor = VM_REGION_BASIC_INFO_64;
+    vm_region_basic_info_data_64_t info = {0};
+    mach_msg_type_number_t info_count = VM_REGION_BASIC_INFO_COUNT_64;
+    mach_port_t object_name;
+    status = mach_vm_region(task, &address, &size, flavor, (vm_region_info_t)&info, &info_count, &object_name);
+    if (KERN_SUCCESS == status) {
+      mach_vm_size_t num_read = 0;
+      status = mach_vm_read_overwrite(task, address, 1, (mach_vm_address_t)dst, &num_read);
+      if ((KERN_SUCCESS == status) && (1 == num_read)) {
+	ret = true;
+      } else {
+	DBG_PRINT("ERROR : %s read failed status %d num_read %d\n", __func__, status, num_read);
+      }
+    } else {
+      DBG_PRINT("ERROR : %s getting vm region info %d\n", __func__, status);
+    }
+  } else {
+    DBG_PRINT("ERROR : %s getting task failed status %d\n", __func__, status);
   }
   return ret;
 }
 
-bool osx_memory_copy_write(pid_t tid, void *dst, void *src)
+bool osx_memory_copy_write(pid_t pid, void *dst, void *src)
 {
   bool ret = false;
 //  if (0 == ptrace(PT_WRITE_D, tid, dst, src))

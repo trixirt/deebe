@@ -172,7 +172,6 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1,
 
 void ptrace_arch_option_set_thread(pid_t pid)
 {
-  fprintf(stderr, "%s %x \n", __func__, pid);
   kern_return_t status;
   if (PROCESS_TID(0) == PROCESS_PID(0)) {
     task_t task;
@@ -184,7 +183,6 @@ void ptrace_arch_option_set_thread(pid_t pid)
       if (KERN_SUCCESS == status) {
 	if (num_threads > 0) {
 	  PROCESS_TID(0) = threads[0];
-	  fprintf(stderr, "%s %x : %x\n", __func__, pid, PROCESS_TID(0));
 	} else {
 	  DBG_PRINT("ERROR : %s : unexpected number of threads %d\n", __func__, num_threads);
 	}

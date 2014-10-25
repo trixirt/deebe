@@ -111,7 +111,7 @@ void _write_reg(pid_t tid, long SET, void *reg);
 
 /* Public functions */
 
-extern int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len);
+extern int ptrace_add_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len);
 extern int ptrace_attach(pid_t tid);
 extern void ptrace_close(void);
 extern int ptrace_connect(char *status_string, size_t status_string_len,
@@ -143,7 +143,7 @@ extern int ptrace_restart(void);
 extern int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig, uint64_t addr);
 extern int ptrace_resume_from_current(pid_t pid, pid_t tid, int step, int gdb_sig);
 extern int ptrace_resume_with_syscall(pid_t tid);
-extern int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len);
+extern int ptrace_remove_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len);
 extern void ptrace_stop(pid_t pid, pid_t tid);
 extern int ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
 extern int ptrace_threadinfo_query(int first, char *out_buf,

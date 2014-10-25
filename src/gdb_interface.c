@@ -1012,7 +1012,7 @@ void handle_read_memory_command(char * const in_buf,
 	if (len > ((RP_VAL_DBG_PBUFSIZ - 32)/2))
 		len = (RP_VAL_DBG_PBUFSIZ - 32)/2;
 
-	ret = memory_read_gdb(CURRENT_PROCESS_TID, addr, data_buf, len, &read_len);
+	ret = memory_read_gdb(CURRENT_PROCESS_PID, addr, data_buf, len, &read_len);
 	switch (ret) {
 	case RET_OK:
 		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
@@ -1067,8 +1067,7 @@ void handle_write_memory_command(char * const in_buf,
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
-
-	ret = memory_write_gdb(CURRENT_PROCESS_TID, addr, data_buf, len);
+	ret = memory_write_gdb(CURRENT_PROCESS_PID, addr, data_buf, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -1559,7 +1558,7 @@ void handle_query_command(char * const in_buf,
 							uint8_t *read_buf = (uint8_t *) malloc(len);
 							if (read_buf) {
 							  size_t bytes_read;
-							  if (RET_OK == memory_read_gdb(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
+							  if (RET_OK == memory_read_gdb(CURRENT_PROCESS_PID, addr, read_buf, len, &bytes_read)) {
 							    if (bytes_read == len) {
 							      void *found = NULL;
 							      found = memmem(read_buf, len, pattern, pattern_len);
@@ -1741,9 +1740,9 @@ static void handle_breakpoint_command(char * const in_buf,
 		return;
 	}
 	if (in_buf[0] == 'Z')
-		ret = t->add_break(CURRENT_PROCESS_TID, type, addr, len);
+	  ret = t->add_break(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
 	else
-		ret = t->remove_break(CURRENT_PROCESS_TID, type, addr, len);
+	  ret = t->remove_break(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, type, addr, len);
 	gdb_interface_write_retval(ret, out_buf);
 }
 

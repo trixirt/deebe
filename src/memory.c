@@ -48,8 +48,8 @@ static bool _write_mem_verbose = true;
  * So break out the reading parts from the
  * public interface
  */
-int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
-		     size_t *read_size, bool breakpoint_check)
+int memory_read(pid_t pid, uint64_t addr, uint8_t *data, size_t size,
+		size_t *read_size, bool breakpoint_check)
 {
 	size_t kbuf_size = 0;
 	size_t tran_size = gdb_interface_target->memory_access_size();
@@ -73,7 +73,7 @@ int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 	  size_t i, offset;
 		for (i = 0; i < kbuf_size; i++) {
 		  offset = i * tran_size;
-		  if (!gdb_interface_target->memory_copy_read(tid, a + offset, kb_addr + offset)) {
+		  if (!gdb_interface_target->memory_copy_read(pid, a + offset, kb_addr + offset)) {
 		    if (_read_mem_verbose) {
 		      DBG_PRINT("Error with failed to read %p\n", kb_addr + offset);
 		      DBG_PRINT("leading %zu trailing %zu\n",
@@ -122,16 +122,16 @@ int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 	return ret;
 }
 
-int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+int memory_read_gdb(pid_t pid, uint64_t addr, uint8_t *data, size_t size,
 		    size_t *read_size)
 {
 	int ret;
-	ret = memory_read(tid, addr, data, size, read_size,
+	ret = memory_read(pid, addr, data, size, read_size,
 			  true /*breakpoint check*/);
 	return ret;
 }
 
-int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
+int memory_write(pid_t pid, uint64_t addr, uint8_t *data,
 		 size_t size, bool breakpoint_check)
 {
 	size_t kbuf_size = 0;
@@ -166,7 +166,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 			i = 0;
 			offset = i * tran_size;
 			l = (void *)(kb_addr + i * tran_size);
-			if (!gdb_interface_target->memory_copy_read(tid, a + offset, kb_addr + offset)) {
+			if (!gdb_interface_target->memory_copy_read(pid, a + offset, kb_addr + offset)) {
 				if (_write_mem_verbose) {
 					DBG_PRINT("Error with reading data at %p\n", l);
 				}
@@ -178,7 +178,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 			/* No double tap */
 			if (i || !leading) {
 			  offset = i * tran_size;
-			  if (!gdb_interface_target->memory_copy_read(tid, a + offset, kb_addr + offset)) {
+			  if (!gdb_interface_target->memory_copy_read(pid, a + offset, kb_addr + offset)) {
 			    if (_write_mem_verbose) {
 			      DBG_PRINT("Error with reading data at %p\n", l);
 			    }
@@ -202,7 +202,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 			}
 			for (i = 0; i < kbuf_size; i++) {
 			  offset = i * tran_size;
-			  if (!gdb_interface_target->memory_copy_write(tid, kb_addr + offset, a + offset)) {
+			  if (!gdb_interface_target->memory_copy_write(pid, kb_addr + offset, a + offset)) {
 			    if (_write_mem_verbose) {
 			      DBG_PRINT("Error with reading data at %p\n", l);
 			    }
@@ -226,10 +226,10 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 	return ret;
 }
 
-int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size)
+int memory_write_gdb(pid_t pid, uint64_t addr, uint8_t *data, size_t size)
 {
 	int ret;
-	ret = memory_write(tid, addr, data, size, true /* breakpoint check */);
+	ret = memory_write(pid, addr, data, size, true /* breakpoint check */);
 	return ret;
 }
 

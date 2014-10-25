@@ -1199,7 +1199,7 @@ int ptrace_raw_query(char *in_buf, char *out_buf, size_t out_buf_size)
 	return RET_ERR;
 }
 
-int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
+int ptrace_add_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len)
 {
 	int ret = RET_ERR;
 	void *kaddr = (void *) addr;
@@ -1261,12 +1261,12 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 			if (ret == RET_OK) {
 				size_t read_size;
 				/* Read and save off the memory location that the break is goint to */
-				ret = memory_read(tid, addr, bp->data,
+				ret = memory_read(pid, addr, bp->data,
 						  bp->len, &read_size,
 						  false);
 				if (ret == RET_OK) {
 					/* Now write the sw break insn in it's place */
-					ret = memory_write(tid, addr, bp->bdata,
+					ret = memory_write(pid, addr, bp->bdata,
 							   bp->len, false);
 					if (ret == RET_OK) {
 						if (_add_break_verbose) {
@@ -1310,7 +1310,7 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 	return ret;
 }
 
-int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len)
+int ptrace_remove_break(pid_t pid, pid_t tid, int type, uint64_t addr, size_t len)
 {
 	int ret = RET_ERR;
 	void *kaddr = (void *) addr;
@@ -1366,7 +1366,7 @@ int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len)
 			 * is one.
 			 */
 			if (1 == bp->ref_count) {
-				ret = memory_write(tid, addr,
+				ret = memory_write(pid, addr,
 						   bp->data, bp->len,
 						   false);
 				if (ret == RET_OK) {
@@ -1598,6 +1598,7 @@ static void _stopped_all(char *str, size_t len)
 	for (index = 0; no_event && index < _target.number_processes; index++) {
 		bool process_wait = PROCESS_WAIT(index);
 		if (process_wait) {
+			pid_t pid = PROCESS_PID(index);
 			pid_t tid = PROCESS_TID(index);
 			int wait_status = PROCESS_WAIT_STATUS(index);
 			if (WIFSTOPPED(wait_status)) {
@@ -1644,7 +1645,7 @@ static void _stopped_all(char *str, size_t len)
 						if (pc) {
 							uint8_t b[32] = { 0 };
 							size_t read_size = 0;
-							memory_read_gdb(tid, pc, &b[0], 32,
+							memory_read_gdb(pid, pc, &b[0], 32,
 									&read_size);
 							util_print_buffer(fp_log, 0, 32, &b[0]);
 						}
