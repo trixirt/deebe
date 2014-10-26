@@ -36,6 +36,8 @@
 #include <mach/mach_traps.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
+#include <sys/types.h>
+#include <sys/ptrace.h>
 #include "../os/osx.h"
 #include "gdb_interface.h"
 #include "target.h"
@@ -102,6 +104,8 @@ void ptrace_os_continue_others() {
 
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
 	long ret = 0;
+	long request = PT_CONTINUE;
+	ret = PTRACE(request, pid, 1, sig);
 	return ret;
 }
 
