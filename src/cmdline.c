@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -177,19 +177,19 @@ extern bool cmdline_init(int argc, char *argv[])
 
 		if (_has_parameter(argv[argo], "--version")) {
 			fprintf(stdout, "%s\n", version());
-			ret = false;
+			cmdline_msg = true;
 			goto end;
 		}
 
 		if (_has_parameter(argv[argo], "--copyright")) {
 			fprintf(stdout, "%s\n", version_copyright());
-			ret = false;
+			cmdline_msg = true;
 			goto end;
 		}
 
 		if (_has_parameter(argv[argo], "--license")) {
 			fprintf(stdout, "%s\n", version_license());
-			ret = false;
+			cmdline_msg = true;
 			goto end;
 		}
 

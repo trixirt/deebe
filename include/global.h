@@ -77,6 +77,7 @@ extern char *cmdline_program_name;
 extern bool cmdline_once;
 extern long cmdline_watchdog_minutes;
 extern bool cmdline_silence_memory_read_errors;
+extern bool cmdline_msg;
 
 /* network */
 extern int network_listen_sd;
@@ -122,6 +123,7 @@ pid_t cmdline_pid = 0;
 bool cmdline_once = false;
 long cmdline_watchdog_minutes = -1;
 bool cmdline_silence_memory_read_errors = false;
+bool cmdline_msg = false;
 
 /* network */
 int network_listen_sd = -1;

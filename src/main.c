@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -272,10 +272,17 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if (cmdline_port_fwd > 0)
-			ret = main_forward();
-		else
-			ret = main_debug();
+		if (!cmdline_msg) {
+		  if (cmdline_port_fwd > 0)
+		    ret = main_forward();
+		  else
+		    ret = main_debug();
+		} else {
+		  /* Returning a message is ok */
+		  ret = 0;
+		}
+
+		/* else cmdline printed a message from an option --license and returns */
 	}
 	cmdline_cleanup();
 
