@@ -299,7 +299,7 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return host_signal_from_gdb(gdb);
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool ptrace_arch_support_watchpoint(pid_t tid, int type)
 {
 	bool ret = false;
 	return ret;
@@ -351,7 +351,7 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 	_read_greg(tid);
 }
 
-bool ptrace_arch_support_hardware_breakpoints()
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid)
 {
   return false;
 }

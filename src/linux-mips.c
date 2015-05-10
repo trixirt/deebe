@@ -316,7 +316,7 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return host_signal_from_gdb(gdb);
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool ptrace_arch_support_watchpoint(pid_t tid, int type)
 {
 	bool ret = false;
 	return ret;

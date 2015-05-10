@@ -114,7 +114,7 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return 0;
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool ptrace_arch_support_watchpoint(pid_t tid, int type)
 {
 	bool ret = false;
 	return ret;
@@ -200,7 +200,7 @@ bool osx_arch_read_registers(thread_act_t tid)
 	return ret;
 }
 
-bool ptrace_arch_support_hardware_breakpoints()
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid)
 {
   return false;
 }

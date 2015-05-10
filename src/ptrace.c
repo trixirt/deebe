@@ -1404,7 +1404,7 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 	}
 
 	if (type == GDB_INTERFACE_BP_HARDWARE) {
-	  if (ptrace_arch_support_hardware_breakpoints()) {
+	  if (ptrace_arch_support_hardware_breakpoints(tid)) {
 	    if (ptrace_arch_add_hardware_breakpoint(tid, addr, len)) {
 	      ret = RET_OK;
 	      if (_add_break_verbose) {
@@ -1424,7 +1424,7 @@ int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
-		if (ptrace_arch_support_watchpoint(type)) {
+	  if (ptrace_arch_support_watchpoint(tid, type)) {
 			if (ptrace_arch_add_watchpoint(tid,
 						       type, addr, len)) {
 				ret = RET_OK;
@@ -1513,7 +1513,7 @@ int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len)
 	}
 
 	if (type == GDB_INTERFACE_BP_HARDWARE) {
-	  if (ptrace_arch_support_hardware_breakpoints()) {
+	  if (ptrace_arch_support_hardware_breakpoints(tid)) {
 	    if (ptrace_arch_remove_hardware_breakpoint(tid, addr, len)) {
 	      ret = RET_OK;
 	      if (_remove_break_verbose) {
@@ -1533,7 +1533,7 @@ int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len)
 	} else if ((type == GDB_INTERFACE_BP_READ_WATCH) ||
 	    (type == GDB_INTERFACE_BP_WRITE_WATCH) ||
 	    (type == GDB_INTERFACE_BP_ACCESS_WATCH)) {
-		if (ptrace_arch_support_watchpoint(type)) {
+	  if (ptrace_arch_support_watchpoint(tid, type)) {
 			if (ptrace_arch_remove_watchpoint(tid, type, addr, len)) {
 				ret = RET_OK;
 				if (_remove_break_verbose) {

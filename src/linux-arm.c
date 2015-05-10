@@ -115,6 +115,52 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
+#ifndef PTRACE_GETHBPREGS
+#define PTRACE_GETHBPREGS 29
+#endif
+#ifndef PTRACE_SETHBPREGS
+#define PTRACE_SETHBPREGS 30
+#endif
+
+#ifdef PTRACE_GETHBPREGS
+
+/* For hw watchpoint and break points */
+static unsigned int hbp_info;
+#define HBP_ARCH()       (hbp_info >> 24)
+#define HBP_WP_LENGTH() ((hbp_info >> 16) & 0xff)
+#define HBP_WP_NUM()    ((hbp_info == 0) ? 0 : (1 + ((hbp_info >> 8) & 0xff)))
+#define HBP_BP_NUM()    ((hbp_info == 0) ? 0 : (1 + (hbp_info & 0xff)))
+
+#define HBP_BYTE_ACCESS_NEVER  0x0
+#define HBP_BYTE_ACCESS_0      0x1 /* How is this different than normal? */
+#define HBP_BYTE_ACCESS_1      0x2
+#define HBP_BYTE_ACCESS_2      0x4
+#define HBP_BYTE_ACCESS_3      0x8
+#define HBP_BYTE_ACCESS_NORMAL 0xf
+
+static unsigned char hbp_access[4] = {
+  HBP_BYTE_ACCESS_NORMAL,
+  HBP_BYTE_ACCESS_1,
+  HBP_BYTE_ACCESS_2,
+  HBP_BYTE_ACCESS_3,
+};
+
+#define HBP_WP_READ            0x1
+#define HBP_WP_WRITE           0x2
+#define HBP_WP_ACCESS          0x3
+
+#define HBP_USER_PRIVILGE      0x2
+
+#define HBP_ENABLE             0x1
+
+struct hbp {
+  unsigned long ctrl;
+  unsigned long addr;
+};
+static struct hbp hbp_bp[256];
+static struct hbp hbp_wp[256];
+#endif
+
 #ifdef ARM_SWBRK
 static uint32_t bkpt[1] = {
 	/*
@@ -244,30 +290,138 @@ int ptrace_arch_signal_from_gdb(int gdb)
 	return host_signal_from_gdb(gdb);
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool ptrace_arch_support_watchpoint(pid_t tid, int type)
 {
-	bool ret = false;
-	return ret;
+  bool ret = false;
+  /*
+   * The omap family of boards has issues with the PM disabling
+   * debug registers.  So even though the panda board reports that
+   * there is support, there isn't.
+   *
+   * Not sure how to work around this..
+   *
+   * Since this is working for raspberry pi 2
+   * Leave it in..
+   */
+#ifdef PTRACE_GETHBPREGS
+  if (!hbp_info) {
+    if (ptrace(PTRACE_GETHBPREGS, tid, 0, &hbp_info)) {
+      hbp_info = 0;
+    }
+  }
+  if (HBP_WP_NUM())
+    ret = true;
+#endif
+  return ret;
 }
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
+#ifdef PTRACE_SETHBPREGS
+static unsigned char get_hbp_type(int type) {
+  unsigned char ret = HBP_WP_ACCESS;
+  if (type == GDB_INTERFACE_BP_WRITE_WATCH)
+    ret = HBP_WP_WRITE;
+  else if (type == GDB_INTERFACE_BP_READ_WATCH)
+    ret = HBP_WP_READ;
+  return ret;
+}
+#endif
+
+bool ptrace_arch_add_watchpoint(pid_t tid, int type,
 				unsigned long addr, size_t len)
 {
-	bool ret = false;
-	return ret;
+  bool ret = false;
+#ifdef PTRACE_SETHBPREGS
+  unsigned long offset = addr & 0x3;
+  unsigned long max_len = HBP_WP_LENGTH();
+  if (offset + len <= max_len) {
+    int i;
+    int num = HBP_WP_NUM();
+    for (i = 0; i < num; i++) {
+      if (0 == hbp_wp[i].ctrl)
+	break;
+    }
+    if (i != num) {
+      bool err = false;
+      unsigned long aligned_addr = addr & ~0x3;
+      long access = hbp_access[offset];
+      long hbp_type = get_hbp_type(type);
+      long wp_addr_num = -((i * 2) + 1);
+      long wp_ctrl_num = wp_addr_num - 1;
+      hbp_wp[i].addr = aligned_addr;
+      hbp_wp[i].ctrl = 
+	((HBP_ENABLE) |             /* enable */
+	 (HBP_USER_PRIVILGE << 1) | /* only watch user space */
+	 (hbp_type << 3) |          /* what type of wp, r,w or both */
+	 (access << 5));            /* offset from address to watch */        
+      if (ptrace(PTRACE_SETHBPREGS, tid, wp_addr_num, &hbp_wp[i].addr)) {
+	err = true;
+      } else {
+	if (ptrace(PTRACE_SETHBPREGS, tid, wp_ctrl_num, &hbp_wp[i].ctrl)) {
+	  err = true;
+	  /* Try to recover */
+	  hbp_wp[i].addr = 0;
+	  ptrace(PTRACE_SETHBPREGS, tid, wp_addr_num, &hbp_wp[i].addr);
+	}
+      }
+      if (err) {
+	hbp_wp[i].addr = 0;
+	hbp_wp[i].ctrl = 0;
+      } else {
+	ret = true;
+      }
+    }
+  }
+#endif
+  return ret;
 }
 
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
+bool ptrace_arch_remove_watchpoint(pid_t tid, int type,
 				   unsigned long addr, size_t len)
 {
-	bool ret = false;
-	return ret;
+  bool ret = false;
+#ifdef PTRACE_SETHBPREGS
+  int i, num;
+  num = HBP_WP_NUM();
+  for (i = 0; i < num; i++) {
+    if ((addr == hbp_wp[i].addr) &&
+	(0 != hbp_wp[i].ctrl))
+      break;
+  }
+  if (i != num) {
+    long wp_addr_num, wp_ctrl_num;
+    wp_addr_num = -((i * 2) + 1);
+    wp_ctrl_num = wp_addr_num - 1;
+    hbp_wp[i].addr = 0;
+    hbp_wp[i].ctrl = 0;
+    if (0 == ptrace(PTRACE_SETHBPREGS, tid, wp_addr_num, &hbp_wp[i].addr))
+      if (0 == ptrace(PTRACE_SETHBPREGS, tid, wp_ctrl_num, &hbp_wp[i].ctrl))
+	ret = true;
+  }
+#endif
+  return ret;
 }
 
-bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
+bool ptrace_arch_hit_watchpoint(pid_t tid, unsigned long *addr)
 {
-	bool ret = false;
-	return ret;
+  bool ret = false;
+#ifdef PTRACE_SETHBPREGS
+  int num = HBP_WP_NUM();
+  if (num) {
+    if (tid > 0) {
+      siginfo_t si = { 0 };
+      if (0 == ptrace(PTRACE_GETSIGINFO, tid, NULL, &si)) {
+	for (int i = 0; i < num; i++) {
+	  if ((unsigned long) si.si_addr == hbp_wp[i].addr) {
+	    *addr = (unsigned long)si.si_addr;
+	    ret = true;
+	    break;
+	  }
+	}
+      }
+    }
+  }
+#endif
+  return ret;
 }
 
 void ptrace_arch_read_fxreg(pid_t tid)
@@ -321,22 +475,136 @@ void ptrace_arch_write_dbreg(pid_t tid)
   /* noop */
 }
 
-bool ptrace_arch_support_hardware_breakpoints()
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid)
 {
-  return false;
+  bool ret = false;
+  /* 
+   * One a board, raspberry pi2, that claims support for both
+   * The enabling the hw break is disabled at the kernel level.
+   * See notes in the 'add' function.  So for now disable support.
+   */
+#if 0
+#ifdef PTRACE_GETHBPREGS
+  if (!hbp_info) {
+    if (ptrace(PTRACE_GETHBPREGS, tid, 0, &hbp_info)) {
+      hbp_info = 0;
+    }
+  }
+  if (HBP_BP_NUM())
+    ret = true;
+#endif
+#endif
+  return ret;
 }
 bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
 					 size_t len)
 {
-  return false;
+  bool ret = false;
+#ifdef PTRACE_SETHBPREGS
+  /*
+   * No unusual brk pts please.. 
+   * Ignoring len since this is a hw brk
+   * offset of 0 is normal arm.
+   * offset of 2 is assumed to be thumb.
+   */
+  unsigned long offset = addr & 0x3;
+  if ((offset == 0) || (offset == 2)) {
+    int i, num;
+    num = HBP_BP_NUM();
+    for (i = 0; i < num; i++) {
+      if (0 == hbp_bp[i].ctrl)
+	break;
+    }
+    if (i != num) {
+      bool err = false;
+      unsigned long aligned_addr = addr & ~0x3;
+      long access = hbp_access[offset];
+      long bp_addr_num = (i * 2) + 1;
+      long bp_ctrl_num = bp_addr_num + 1;
+      hbp_bp[i].addr = aligned_addr;
+      hbp_bp[i].ctrl = 
+	((HBP_ENABLE) |             /* enable */
+	 (HBP_USER_PRIVILGE << 1) | /* only watch user space */
+	 (access << 5));            /* offset from address to watch */
+      if (0 != ptrace(PTRACE_SETHBPREGS, tid, bp_addr_num, &hbp_bp[i].addr)) {
+	err = true;
+      } else {
+	if (0 != ptrace(PTRACE_SETHBPREGS, tid, bp_ctrl_num, &hbp_bp[i].ctrl)) {
+	  err = true;
+	  /* Try to recover */
+	  hbp_bp[i].addr = 0;
+	  ptrace(PTRACE_SETHBPREGS, tid, bp_addr_num, &hbp_bp[i].addr);
+	}
+      }
+      if (err) {
+	hbp_bp[i].addr = 0;
+	hbp_bp[i].ctrl = 0;
+      } else {
+	/*
+	 * The setting of the breakpoint should have been successful.
+	 * But when the registers are read back you can see that
+	 * the enable bit on the ctrl reg is toggled back to disable.
+	 *
+	 * Behaviour seen on raspberry pi board
+	 *
+	 * Uncomment the next block to continue will development.
+	for (int j = 1; j < 1 + (num * 2); j++) {
+	  unsigned long chk = 0xaabbccdd;
+	  ptrace(PTRACE_GETHBPREGS, tid, j, &chk);
+	  fprintf(stdout, "%s %d %lx\n", __func__, j, chk);
+	}
+	*/
+	ret = true;
+      }
+    }
+  }
+#endif
+  return ret;
 }
 bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
 					    size_t len)
 {
-  return false;
+  bool ret = false;
+#ifdef PTRACE_SETHBPREGS
+  int i, num;
+  num = HBP_BP_NUM();
+  for (i = 0; i < num; i++) {
+    if ((addr == hbp_bp[i].addr) &&
+	(0 != hbp_bp[i].ctrl))
+      break;
+  }
+  if (i != num) {
+    long bp_addr_num, bp_ctrl_num;
+    bp_addr_num = (i * 2) + 1;
+    bp_ctrl_num = bp_addr_num + 1;
+    hbp_bp[i].addr = 0;
+    hbp_bp[i].ctrl = 0;
+    if (0 == ptrace(PTRACE_SETHBPREGS, tid, bp_addr_num, &hbp_bp[i].addr))
+      if (0 == ptrace(PTRACE_SETHBPREGS, tid, bp_ctrl_num, &hbp_bp[i].ctrl))
+	ret = true;
+  }
+#endif
+  return ret;
 }
 
 bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
 {
-  return false;
+  bool ret = false;
+  /* Disable because of problem with enabling hw breakpoints on raspberry pi 2 */
+#if 0
+  int num = HBP_BP_NUM();
+  if (num > 0) {
+    for (int i = 0; i < num; i++) {
+      if ((pc == hbp_bp[i].addr) && (0 != hbp_bp[i].ctrl)) {
+	/*
+	 * There is a match with hw break point
+	 *
+	 * TODO : Get the siginfo to verify and then return true
+	 */
+	break;
+      }
+    }
+  }
+#endif
+  return ret;
 }

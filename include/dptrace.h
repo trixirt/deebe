@@ -83,11 +83,11 @@ int ptrace_arch_signal_to_gdb(int sig);
 int ptrace_arch_signal_from_gdb(int gdb);
 void _print_buffer(size_t current, size_t total, unsigned char *buffer);
 bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size);
-bool ptrace_arch_support_hardware_breakpoints();
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid);
 bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,	size_t len);
 bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr, size_t len);
 bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc);
-bool ptrace_arch_support_watchpoint(int type);
+bool ptrace_arch_support_watchpoint(pid_t tid, int type);
 bool ptrace_arch_add_watchpoint(pid_t tid, int type, unsigned long addr,
 				size_t len);
 bool ptrace_arch_remove_watchpoint(pid_t tid, int type, unsigned long addr,

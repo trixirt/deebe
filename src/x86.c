@@ -134,7 +134,7 @@ size_t ptrace_arch_swbreak_size()
   return 1;
 }
 
-bool ptrace_arch_support_watchpoint(int type)
+bool ptrace_arch_support_watchpoint(pid_t tid, int type)
 {
 	bool ret = false;
 	if ((GDB_INTERFACE_BP_WRITE_WATCH == type) ||
@@ -233,12 +233,12 @@ static bool _add_hw_debug(pid_t pid, int type, unsigned long addr, size_t _len) 
   return ret;
 }
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
+bool ptrace_arch_add_watchpoint(pid_t tid, int type,
 				unsigned long addr, size_t len)
 {
   bool ret = false;
-  if (ptrace_arch_support_watchpoint(type))
-    ret = _add_hw_debug(pid, type, addr, len);
+  if (ptrace_arch_support_watchpoint(tid, type))
+    ret = _add_hw_debug(tid, type, addr, len);
   return ret;
 }
 
@@ -353,12 +353,12 @@ bool static _remove_hw_debug(pid_t pid, unsigned long addr, size_t _len, bool hw
 	return ret;
 }
 
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
+bool ptrace_arch_remove_watchpoint(pid_t tid, int type,
 				   unsigned long addr, size_t _len)
 {
   bool ret = false;
-  if (ptrace_arch_support_watchpoint(type))
-    ret = _remove_hw_debug(pid, addr,  _len, false);
+  if (ptrace_arch_support_watchpoint(tid, type))
+    ret = _remove_hw_debug(tid, addr,  _len, false);
   return ret;
 }
 
@@ -466,7 +466,7 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t pid, unsigned long addr)
   return ret;
 }
 
-bool ptrace_arch_support_hardware_breakpoints() {
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid) {
   return true;
 }
 
