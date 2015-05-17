@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -58,21 +58,6 @@ void ptrace_os_clear_singlestep(pid_t pid)
 
 void ptrace_os_option_set_syscall(pid_t pid)
 {
-}
-
-void ptrace_os_option_set_thread(pid_t pid)
-{
-  /*
-   * Need to query PT_LWPINFO to get the tid of the main process
-   */
-  if (PROCESS_TID(0) == PROCESS_PID(0)) {
-#ifdef PT_LWPINFO
-	struct ptrace_lwpinfo lwpinfo = { 0 };
-	if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
-	  PROCESS_TID(0) = lwpinfo.pl_lwpid;
-	}
-#endif
-  }
 }
 
 bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
@@ -237,6 +222,9 @@ static void check_lwplist_for_new_threads(pid_t pid)
 
 #if PT_GETNUMLWPS
 	num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
+	if (_lwpinfo_verbose) {
+	  DBG_PRINT("%s threads %d\n", __func__, num_lwps);
+	}
 #endif
 
 #ifdef PT_GETLWPLIST
@@ -272,7 +260,12 @@ static void check_lwplist_for_new_threads(pid_t pid)
 					  int index = target_index(new_tid);
 					  PROCESS_STATE(index) = PS_PRE_START;
 					}
-					break;
+					/*
+					 * If we were adding threads one at a time, it would be safe to break here.
+					 * However, when this function is called via an attach there could be
+					 * multiple new threads.  This will have the side effect of setting the
+					 * last thread in the list to the current thread.
+					 */
 				}
 			} /* lwps loop */
 		}
@@ -283,6 +276,26 @@ static void check_lwplist_for_new_threads(pid_t pid)
 		free(lwpid_list);
 }
 
+void ptrace_os_option_set_thread(pid_t pid)
+{
+  /*
+   * Need to query PT_LWPINFO to get the tid of the main process
+   */
+  if (PROCESS_TID(0) == PROCESS_PID(0)) {
+#ifdef PT_LWPINFO
+	struct ptrace_lwpinfo lwpinfo = { 0 };
+	if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
+	  PROCESS_TID(0) = lwpinfo.pl_lwpid;
+	}
+#endif
+  }
+  /* 
+   * This function is called when an attach is made,
+   * There may be other threads already started that need to
+   * be accounted for so check for them now.
+   */
+  check_lwplist_for_new_threads(pid);
+}
 
 static int check_lwpinfo(pid_t pid)
 {
