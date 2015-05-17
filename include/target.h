@@ -129,6 +129,8 @@ bool target_is_tid(pid_t tid);
 bool target_is_pid(pid_t pid);
 bool target_thread_make_current(pid_t tid);
 int target_current_index();
+void target_attached(bool flag);
+bool target_is_attached();
 
 void _target_debug_print();
 

@@ -51,7 +51,7 @@ target_state _target = {
 	.nonstop = NS_ON,
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.syscall_enter = false,
-	.flag_attached_existing_process = 1,
+	.flag_attached_existing_process = 0,
 	.reg_size = 0,
 	.freg_size = 0,
 	.fxreg_size = 0,
@@ -245,12 +245,28 @@ void _target_debug_print() {
     int index;
    
     for (index = 0; index < _target.number_processes; index++) {
-	fprintf(stderr, "%d %x %x %d\n", index, PROCESS_PID(index), PROCESS_TID(index),
-		PROCESS_STATE(index));
+	DBG_PRINT("%d %x %x %d\n", index, PROCESS_PID(index), PROCESS_TID(index),
+		  PROCESS_STATE(index));
     }
 }
 
 int target_current_index()
 {
 	return _target.current_process;
+}
+
+void target_attached(bool flag)
+{
+  if (flag)
+    _target.flag_attached_existing_process = 1;
+  else
+    _target.flag_attached_existing_process = 0;
+
+}
+bool target_is_attached()
+{
+  bool ret = false;
+  if (_target.flag_attached_existing_process == 1)
+    ret = true;
+  return ret;
 }
