@@ -1539,9 +1539,12 @@ void handle_query_command(char * const in_buf,
 	}
 	sprintf(str, "Attached");
 	if (strncmp(n, str, strlen(str)) == 0) {
-		/* Only single process */
-		sprintf(out_buf, "0");
-		return;
+	  bool is_attached = target_is_attached();
+	  if (is_attached)
+	    sprintf(out_buf, "1");
+	  else
+	    sprintf(out_buf, "0");
+	  return;
 	}
 	sprintf(str, "Search:memory:");
 	if (strncmp(n, str, strlen(str)) == 0) {
@@ -1631,9 +1634,9 @@ void handle_query_command(char * const in_buf,
 		   * be confused when the thread is is set later.
 		   */
 		  if (process != thread) {
-		    sprintf(out_buf, "QC%"PRIx64".%"PRIx64, process, thread);
+		    sprintf(out_buf, "QCp%"PRIx64".%"PRIx64, process, thread);
 		  } else {
-		    sprintf(out_buf, "QC%"PRIx64"", process);
+		    sprintf(out_buf, "QCp%"PRIx64".-1", process);
 		  }
 		} else {
 			gdb_interface_write_retval(ret, out_buf);

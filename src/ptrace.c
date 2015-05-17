@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -555,6 +555,7 @@ int ptrace_attach(pid_t process_id)
 
 					if (target_new_thread(process_id, process_id, status, true)) {
 					    ptrace_arch_option_set_thread(process_id);
+					    target_attached(true);
 					    ret = RET_OK;
 					} else {
 						DBG_PRINT("%s error allocating for new thread\n");
@@ -1968,19 +1969,21 @@ int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 {
 	int ret = RET_OK;
 	static int n;
-	pid_t t;
+	pid_t p, t;
 	if (first)
 		n = -1;
 	else
 		n++;
+
+	p = PROCESS_PID(0);
 	if (n == -1) {
 		t = PROCESS_PID(0);
-		sprintf(out_buf, "m %x", t);
+		sprintf(out_buf, "mp%x.-1", p);
 	} else if (n < _target.number_processes) {
 		t = PROCESS_TID(n);
-		sprintf(out_buf, "m %x", t);
+		sprintf(out_buf, "mp%x.%x", p, t);
 	} else {
-		sprintf(out_buf, "l");
+	        sprintf(out_buf, "l");
 	}
 	return ret;
 }
