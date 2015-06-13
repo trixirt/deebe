@@ -48,7 +48,6 @@
 #define FRLL(N, E, GDB, O, S, GDB_S)				\
 	{							\
 		.off = (O) + offsetof(struct fpreg, E),		\
-		.size = (S),					\
 		.size = (S) ? (S) : msizeof(struct fpreg, E),	\
 		.gdb = (GDB),					\
 		.name = #N,					\
