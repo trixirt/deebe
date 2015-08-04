@@ -1021,7 +1021,7 @@ int ptrace_write_registers(uint8_t *data, size_t size)
 		if (_gdb_register_size(gdb, &gdb_size, /*@unused@*/&r_size)) {
 			if (done + gdb_size > size) {
 				break;
-			} else if (0 <= gdb_size) {
+			} else if (gdb_size == 0) {
 				break;
 			}
 			if (RET_OK !=
