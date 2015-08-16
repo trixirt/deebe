@@ -143,7 +143,7 @@ struct reg_location_list fxrll[] = {
 	FXRLL(xmm_reg[5], GDB_XMM5,  0, 0),
 	FXRLL(xmm_reg[6], GDB_XMM6,  0, 0),
 	FXRLL(xmm_reg[7], GDB_XMM7,  0, 0),
-	FXRLL(xmm_env, GDB_MXCSR, 0, 0),
+	FXRLL(xmm_env[0], GDB_MXCSR, 0, 0),
 #endif
 	{0},
 };
