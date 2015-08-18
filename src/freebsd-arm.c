@@ -114,42 +114,22 @@ struct reg_location_list fxrll[] = {
 	{0},
 };
 
-#ifdef ARM_SWBRK
 static uint32_t bkpt[1] = {
-	/*
-	 * bkpt
-	 * Does not always work, depends on arm verion 5 or better
-	 * 0x700020e1
-	 *
-	 * Instead use something from the
-	 * undefined instruction space
-	 * See A3-28 of ARM RM
-	 */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	0xf000f0e7
-#else
-	0xe7f000f0
-#endif
+    0xe6000011
 };
-#endif
+
 
 size_t ptrace_arch_swbreak_size()
 {
-#ifdef ARM_SWBRK
 	return 4;
-#else
-	return 0;
-#endif
 }
 
 int ptrace_arch_swbreak_insn(void *bdata)
 {
 	int ret = RET_NOSUPP;
-#ifdef ARM_SWBRK
 	/* Use bkpt */
 	memcpy(bdata, &bkpt[0], 4);
 	ret = RET_OK;
-#endif
 	return ret;
 }
 
