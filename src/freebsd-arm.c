@@ -33,7 +33,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
+/* Also used by netbsd, but this include isn't in netbsd.. */
+#ifndef __NetBSD__
 #include <sys/procfs.h>
+#endif
 #include "target_ptrace.h"
 #include "global.h"
 #include "os.h"
