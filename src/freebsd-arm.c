@@ -33,8 +33,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-/* Also used by netbsd, but this include isn't in netbsd.. */
-#ifndef __NetBSD__
+#ifdef __NetBSD__
+#include <stdint.h>
+#include <machine/reg.h>
+#else
 #include <sys/procfs.h>
 #endif
 #include "target_ptrace.h"
@@ -99,6 +101,7 @@ struct reg_location_list grll[] = {
 #define GDB_FPS   24
 
 /* Floating point */
+#if defined(__FreeBSD__)
 struct reg_location_list frll[] = {
 	FRLL(fp0, fpr[0], GDB_FPR0, 0, 0, 0),
 	FRLL(fp1, fpr[1], GDB_FPR1, 0, 0, 0),
@@ -111,6 +114,22 @@ struct reg_location_list frll[] = {
 	FRLL(fpsr, fpr_fpsr, GDB_FPS, 0, 0, 0),
 	{0},
 };
+#elif defined(__NetBSD__)
+struct reg_location_list frll[] = {
+	FRLL(fp0, vfp_regs[0], GDB_FPR0, 0, 0, 0),
+	FRLL(fp1, vfp_regs[1], GDB_FPR1, 0, 0, 0),
+	FRLL(fp2, vfp_regs[2], GDB_FPR2, 0, 0, 0),
+	FRLL(fp3, vfp_regs[3], GDB_FPR3, 0, 0, 0),
+	FRLL(fp4, vfp_regs[4], GDB_FPR4, 0, 0, 0),
+	FRLL(fp5, vfp_regs[5], GDB_FPR5, 0, 0, 0),
+	FRLL(fp6, vfp_regs[6], GDB_FPR6, 0, 0, 0),
+	FRLL(fp7, vfp_regs[7], GDB_FPR7, 0, 0, 0),
+	FRLL(fpsr, vfp_fpscr, GDB_FPS, 0, 0, 0),
+	{0},
+};
+#else
+#error "Expecting an intrinsic *BSD* to be defined"
+#endif
 
 /* Extended */
 struct reg_location_list fxrll[] = {
@@ -257,3 +276,14 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
 {
   return false;
 }
+
+void ptrace_arch_read_dbreg(pid_t tid)
+{
+  /* noop */
+}
+
+void ptrace_arch_write_dbreg(pid_t tid)
+{
+  /* noop */
+}
+
