@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -34,6 +34,11 @@
  */
 #ifndef __DEEBE_FREEBSD_H
 #define __DEEBE_FREEBSD_H
+
+#include <sys/cdefs.h>
+#include <sys/procfs.h>
+#include "target_ptrace.h"
+#include "global.h"
 
 #define GRLL(N, E, GDB, O, S, GDB_S)				\
 	{							\
