@@ -38,7 +38,7 @@
 #include "global.h"
 #include "os.h"
 
-#define GDB_GREG_MAX 16
+#define GDB_GREG_MAX 26
 
 int ptrace_arch_gdb_greg_max()
 {
