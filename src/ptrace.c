@@ -1714,9 +1714,11 @@ static bool _exited_all(char *str, size_t len)
 
 static void __continued(int index, int wait_status)
 {
+#ifdef WIFCONTINUED
 	if (WIFCONTINUED(wait_status)) {
 		PROCESS_STATE(index) = PS_CONT;
 	}
+#endif
 }
 
 static void _continued_single()
@@ -1891,9 +1893,12 @@ static void _stopped_all(char *str, size_t len)
 					}
 				}
 				PROCESS_STATE(index) = PS_CONT;
-			} else if (WIFCONTINUED(wait_status)) {
+			} 
+#ifdef WIFCONTINUED
+			else if (WIFCONTINUED(wait_status)) {
 				CURRENT_PROCESS_STATE = PS_CONT;
 			}
+#endif
 		} /* Waiting */
 	} /* process loop */
 }
