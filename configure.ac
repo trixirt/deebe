@@ -107,7 +107,12 @@ arm*-*-linux-*)
 
 arm*-*-freebsd*)
 	os=freebsd
-	TD_SRC='target_ptrace.$(OBJEXT) freebsd-arm.$(OBJEXT) freebsd.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) bsd-arm.$(OBJEXT) freebsd-arm.$(OBJEXT) freebsd.$(OBJEXT)'
+	;;
+
+arm*-*-netbsd*)
+	os=netbsd
+	TD_SRC='target_ptrace.$(OBJEXT) bsd-arm.$(OBJEXT) netbsd-arm.$(OBJEXT) netbsd.$(OBJEXT)'
 	;;
 
 x86_64-apple-darwin*)
@@ -139,7 +144,7 @@ AC_SUBST([TD_SRC])
 # Would like use 'host' to mean what gdb is running on
 case ${host} in
 
-*-freebsd*)
+*-freebsd*|*-netbsd*)
 	# freebsd
 	HD_SRC='host-freebsd.$(OBJEXT)'
 	;;
