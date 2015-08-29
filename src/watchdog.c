@@ -44,7 +44,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #ifdef HAVE_TIMER_CREATE
+#ifdef SIGRTMIN
 static timer_t timer;
+#endif
 #endif
 static bool watchdog = false;
 
@@ -56,6 +58,11 @@ bool watchdog_init(long sec)
 {
 	bool ret = false;
 #ifdef HAVE_TIMER_CREATE
+	/*
+	 * Netbsd (7) does not export SIGRTMIN yet
+	 * so check if this is also defined.
+	 */
+#ifdef SIGRTMIN
 	struct sigevent signal_event;
 	signal_sigrtmin_off();
 
@@ -75,7 +82,8 @@ bool watchdog_init(long sec)
 			ret = true;
 		}
 	}
-#endif
+#endif /* SIGRTMIN */
+#endif /* HAVE_TIMER_CREATE */
 	return ret;
 }
 bool watchdog_get()
