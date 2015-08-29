@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -37,31 +37,12 @@
 
 #define FP_STRUCT user_fpregs
 #include "os.h"
-
-#define GDB_GREG_MAX 16
+#include "gdb-arm.h"
 
 int ptrace_arch_gdb_greg_max()
 {
 	return GDB_GREG_MAX;
 }
-
-#define GDB_GPR0  0
-#define GDB_GPR1  1
-#define GDB_GPR2  2
-#define GDB_GPR3  3
-#define GDB_GPR4  4
-#define GDB_GPR5  5
-#define GDB_GPR6  6
-#define GDB_GPR7  7
-#define GDB_GPR8  8
-#define GDB_GPR9  9
-#define GDB_GPR10 10
-#define GDB_GPR11 11
-#define GDB_GPR12 12
-#define GDB_SP    13
-#define GDB_LR    14
-#define GDB_PC    15
-#define GDB_CPSR  25
 
 /* General */
 struct reg_location_list grll[] = {
@@ -84,16 +65,6 @@ struct reg_location_list grll[] = {
 	GRLL(cpsr, regs.uregs[16], GDB_CPSR,  0, 0, 0),
 	{0},
 };
-
-#define GDB_FPR0  16
-#define GDB_FPR1  17
-#define GDB_FPR2  18
-#define GDB_FPR3  19
-#define GDB_FPR4  20
-#define GDB_FPR5  21
-#define GDB_FPR6  22
-#define GDB_FPR7  23
-#define GDB_FPS   24
 
 /* Floating point */
 struct reg_location_list frll[] = {
