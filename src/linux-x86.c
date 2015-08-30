@@ -45,24 +45,6 @@ union reg_dirty {
 	unsigned int u;
 } dirt;
 
-#define GDB_EAX       0
-#define GDB_ECX       1
-#define GDB_EDX       2
-#define GDB_EBX       3
-#define GDB_ESP       4
-#define GDB_EBP       5
-#define GDB_ESI       6
-#define GDB_EDI       7
-#define GDB_EIP       8
-#define GDB_EFLAGS    9
-#define GDB_CS       10
-#define GDB_SS       11
-#define GDB_DS       12
-#define GDB_ES       13
-#define GDB_FS       14
-#define GDB_GS       15
-#define GDB_ORIG_EAX 41
-
 struct reg_location_list grll[] = {
 	GRLL(ebx,      regs.ebx,      GDB_EBX,      0, 0, 0),
 	GRLL(ecx,      regs.ecx,      GDB_ECX,      0, 0, 0),
@@ -84,23 +66,6 @@ struct reg_location_list grll[] = {
 	{0},
 };
 
-#define GDB_FST0  16
-#define GDB_FST1  17
-#define GDB_FST2  18
-#define GDB_FST3  19
-#define GDB_FST4  20
-#define GDB_FST5  21
-#define GDB_FST6  22
-#define GDB_FST7  23
-#define GDB_FCTRL 24
-#define GDB_FSTAT 25
-#define GDB_FTAG  26
-#define GDB_FISEG 27
-#define GDB_FIOFF 28
-#define GDB_FOSEG 29
-#define GDB_FOOFF 30
-#define GDB_FOP   31
-
 struct reg_location_list frll[] = {
 	FRLL(ctrl, cwd,      GDB_FCTRL, 0,  2, 4),
 	FRLL(stat, swd,      GDB_FSTAT, 0,  2, 4),
@@ -120,16 +85,6 @@ struct reg_location_list frll[] = {
 	FRLL(st7,  st_space, GDB_FST7, 70, 10, 10),
 	{0},
 };
-
-#define GDB_XMM0  32
-#define GDB_XMM1  33
-#define GDB_XMM2  34
-#define GDB_XMM3  35
-#define GDB_XMM4  36
-#define GDB_XMM5  37
-#define GDB_XMM6  38
-#define GDB_XMM7  39
-#define GDB_MXCSR 40
 
 #define FXRLL(N, E, GDB, O, S, GDB_S)					\
 {								\
