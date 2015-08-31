@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2104, Juniper Networks, Inc.
+ * Copyright (c) 2013-2105, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -35,32 +35,9 @@
 #include "target_ptrace.h"
 #include "global.h"
 #include "os.h"
+#include "gdb-x86_64.h"
 
-#define GDB_RAX       0
-#define GDB_RBX       1
-#define GDB_RCX       2
-#define GDB_RDX       3
-#define GDB_RSI       4
-#define GDB_RDI       5
-#define GDB_RBP       6
-#define GDB_RSP       7
-#define GDB_R8        8
-#define GDB_R9        9
-#define GDB_R10      10
-#define GDB_R11      11
-#define GDB_R12      12
-#define GDB_R13      13
-#define GDB_R14      14
-#define GDB_R15      15
-#define GDB_RIP      16
-#define GDB_RFLAGS   17
-#define GDB_CS       18
-#define GDB_SS       19
-#define GDB_DS       20
-#define GDB_ES       21
-#define GDB_FS       22
-#define GDB_GS       23
-
+/* Not common with freebsd */
 #define GDB_ORIG_RAX 57
 
 struct reg_location_list grll[] = {
@@ -92,40 +69,6 @@ struct reg_location_list grll[] = {
 	GRLL(ss,       regs.ss,       GDB_SS,       0, 2, 4),
 	{0},
 };
-
-#define GDB_FST0  24
-#define GDB_FST1  25
-#define GDB_FST2  26
-#define GDB_FST3  27
-#define GDB_FST4  28
-#define GDB_FST5  29
-#define GDB_FST6  30
-#define GDB_FST7  31
-#define GDB_FCTRL 32
-#define GDB_FSTAT 33
-#define GDB_FTAG  34
-#define GDB_FISEG 35
-#define GDB_FIOFF 36
-#define GDB_FOSEG 37
-#define GDB_FOOFF 38
-#define GDB_FOP   39
-#define GDB_XMM0  40
-#define GDB_XMM1  41
-#define GDB_XMM2  42
-#define GDB_XMM3  43
-#define GDB_XMM4  44
-#define GDB_XMM5  45
-#define GDB_XMM6  46
-#define GDB_XMM7  47
-#define GDB_XMM8  48
-#define GDB_XMM9  49
-#define GDB_XMM10 50
-#define GDB_XMM11 51
-#define GDB_XMM12 52
-#define GDB_XMM13 53
-#define GDB_XMM14 54
-#define GDB_XMM15 55
-#define GDB_MXCSR 56
 
 #define FXRLL(N, E, GDB, O, S, GDB_S)					\
 {								\
