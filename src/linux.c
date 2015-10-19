@@ -37,6 +37,7 @@
 #include <linux/ptrace.h>
 #include "global.h"
 #include "dptrace.h"
+#include "../os/linux.h"
 
 void ptrace_os_read_fxreg(pid_t tid)
 {
@@ -491,4 +492,27 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 			}
 		}
 	}
+}
+
+long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data)
+{
+  long ret = -1;
+  /* The old way.. */
+  if (request > 0) {
+    ret = PTRACE(request, pid, addr, data);
+  } else {
+    struct iovec vec;
+    vec.iov_base = data;
+    vec.iov_len = REG_MAX_SIZE;
+    if (request == PTRACE_GETREGS) {
+      ret = PTRACE(PTRACE_GETREGSET, pid, NT_PRSTATUS, &vec);
+    } else if (request == PTRACE_GETFPREGS) {
+      ret = PTRACE(PTRACE_GETREGSET, pid, NT_PRFPREG, &vec);
+    } else if (request == PTRACE_SETREGS) {
+      ret = PTRACE(PTRACE_SETREGSET, pid, NT_PRSTATUS, &vec);
+    } else if (request == PTRACE_SETFPREGS) {
+      ret = PTRACE(PTRACE_SETREGSET, pid, NT_PRFPREG, &vec);
+    }
+  }
+  return ret;
 }

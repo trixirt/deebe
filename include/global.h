@@ -57,6 +57,8 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 		exit(-1);						     \
 	} while (0)
 
+#define REG_MAX_SIZE 0x1000
+
 #ifdef DEEBE_RELEASE
 #define DBG_PRINT(fmt, args...)
 #else

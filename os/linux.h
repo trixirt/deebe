@@ -35,6 +35,8 @@
 #ifndef __DEEBE_LINUX_H
 #define __DEEBE_LINUX_H
 
+#include <linux/elf.h>
+
 #define GRLL(N, E, GDB, O, S, GDB_S)				\
 	{							\
 		.off = (O) + offsetof(struct user, E),		\
@@ -66,7 +68,7 @@
  * FreeBSD and Linux swap the 3rd / 4th arg,
  * default is linux so this is a noop
  */
-#define PTRACE_GETSET(a, b, c, d) PTRACE((a), (b), (c), (d))
+#define PTRACE_GETSET(a, b, c, d) ptrace_linux_getset((a), (b), (c), (d))
 
 /* Linux ptrace returns long */
 #define ptrace_return_t long
@@ -86,18 +88,35 @@ void ptrace_os_continue_others();
 int os_thread_kill(int tid, int sig);
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 int ptrace_os_gen_thread(pid_t pid, pid_t tid);
-int ptrace_os_stopped_single(char *str, size_t len, bool debug);
+void ptrace_os_stopped_single(char *str, size_t len, bool debug);
+
+long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data);
 
 #ifndef PT_GETREGS
+#ifndef PTRACE_GETREGS
+#define PTRACE_GETREGS (-12)
+#endif
 #define PT_GETREGS PTRACE_GETREGS
 #endif
+
 #ifndef PT_SETREGS
+#ifndef PTRACE_SETREGS
+#define PTRACE_SETREGS (-13)
+#endif
 #define PT_SETREGS PTRACE_SETREGS
 #endif
+
 #ifndef PT_GETFPREGS
+#ifndef PTRACE_GETFPREGS
+#define PTRACE_GETFPREGS (-14)
+#endif
 #define PT_GETFPREGS PTRACE_GETFPREGS
 #endif
+
 #ifndef PT_SETRFPEGS
+#ifndef PTRACE_SETFPREGS
+#define PTRACE_SETFPREGS (-15)
+#endif
 #define PT_SETFPREGS PTRACE_SETFPREGS
 #endif
 

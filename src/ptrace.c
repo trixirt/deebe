@@ -42,10 +42,10 @@
 #include "breakpoint.h"
 #include "global.h"
 #include "network.h"
-#include "os.h"
 #include "util.h"
 #include "dsignal.h"
 #include "dptrace.h"
+#include "os.h"
 #include "target.h"
 
 #ifdef HAVE_CONFIG_H
@@ -71,8 +71,6 @@ static bool _write_single_reg_verbose = false;
 static bool _stop_verbose = true;
 static bool _restart_verbose = true;
 static bool _detach_verbose = true;
-
-#define REG_MAX_SIZE 0x1000
 
 #define GUARD_RLL(r) (((r).off == 0) && ((r).size == 0) && ((r).gdb == 0))
 
