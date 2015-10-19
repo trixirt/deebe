@@ -52,25 +52,25 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-static bool _general_set_verbose = true;
-static bool _read_mem_verbose = true;
-static bool _read_reg_verbose = true;
-static bool _resume_current_verbose = true;
-static bool _resume_from_addr_verbose = true;
+static bool _general_set_verbose = false;
+static bool _read_mem_verbose = false;
+static bool _read_reg_verbose = false;
+static bool _resume_current_verbose = false;
+static bool _resume_from_addr_verbose = false;
 #ifdef PT_SYSCALL
 static bool _resume_syscall_verbose = false;
 #endif
-static bool _write_mem_verbose = true;
-static bool _write_reg_verbose = true;
-static bool _wait_partial_verbose = true;
-static bool _wait_verbose = true;
-static bool _add_break_verbose = true;
-static bool _remove_break_verbose = true;
+static bool _write_mem_verbose = false;
+static bool _write_reg_verbose = false;
+static bool _wait_partial_verbose = false;
+static bool _wait_verbose = false;
+static bool _add_break_verbose = false;
+static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
-static bool _stop_verbose = true;
-static bool _restart_verbose = true;
-static bool _detach_verbose = true;
+static bool _stop_verbose = false;
+static bool _restart_verbose = false;
+static bool _detach_verbose = false;
 
 #define GUARD_RLL(r) (((r).off == 0) && ((r).size == 0) && ((r).gdb == 0))
 

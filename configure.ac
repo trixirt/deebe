@@ -93,6 +93,12 @@ amd64-*-freebsd*|x86_64-*-freebsd*)
 	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86_64.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
+aarch64-*-linux-*)
+	os=linux
+	TD_SRC='target_ptrace.$(OBJEXT) linux-aarch64.$(OBJEXT) linux.$(OBJEXT)'
+	;;
+	
+
 armel*-*-linux-*)
 	# arm 32 little endian bit linux
 	os=linux
