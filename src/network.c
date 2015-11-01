@@ -51,12 +51,43 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#define NO_TIMEOUT_PROGRESS
+
+/*
+ * Input record and playback
+ *
+ * If NETWORK_INPUT_RECORD is defined, the input from the debugger is recorded
+ * to a text file.  Each receive is delimited by a newline. 
+ * The text file is 'deebe.playback' and is created in the current
+ * working directory.
+ *
+ * If NETWORK_INPUT_PLAYBACK is defined, the text file 'deebe.playback' is
+ * read from the current working directory.
+ * The normal network processing is subverted.
+ * Instead of reading from an input socket from the debugger, the
+ * the input is read back a line at a time from the playback file.
+ * Since there is no debugger listening for output, the output is
+ * dropped.
+ */
+/* #define NETWORK_INPUT_RECORD */
+/* #define NETWORK_INPUT_PLAYBACK */
+
+#if defined(NETWORK_INPUT_PLAYBACK) && defined(NETWORK_INPUT_RECORD)
+#error "NETWORK_INPUT_PLAYBACK and NETWORK_INPUT_RECORD can not both be defined at the same time"
+#endif
+
+#if defined(NETWORK_INPUT_PLAYBACK) || defined(NETWORK_INPUT_RECORD)
+static FILE *fp_playback;
+#endif
+
 static bool network_verbose = false;
+#ifndef NETWORK_INPUT_PLAYBACK
+/* No timeout in playback, this variable is unused */
 static bool network_verbose_timeout = false;
+#endif
 static bool network_verbose_print_read_buffer = false;
 static bool network_verbose_print_write_buffer = false;
 
-#define NO_TIMEOUT_PROGRESS
 
 void network_print()
 {
@@ -105,6 +136,14 @@ void network_cleanup()
 	network_out_buffer_total = 0;
 	network_in_buffer_current = 0;
 	network_in_buffer_total = 0;
+
+#if defined(NETWORK_INPUT_PLAYBACK) || defined(NETWORK_INPUT_RECORD)
+	if (fp_playback) {
+		fflush(fp_playback);
+		fclose(fp_playback);
+		fp_playback = NULL;
+	}
+#endif
 }
 
 
@@ -151,6 +190,19 @@ bool network_init()
 	bool ret = false;
 	/* Cleanup possible old use */
 	network_cleanup();
+
+#ifdef NETWORK_INPUT_PLAYBACK
+	/*
+	 * If we are playing back, no need to create any sockets
+	 * Open the playback file
+	 */
+	fp_playback = fopen("deebe.playback", "rt");
+	if (fp_playback == NULL) {
+		DBG_PRINT("network : error opening playback file deebe.playback\n");
+	} else {
+		ret = true;
+	}
+#else
 	/* New socket */
 	network_listen_sd = socket(AF_INET, SOCK_STREAM, 0);
 	if (network_listen_sd > 0) {
@@ -208,6 +260,9 @@ bool network_init()
 			} else {
 				/* Defer printing until the debuggee starts */
 				ret = true;
+#ifdef NETWORK_INPUT_RECORD
+				fp_playback = fopen("deebe.playback", "wt");
+#endif
 			}
 		}
 	} else {
@@ -216,7 +271,7 @@ bool network_init()
 			DBG_PRINT("network : error creating listen socket\n");
 		}
 	}
-
+#endif /* NETWORK_INPUT_PLAYBACK */
 	if (!ret) {
 		network_cleanup();
 	}
@@ -227,7 +282,10 @@ bool network_init()
 bool network_accept()
 {
 	bool ret = false;
-
+#ifdef  NETWORK_INPUT_PLAYBACK
+	/* No network sockets to do anything with so return true */
+	ret = true;
+#else
 	struct timeval timeout;
 	int a = 0;
 	int accept_max;
@@ -345,13 +403,17 @@ bool network_accept()
 		}
 #endif
 	}
+#endif /* NETWORK_INPUT_PLAYBACK */
 	return ret;
 }
 
 bool network_connect()
 {
 	bool ret = false;
-
+#ifdef  NETWORK_INPUT_PLAYBACK
+	/* No network sockets to do anything with so return true */
+	ret = true;
+#else
 	/* New socket */
 	network_fwd_sd = socket(AF_INET, SOCK_STREAM, 0);
 	if (network_fwd_sd > 0) {
@@ -390,12 +452,59 @@ bool network_connect()
 			ret = true;
 		}
 	}
+#endif /* NETWORK_INPUT_PLAYBACK */
 	return ret;
 }
 
 int _network_read(int sd, int sec, int usec)
 {
 	int ret = 1;
+#ifdef NETWORK_INPUT_PLAYBACK
+	if (network_in_buffer_current > network_in_buffer_total) {
+		/* Ok, still some packet to read. */
+		ret = 0;
+	} else {
+		/* Need another packet.. */
+		network_in_buffer_current = network_in_buffer_total = 0;
+		if (fp_playback) {
+			int c;
+			int index = 0;
+			char three_chars[3] = {0,0,0};
+			while (EOF != (c = fgetc(fp_playback))) {
+				if (c == '\n') {
+					break;
+				} else {
+					three_chars[index++] = c & 0xff;
+				}
+				if (index == 2) {
+					uint8_t b;
+					if (util_decode_byte(&three_chars[0], &b)) {
+						network_in_buffer[network_in_buffer_total++] = b;
+					}
+					index = 0;
+				}
+			}
+			if (c == EOF) {
+				/* Nothing more to read */
+				ret = 1;
+			} else {
+				/* A fake packet */
+				if (network_verbose_print_read_buffer) {
+					DBG_PRINT("playback packet ----->\n");
+					util_print_buffer(fp_log, 0 /* network_in_buffer_current */, network_in_buffer_total, &network_in_buffer[0]);
+					if (fp_log)
+						fflush(fp_log);
+				}
+				/* success */
+				ret = 0;
+			}
+			
+		} else {
+			/* A problem with the playback file */
+			ret = 1;
+		}
+	}
+#else
 	if (sd > 0) {
 		if (network_in_buffer_current > network_in_buffer_total) {
 			/* Ok, still some packet to read. */
@@ -485,15 +594,27 @@ int _network_read(int sd, int sec, int usec)
 					}
 					if (network_verbose_print_read_buffer) {
 						DBG_PRINT("----->\n");
-						util_print_buffer(fp_log, network_in_buffer_current, network_in_buffer_total, &network_in_buffer[0]);
+						util_print_buffer(fp_log, 0 /* network_in_buffer_current */, network_in_buffer_total, &network_in_buffer[0]);
 						if (fp_log)
 							fflush(fp_log);
 					}
-
+#ifdef NETWORK_INPUT_RECORD
+					if (fp_playback) {
+						size_t i;
+						for (i = 0; i < network_in_buffer_total; i++) {
+							char three_chars[3] = {0,0,0};
+							util_encode_byte(network_in_buffer[i], &three_chars[0]);
+							fprintf(fp_playback,"%s", &three_chars[0]);
+						}
+						/* Terminate with a newline */
+						fprintf(fp_playback,"\n");
+					}
+#endif
 				}
 			}
 		}
 	}
+#endif /* NETWORK_INPUT_PLAYBACK */
 	return ret;
 }
 
@@ -567,6 +688,18 @@ int network_read_fwd()
 int _network_write(int sd, int timeout, int sec, int usec)
 {
 	int ret = 1;
+#ifdef NETWORK_INPUT_PLAYBACK
+	if (network_out_buffer_total > 0) {
+		if (network_verbose_print_write_buffer) {
+			DBG_PRINT("playback dropping packet <-----\n");
+			util_print_buffer(fp_log, network_out_buffer_current, network_out_buffer_total, &network_out_buffer[0]);
+			if (fp_log)
+				fflush(fp_log);
+		}
+		network_out_buffer_total = network_out_buffer_current = 0;
+	}
+	ret = 0;
+#else
 	if (sd > 0) {
 		int timeout_count = 0;
 		int timeout_max = timeout;
@@ -692,6 +825,7 @@ int _network_write(int sd, int timeout, int sec, int usec)
 			ret = 0;
 		}
 	}
+#endif /* NETWORK_INPUT_PLAYBACK */
 	return ret;
 }
 
