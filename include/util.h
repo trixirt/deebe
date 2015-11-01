@@ -36,8 +36,16 @@
 #define UTIL_H
 
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 
+extern const char util_hex[];
 void util_print_buffer(FILE *fd, size_t current, size_t total,
 		       unsigned char *buffer);
 void util_log(const char *fmt, ...);
+void util_encode_byte(unsigned int val, char *out);
+bool util_decode_byte(const char *in, uint8_t *byte_ptr);
+bool util_decode_nibble(const char *in, uint8_t *nibble);
+int util_hex_nibble(char in);
+
 #endif

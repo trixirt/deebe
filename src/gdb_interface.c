@@ -126,7 +126,6 @@ static size_t dbg_sock_write(unsigned char *b, size_t l)
 #define RP_VAL_MISCREADCHARRET_TMOUT (-2)
 #define RP_VAL_MISCREADCHARRET_ERR   (-1)
 
-static const char hex[] = "0123456789abcdef";
 static char status_string[RP_PARAM_INOUTBUF_SIZE];
 #define status_string_len sizeof(status_string)
 
@@ -236,7 +235,6 @@ static int rp_decode_8bytes(const char *in, uint64_t *val);
 static int gdb_decode_uint32(char **in, uint32_t *val, char break_char);
 static int gdb_decode_uint64(char **in, uint64_t *val, char break_char);
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char);
-static void rp_encode_byte(unsigned int val, char *out);
 
 /* Funcions to stuff output value */
 static void gdb_interface_write_retval(int ret, char *buf);
@@ -319,8 +317,8 @@ static int gdb_interface_put_packet(const char *buf, size_t size)
 	}
 	/* Add the sumcheck to the end of the message */
 	*d++ = '#';
-	*d++ = hex[(csum >> 4) & 0xf];
-	*d++ = hex[(csum & 0xf)];
+	*d++ = util_hex[(csum >> 4) & 0xf];
+	*d++ = util_hex[(csum & 0xf)];
 	/* Do not null terminate binary transfers */
 	if (0 == size)
 		*d = '\0';
@@ -597,8 +595,8 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 					rx_csum += c;
 					esc_found = false;
 					c ^= 0x20;
-					buf[pkt_len++] = hex[(c >> 4) & 0xf];
-					buf[pkt_len++] = hex[c & 0xf];
+					buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
+					buf[pkt_len++] = util_hex[c & 0xf];
 					continue;
 				}
 
@@ -611,15 +609,15 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 					state = STATE_HASHMARK;
 				} else {
 					rx_csum += c;
-					buf[pkt_len++] = hex[(c >> 4) & 0xf];
-					buf[pkt_len++] = hex[c & 0xf];
+					buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
+					buf[pkt_len++] = util_hex[c & 0xf];
 				}
 			} else if (state == STATE_HASHMARK) {
 				/*
 				 * Now get the first byte of the two
 				 * byte checksum
 				 */
-				nib = rp_hex_nibble(c);
+				nib = util_hex_nibble(c);
 				if (nib < 0) {
 					gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
 							  ": bad checksum character %c",
@@ -632,7 +630,7 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 			} else if (state == STATE_CSUM) {
 				/* Now get the second byte of the checksum, and
 				   check it. */
-				nib = rp_hex_nibble(c);
+				nib = util_hex_nibble(c);
 				if (nib < 0) {
 					gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
 							  ": bad checksum character %c",
@@ -826,37 +824,6 @@ void handle_read_registers_command(char * const in_buf,
 	}
 }
 
-/* Decode a single nibble */
-static bool gdb_decode_nibble(const char *in, uint8_t *nibble)
-{
-	bool ret = false;
-	int nib;
-
-	nib = rp_hex_nibble(*in);
-	if (nib >= 0) {
-		*nibble = nib;
-		ret = true;
-	}
-
-	return ret;
-}
-
-/* Decode byte */
-static bool gdb_decode_byte(const char *in, uint8_t *byte_ptr)
-{
-	bool ret = false;
-
-	uint8_t ls_nibble;
-	uint8_t ms_nibble;
-
-	if (gdb_decode_nibble(in, &ms_nibble)) {
-		if (gdb_decode_nibble(in + 1, &ls_nibble)) {
-			*byte_ptr = (ms_nibble << 4) + ls_nibble;
-			ret = true;
-		}
-	}
-	return  ret;
-}
 
 /* Convert stream of chars into data */
 static int gdb_decode_data(const char *in,
@@ -883,7 +850,7 @@ static int gdb_decode_data(const char *in,
 			return  TRUE;
 		}
 
-		if (!gdb_decode_byte(in, &bytex))
+		if (!util_decode_byte(in, &bytex))
 			return  FALSE;
 
 		*out = bytex & 0xff;
@@ -1724,7 +1691,7 @@ static int gdb_decode_break(char *in,
 	ASSERT(addr != NULL);
 	ASSERT(len != NULL);
 	in++;
-	if (!gdb_decode_nibble(in, &val))
+	if (!util_decode_nibble(in, &val))
 		return  FALSE;
 	in++;
 	if (*in++ != ',')
@@ -1838,7 +1805,7 @@ static int handle_v_command(char * const in_buf,
 			char *in = &n[1];
 			if ((n[0] == 'C') ||
 			    (n[0] == 'S')) {
-				gdb_decode_byte(in, &sig);
+				util_decode_byte(in, &sig);
 				in += 2;
 			}
 			/*
@@ -1935,7 +1902,7 @@ static int handle_v_command(char * const in_buf,
 					if (filepath) {
 						uint8_t *tp;
 						for (t = n, tp = (uint8_t *) filepath; t < fs - 1 && status; t += 2, tp++) {
-							status = gdb_decode_byte(t, tp);
+							status = util_decode_byte(t, tp);
 						}
 						if (status) {
 							int gdb_flag;
@@ -2029,7 +1996,7 @@ static int handle_v_command(char * const in_buf,
 					int status = -1;
 					for (t = n, tp = (uint8_t *) filepath;
 					     t < fe && status; t += 2, tp++) {
-						status = gdb_decode_byte(t, tp);
+						status = util_decode_byte(t, tp);
 					}
 					tp[0] = 0; /* null terminate */
 					if (status) {
@@ -2412,11 +2379,11 @@ static int rp_decode_list_query(const char *in,
 	ASSERT(max != NULL);
 	ASSERT(arg != NULL);
 
-	if (!gdb_decode_nibble(in, &first_flag))
+	if (!util_decode_nibble(in, &first_flag))
 		return  FALSE;
 	in++;
 
-	if (!gdb_decode_byte(in, &tmp_max))
+	if (!util_decode_byte(in, &tmp_max))
 		return  FALSE;
 	in += 2;
 
@@ -2454,7 +2421,7 @@ static int gdb_encode_regs(const unsigned char *data,
 
 	for (i = 0;  i < data_len;  i++, data++, avail++, out += 2) {
 		if (*avail) {
-			rp_encode_byte(*data, out);
+			util_encode_byte(*data, out);
 		} else {
 			*out = 'x';
 			*(out + 1) = 'x';
@@ -2485,7 +2452,7 @@ static int rp_encode_data(const unsigned char *data,
 	}
 
 	for (i = 0;  i < data_len;  i++, data++, out += 2)
-		rp_encode_byte(*data, out);
+		util_encode_byte(*data, out);
 
 	*out = 0;
 
@@ -2508,8 +2475,8 @@ int rp_encode_string(const char *s, char *out, size_t out_size)
 
 	i = 0;
 	while (*s) {
-		*out++ = hex[(*s >> 4) & 0x0f];
-		*out++ = hex[*s & 0x0f];
+		*out++ = util_hex[(*s >> 4) & 0x0f];
+		*out++ = util_hex[*s & 0x0f];
 		s++;
 		i += 2;
 	}
@@ -2582,7 +2549,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 				return 0;
 
 			/* Encode length - it is 16 */
-			rp_encode_byte(16, out);
+			util_encode_byte(16, out);
 			out += 2;
 			out_size -= 2;
 
@@ -2598,7 +2565,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 				return 0;
 
 			/* Encode Length */
-			rp_encode_byte(1, out);
+			util_encode_byte(1, out);
 			out += 2;
 			out_size -= 2;
 
@@ -2615,7 +2582,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 			if (out_size <= (len + 2))
 				return 0;
 
-			rp_encode_byte(len, out);
+			util_encode_byte(len, out);
 			out += 2;
 			out_size -= 2;
 
@@ -2632,7 +2599,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 			if (out_size <= (len + 2))
 				return 0;
 
-			rp_encode_byte(len, out);
+			util_encode_byte(len, out);
 			out += 2;
 			out_size -= 2;
 
@@ -2649,7 +2616,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 			if (out_size <= (len + 2))
 				return 0;
 
-			rp_encode_byte(len, out);
+			util_encode_byte(len, out);
 			out += 2;
 			out_size -= 2;
 
@@ -2696,7 +2663,7 @@ static int rp_encode_list_query_response(size_t count,
 	*out++ = 'M';
 	out_size -= 2;
 
-	rp_encode_byte(count, out);
+	util_encode_byte(count, out);
 	out += 2;
 	out_size -= 2;
 
@@ -2722,23 +2689,6 @@ static int rp_encode_list_query_response(size_t count,
 	return  TRUE;
 }
 
-int rp_hex_nibble(char in)
-{
-	int c;
-
-	c = in & 0xff;
-
-	if (c >= '0'  &&  c <= '9')
-		return  c - '0';
-
-	if (c >= 'A'  &&  c <= 'F')
-		return  c - 'A' + 10;
-
-	if (c >= 'a'  &&  c <= 'f')
-		return  c - 'a' + 10;
-
-	return  -1;
-}
 
 /* Decode exactly 4 bytes of hex from a longer string, and return the result
    as an unsigned 32-bit value */
@@ -2749,7 +2699,7 @@ static int rp_decode_4bytes(const char *in, uint32_t *val)
 	int count;
 
 	for (tmp = 0, count = 0;  count < 8;  count++, in++) {
-		if (!gdb_decode_nibble(in, &nibble))
+		if (!util_decode_nibble(in, &nibble))
 			break;
 		tmp = (tmp << 4) + nibble;
 	}
@@ -2766,7 +2716,7 @@ static int rp_decode_8bytes(const char *in, uint64_t *val)
 	int count;
 
 	for (tmp = 0, count = 0;  count < 16;  count++, in++) {
-		if (!gdb_decode_nibble(in, &nibble))
+		if (!util_decode_nibble(in, &nibble))
 			break;
 		tmp = (tmp << 4) + nibble;
 	}
@@ -2790,7 +2740,7 @@ static int gdb_decode_uint32(char **in, uint32_t *val, char break_char)
 	}
 
 	for (tmp = 0, count = 0;  **in  &&  count < 8;  count++, (*in)++) {
-		if (!gdb_decode_nibble(*in, &nibble))
+		if (!util_decode_nibble(*in, &nibble))
 			break;
 		tmp = (tmp << 4) + nibble;
 	}
@@ -2823,7 +2773,7 @@ static int gdb_decode_uint64(char **in, uint64_t *val, char break_char)
 	}
 
 	for (tmp = 0, count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-		if (!gdb_decode_nibble(*in, &nibble))
+		if (!util_decode_nibble(*in, &nibble))
 			break;
 		tmp = (tmp << 4) + nibble;
 	}
@@ -2860,7 +2810,7 @@ static int gdb_decode_int64(char const **in, int64_t *val, char break_char)
 	}
 
 	for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-		if (!gdb_decode_nibble(*in, &nibble))
+		if (!util_decode_nibble(*in, &nibble))
 			break;
 		/* Overflow */
 		if ((count == 0) && (sign == -1) && (nibble & 0x8))
@@ -2877,17 +2827,6 @@ static int gdb_decode_int64(char const **in, int64_t *val, char break_char)
 	*val = sign * tmp;
 	return  TRUE;
 }
-
-/* Encode byte */
-static void rp_encode_byte(unsigned int val, char *out)
-{
-	ASSERT(val <= 0xff);
-	ASSERT(out != NULL);
-
-	*out = hex[(val >> 4) & 0xf];
-	*(out + 1) = hex[val & 0xf];
-}
-
 
 /* Encode return value */
 static void gdb_interface_write_retval(int ret, char *b)

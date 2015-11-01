@@ -35,8 +35,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "util.h"
+#include "macros.h"
 
-#define PRINTABLE(c) (((c) >= (__typeof__(c))0x20 && (c) < (__typeof__(c))127) ? (c) : '.')
+const char util_hex[] = "0123456789abcdef";
 
 extern FILE *fp_log;
 
@@ -88,4 +89,62 @@ void util_log(const char *fmt, ...)
 		vfprintf(fp_log, fmt, v);
 		va_end(v);
 	}
+}
+
+void util_encode_byte(unsigned int val, char *out)
+{
+	ASSERT(val <= 0xff);
+	ASSERT(out != NULL);
+
+	*out = util_hex[(val >> 4) & 0xf];
+	*(out + 1) = util_hex[val & 0xf];
+}
+
+int util_hex_nibble(char in)
+{
+	int c;
+
+	c = in & 0xff;
+
+	if (c >= '0'  &&  c <= '9')
+		return  c - '0';
+
+	if (c >= 'A'  &&  c <= 'F')
+		return  c - 'A' + 10;
+
+	if (c >= 'a'  &&  c <= 'f')
+		return  c - 'a' + 10;
+
+	return  -1;
+}
+
+/* Decode a single nibble */
+bool util_decode_nibble(const char *in, uint8_t *nibble)
+{
+	bool ret = false;
+	int nib;
+
+	nib = util_hex_nibble(*in);
+	if (nib >= 0) {
+		*nibble = nib;
+		ret = true;
+	}
+
+	return ret;
+}
+
+/* Decode byte */
+bool util_decode_byte(const char *in, uint8_t *byte_ptr)
+{
+	bool ret = false;
+	uint8_t ls_nibble;
+	uint8_t ms_nibble;
+
+	if (util_decode_nibble(in, &ms_nibble)) {
+		if (util_decode_nibble(in + 1, &ls_nibble)) {
+			*byte_ptr = (ms_nibble << 4) + ls_nibble;
+			ret = true;
+		}
+	}
+	return  ret;
 }
