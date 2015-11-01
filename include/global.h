@@ -45,25 +45,9 @@
 #include "gdb_interface.h"
 #include "version.h"
 #include "util.h"
-
-/* FreeBSD's assert throws warnings, rewrite here */
-#define	ASSERT(e)	((e) ? (void)0 : \
-fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
-	__func__, __FILE__, __LINE__, #e))
-
-#define WATCHDOG_ERROR()                                                     \
-	do {                                                                 \
-		fprintf(stderr, "Watchdog time expired, program exiting\n"); \
-		exit(-1);						     \
-	} while (0)
+#include "macros.h"
 
 #define REG_MAX_SIZE 0x1000
-
-#ifdef DEEBE_RELEASE
-#define DBG_PRINT(fmt, args...)
-#else
-#define DBG_PRINT(fmt, args...) util_log(fmt, ##args)
-#endif
 
 #ifndef DECL_GLOBAL
 
