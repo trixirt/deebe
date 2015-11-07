@@ -470,18 +470,29 @@ int _network_read(int sd, int sec, int usec)
 			int c;
 			int index = 0;
 			char three_chars[3] = {0,0,0};
+			bool err = false;
 			while (EOF != (c = fgetc(fp_playback))) {
+				/*
+				 * Keep scanning for new line even if there is an error
+				 * Try to consume the bad line
+				 */
 				if (c == '\n') {
 					break;
-				} else {
-					three_chars[index++] = c & 0xff;
 				}
-				if (index == 2) {
-					uint8_t b;
-					if (util_decode_byte(&three_chars[0], &b)) {
-						network_in_buffer[network_in_buffer_total++] = b;
+				if (err == false) {
+					three_chars[index++] = c & 0xff;
+
+					if (index == 2) {
+						uint8_t b;
+						if (util_decode_byte(&three_chars[0], &b)) {
+							network_in_buffer[network_in_buffer_total++] = b;
+						} else {
+							err = true;
+							/* Reset the buffer total, as if nothing happended */
+							network_in_buffer_total = b;
+						}
+						index = 0;
 					}
-					index = 0;
 				}
 			}
 			if (c == EOF) {
@@ -495,7 +506,7 @@ int _network_read(int sd, int sec, int usec)
 					if (fp_log)
 						fflush(fp_log);
 				}
-				/* success */
+				/* success or dumpped error packet */
 				ret = 0;
 			}
 			
