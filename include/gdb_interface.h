@@ -74,10 +74,6 @@ typedef void (*log_func)(int level, const char *string, ...);
    affects read memory requests */
 #define RP_VAL_DBG_PBUFSIZ  (400)
 
-#if RP_VAL_PBUFSIZ > RP_PARAM_INOUTBUF_SIZE
-#error "Unexpected value of RP_VAL_PBUFSIZ"
-#endif /* RP_VAL_PBUFSIZ > RP_PARAM_INOUTBUF_SIZE */
-
 /* Thread related definitions */
 typedef struct __gdb_thread_ref {
 	int64_t val;
