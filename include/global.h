@@ -34,8 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GLOBAL_H
-#define _GLOBAL_H
+#ifndef DEEBE_GLOBAL_H
+#define DEEBE_GLOBAL_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -139,4 +139,4 @@ bool gDebugeeRunning = true;
 int gPipeStdout[2] = { -1, -1, };
 
 #endif /* DECL_GLOBAL */
-#endif /* _GLOBAL_H */
+#endif /* DEEBE_GLOBAL_H */

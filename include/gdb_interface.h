@@ -37,8 +37,8 @@
   Remote proxy definitions.
 */
 
-#ifndef _PROXY_H_
-#define _PROXY_H_
+#ifndef DEEBE_PROXY_H_
+#define DEEBE_PROXY_H_
 
 #include <sys/types.h>
 
@@ -448,4 +448,4 @@ void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long wa
 void target_init(struct gdb_target_s **target);
 void target_cleanup();
 
-#endif /* _PROXY_H_ */
+#endif /* DEEBE_PROXY_H_ */

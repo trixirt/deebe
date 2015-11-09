@@ -32,8 +32,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _NETWORK_H
-#define _NETWORK_H
+#ifndef DEEBE_NETWORK_H
+#define DEEBE_NETWORK_H
 
 #include <stdbool.h>
 
@@ -50,4 +50,4 @@ int network_write_fwd();
 int network_quick_write();
 void network_clear_write();
 
-#endif /* _NETWORK_H */
+#endif /* DEEBE_NETWORK_H */

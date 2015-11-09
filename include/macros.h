@@ -32,8 +32,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _MACROS_H
-#define _MACROS_H
+#ifndef DEEBE_MACROS_H
+#define DEEBE_MACROS_H
 
 /* FreeBSD's assert throws warnings, rewrite here */
 #define	ASSERT(e)	((e) ? (void)0 : \
