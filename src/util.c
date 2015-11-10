@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -95,9 +95,10 @@ void util_encode_byte(unsigned int val, char *out)
 {
 	ASSERT(val <= 0xff);
 	ASSERT(out != NULL);
-
-	*out = util_hex[(val >> 4) & 0xf];
-	*(out + 1) = util_hex[val & 0xf];
+	if (out != NULL) {
+	  *(out + 0) = util_hex[(val >> 4) & 0xf];
+	  *(out + 1) = util_hex[val & 0xf];
+	}
 }
 
 int util_hex_nibble(char in)
