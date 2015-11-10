@@ -2688,34 +2688,40 @@ static int rp_encode_list_query_response(size_t count,
    as an unsigned 32-bit value */
 static int rp_decode_4bytes(const char *in, uint32_t *val)
 {
-	uint8_t nibble;
-	uint32_t tmp;
-	int count;
-
-	for (tmp = 0, count = 0;  count < 8;  count++, in++) {
-		if (!util_decode_nibble(in, &nibble))
-			break;
-		tmp = (tmp << 4) + nibble;
-	}
-	*val = tmp;
-	return  TRUE;
+  int ret = FALSE;
+  if (in != NULL && val != NULL) {
+    uint8_t nibble;
+    uint32_t tmp;
+    int count;
+    for (tmp = 0, count = 0;  count < 8;  count++, in++) {
+      if (!util_decode_nibble(in, &nibble))
+	break;
+      tmp = (tmp << 4) + nibble;
+    }
+    *val = tmp;
+    ret = TRUE;
+  }
+  return ret;
 }
 
 /* Decode exactly 8 bytes of hex from a longer string, and return the result
    as an unsigned 64-bit value */
 static int rp_decode_8bytes(const char *in, uint64_t *val)
 {
-	uint8_t nibble;
-	uint64_t tmp;
-	int count;
-
-	for (tmp = 0, count = 0;  count < 16;  count++, in++) {
-		if (!util_decode_nibble(in, &nibble))
-			break;
-		tmp = (tmp << 4) + nibble;
-	}
-	*val = tmp;
-	return  TRUE;
+  int ret = FALSE;
+  if (in != NULL && val != NULL) {
+    uint8_t nibble;
+    uint64_t tmp;
+    int count;
+    for (tmp = 0, count = 0;  count < 16;  count++, in++) {
+      if (!util_decode_nibble(in, &nibble))
+	break;
+      tmp = (tmp << 4) + nibble;
+    }
+    *val = tmp;
+    ret = TRUE;
+  }
+  return ret;
 }
 
 /* Decode a hex string to an unsigned 32-bit value */
@@ -2757,72 +2763,72 @@ end:
 /* Decode a hex string to an unsigned 64-bit value */
 static int gdb_decode_uint64(char **in, uint64_t *val, char break_char)
 {
-	uint8_t nibble;
-	uint64_t tmp;
-	int count;
+  int ret = FALSE;
+  if (in != NULL && *in != NULL && val != NULL) {
+    uint8_t nibble;
+    uint64_t tmp;
+    int count;
 
-	ASSERT(in != NULL);
-	ASSERT(val != NULL);
+    if (**in == '\0') {
+      /* We are expecting at least one character */
+      goto end;
+    }
 
-	if (**in == '\0') {
-		/* We are expecting at least one character */
-		return  FALSE;
-	}
+    for (tmp = 0, count = 0;  **in  &&  count < 16;  count++, (*in)++) {
+      if (!util_decode_nibble(*in, &nibble))
+	break;
+      tmp = (tmp << 4) + nibble;
+    }
 
-	for (tmp = 0, count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-		if (!util_decode_nibble(*in, &nibble))
-			break;
-		tmp = (tmp << 4) + nibble;
-	}
-
-	if (**in != break_char)	{
-		/* Wrong terminating character */
-		return  FALSE;
-	}
-	if (**in)
-		(*in)++;
-	*val = tmp;
-	return  TRUE;
+    if (**in != break_char)	{
+      /* Wrong terminating character */
+      goto end;
+    }
+    if (**in)
+      (*in)++;
+    *val = tmp;
+    ret = true;
+  }
+end:
+  return ret;
 }
 
 /* Decode a hex string to an unsigned 64-bit value */
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char)
 {
-	uint8_t nibble;
-	int64_t tmp = 0;
-	int count;
-	int sign = 1;
-
-	ASSERT(in != NULL);
-	ASSERT(val != NULL);
-
-	if (**in == '-') {
-		sign = -1;
-		(*in)++;
-	}
-
-	if (**in == '\0') {
-		/* We are expecting at least one character */
-		return  FALSE;
-	}
-
-	for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-		if (!util_decode_nibble(*in, &nibble))
-			break;
-		/* Overflow */
-		if ((count == 0) && (sign == -1) && (nibble & 0x8))
-			return FALSE;
-		tmp = (tmp << 4) + nibble;
-	}
-
-	if (**in != break_char)	{
-		/* Wrong terminating character */
-		return  FALSE;
-	}
-	if (**in)
-		(*in)++;
-	*val = sign * tmp;
-	return  TRUE;
+  int ret = FALSE;
+  if (in != NULL && *in != NULL && val != NULL) {
+    uint8_t nibble;
+    int64_t tmp = 0;
+    int count;
+    int sign = 1;
+    if (**in == '-') {
+      sign = -1;
+      (*in)++;
+    }
+    if (**in == '\0') {
+      /* We are expecting at least one character */
+      goto end;
+    }
+    for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
+      if (!util_decode_nibble(*in, &nibble))
+	break;
+      /* Overflow */
+      if ((count == 0) && (sign == -1) && (nibble & 0x8))
+	goto end;
+      tmp = (tmp << 4) + nibble;
+    }
+    if (**in != break_char)	{
+      /* Wrong terminating character */
+      goto end;
+    }
+    if (**in)
+      (*in)++;
+    *val = sign * tmp;
+    ret = TRUE;
+  }
+end:
+  return ret;
 }
 
 /* Encode return value */
