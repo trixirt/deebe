@@ -623,7 +623,6 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 					gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
 							  ": bad checksum character %c",
 							  c);
-					state = STATE_INIT;
 					break;
 				}
 				calc_csum = (calc_csum << 4) | nib;
@@ -636,7 +635,6 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 					gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
 							  ": bad checksum character %c",
 							  c);
-					state = STATE_INIT;
 					break;
 				}
 				calc_csum = (calc_csum << 4) | nib;
@@ -660,7 +658,6 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 						  ": bad checksum calculated=0x%x received=0x%x",
 						  rx_csum,
 						  calc_csum);
-				state = STATE_INIT;
 				break;
 			} else {
 				/* Unreachable */
