@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Juniper Networks, Inc.
+ * Copyright (c) 2013-2015 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -68,7 +68,7 @@ target_state _target = {
 bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting)
 {
     bool ret = false;
-    int index = _target.number_processes;
+    int index = 0;
 
     /*
      * Try to reused an exited process's space
