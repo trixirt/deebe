@@ -516,7 +516,6 @@ static int _yamma_check()
 		if (0 != close(fd)) {
 			DBG_PRINT("Error closing file descriptor for yamma check\n");
 		}
-		fd = -1;
 	}
 	return ret;
 }
@@ -1980,7 +1979,6 @@ int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 
 	p = PROCESS_PID(0);
 	if (n == -1) {
-		t = PROCESS_PID(0);
 		sprintf(out_buf, "mp%x.-1", p);
 	} else if (n < _target.number_processes) {
 		t = PROCESS_TID(n);
