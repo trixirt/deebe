@@ -1,7 +1,7 @@
 /*
    This file is derrived from the gdbproxy project's gdbproxy.c
    The changes to this file are
-   Copyright (C) 2012-2014 Juniper Networks, Inc
+   Copyright (C) 2012-2015 Juniper Networks, Inc
 
    The original copyright is
 
@@ -127,7 +127,8 @@ static size_t dbg_sock_write(unsigned char *b, size_t l)
 #define RP_VAL_MISCREADCHARRET_ERR   (-1)
 
 static char status_string[RP_PARAM_INOUTBUF_SIZE];
-#define status_string_len sizeof(status_string)
+/* -1 so strncpy will null terminate */
+#define status_string_len ((size_t)(sizeof(status_string) -1))
 
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
@@ -1141,7 +1142,7 @@ void handle_running_commands(char * const in_buf,
 			/* Cast to size_t to make compiler happy */
 			ASSERT(strlen(status_string) <
 			       (size_t)status_string_len);
-			strcpy(out_buf, status_string);
+			strncpy(out_buf, status_string, status_string_len);
 		} else {
 			gdb_interface_write_retval(ret, out_buf);
 		}
@@ -1151,7 +1152,7 @@ void handle_running_commands(char * const in_buf,
 		/* We are done. The program has already stopped */
 		/* Cast to size_t to make compiler happy */
 		ASSERT(strlen(status_string) < (size_t) status_string_len);
-		strcpy(out_buf, status_string);
+		strncpy(out_buf, status_string, status_string_len);
 	}
 }
 
