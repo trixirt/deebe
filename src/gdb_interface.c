@@ -2460,31 +2460,27 @@ static int rp_encode_data(const unsigned char *data,
 	return  TRUE;
 }
 
-/* Encode string into an array of characters */
+/* Encode string into an array of characters, s must be null terminated */
 int rp_encode_string(const char *s, char *out, size_t out_size)
 {
-	int i;
-
-	ASSERT(s != NULL);
-	ASSERT(out != NULL);
-	ASSERT(out_size > 0);
-
-	if (strlen(s) * 2 >= out_size) {
-		/* We do not have enough space to encode the data */
-		return  FALSE;
-	}
-
-	i = 0;
-	while (*s) {
-		*out++ = util_hex[(*s >> 4) & 0x0f];
-		*out++ = util_hex[*s & 0x0f];
-		s++;
-		i += 2;
-	}
-	*out = '\0';
-	i++;
-
-	return i;
+  int i = 0;
+  if (s != NULL && out != NULL && out_size > 0) {
+    /* +1 for the null, x2 for the byte to 2 chars */
+    if ((strlen(s) * 2) + 1 >= out_size) {
+      /* We do not have enough space to encode the data */
+      goto end;
+    }
+    while (*s) {
+      *out++ = util_hex[(*s >> 4) & 0x0f];
+      *out++ = util_hex[*s & 0x0f];
+      s++;
+      i += 2;
+    }
+    *out = '\0';
+    i++;
+  }
+end:
+  return i;
 }
 
 /* Encode result of process query:
