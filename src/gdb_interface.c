@@ -61,30 +61,24 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
-
-#if defined(WIN32)
-#include <windows.h>
-#endif
-
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <unistd.h>
-#include <stdarg.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <signal.h>
-
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-
+#include <signal.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "gdb_interface.h"
-#include "network.h"
 #include "global.h"
-#include "util.h"
+#include "macros.h"
+#include "network.h"
 #include "target.h"
+#include "util.h"
 
 static void dbg_sock_putchar(int c)
 {

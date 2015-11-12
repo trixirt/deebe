@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -34,10 +34,12 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "breakpoint.h"
-#include "util.h"
 #include "global.h"
+#include "macros.h"
+#include "util.h"
 
 /* For debugging */
 void _breakpoint_print(struct breakpoint *bpl)
