@@ -2169,3 +2169,13 @@ int ptrace_set_gen_thread(int64_t pid, int64_t tid)
 	}
 	return ret;
 }
+
+const char *ptrace_get_xml_register_string()
+{
+  return ptrace_arch_get_xml_register_string();
+}
+
+void ptrace_set_xml_register_reporting()
+{
+  _target.xml_register_reporting = true;
+}

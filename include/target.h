@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, Juniper Networks, Inc.
+ * Copyright (c) 2013-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -76,6 +76,7 @@ typedef struct target_state_rec {
 	int no_ack;
 	enum nonstop_state nonstop;
 	int multiprocess;
+  bool xml_register_reporting;
 	bool syscall_enter;
 	int step;
 	int flag_attached_existing_process;

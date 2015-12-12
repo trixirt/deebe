@@ -470,4 +470,7 @@ bool ptrace_arch_support_hardware_breakpoints(pid_t tid) {
   return true;
 }
 
-
+const char *ptrace_arch_get_xml_register_string() {
+  static char *str = "i386";
+  return str;
+}

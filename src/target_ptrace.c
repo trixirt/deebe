@@ -179,6 +179,8 @@ gdb_target ptrace_target = {
 	.general_set              = ptrace_general_set,
 	.no_ack                   = ptrace_no_ack,
 	.support_multiprocess     = ptrace_support_multiprocess,
+	.get_xml_register_string  = ptrace_get_xml_register_string,
+	.set_xml_register_reporting = ptrace_set_xml_register_reporting,
 };
 
 void target_init(struct gdb_target_s **target)

@@ -72,6 +72,7 @@ int ptrace_arch_gdb_greg_max();
 int ptrace_arch_swbreak_insn(void *bdata);
 size_t ptrace_arch_swbreak_size();
 void ptrace_arch_get_pc(pid_t tid, unsigned long *pc);
+const char *ptrace_arch_get_xml_register_string();
 void ptrace_arch_set_pc(pid_t tid, unsigned long pc);
 void ptrace_arch_set_singlestep(pid_t tid, long *request);
 bool ptrace_arch_check_syscall(pid_t tid, int *in_out_sig);
@@ -160,6 +161,8 @@ extern int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *da
 extern void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void *arg3,
 			       void *arg4, void *ret);
 
+extern const char *ptrace_get_xml_register_string();
+extern void ptrace_set_xml_register_reporting();
 
 
 #endif

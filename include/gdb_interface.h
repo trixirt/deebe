@@ -1,7 +1,7 @@
 /*
   This file is derrived from the gdbproxy project's gdbproxy.h
   The changes to this file are
-  Copyright (C) 2012-2014 Juniper Networks, Inc
+  Copyright (C) 2012-2015 Juniper Networks, Inc
 
   The original copyright is
 
@@ -383,6 +383,11 @@ struct gdb_target_s {
 
 	/* If the multiprocess extensions are supported 0 = no, 1 = yes */
 	int (*support_multiprocess)();
+  
+  /* The string to look for when Supported:xmlResisters=<string1>,<string2> is seen */
+  const char *(*get_xml_register_string)();
+  /* Tell target to report registers as xml */
+  void (*set_xml_register_reporting)();
 };
 
 

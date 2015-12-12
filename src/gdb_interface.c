@@ -1472,6 +1472,50 @@ void handle_query_command(char * const in_buf,
 	}
 	sprintf(str, "Supported");
 	if (strncmp(n, str, strlen(str)) == 0) {
+	  /*
+	   * Check if we were passed an xmlRegisters token as in
+	   * qSupported:xmlRegisters=i386,arm,mips
+	   * This mean we need to write registers back in xml
+	   */
+	  n += strlen(str);
+	  sprintf(str, ":xmlRegisters=");
+	  if (strncmp(n, str, strlen(str)) == 0) {
+	    n += strlen(str);
+	    if (t->get_xml_register_string != NULL) {
+	      const char *xml_register_string = t->get_xml_register_string();
+	      if (xml_register_string != NULL) {
+		size_t xml_register_string_length = strlen(xml_register_string);
+		size_t n_length = strlen(n);
+		if (xml_register_string_length) {
+		  while (n_length >= xml_register_string_length) {
+		    if (strncmp(n, xml_register_string, xml_register_string_length) == 0) {
+		      if (t->set_xml_register_reporting != NULL)
+			t->set_xml_register_reporting();
+		      break;
+		    } else {
+		      /* Look for ',' and advance past */
+		      char *comma_location = strchr(n, ',');
+		      if (comma_location == NULL) {
+			/* last register string to compare, give up */
+			break;
+		      } else if (comma_location <= n) {
+			/* unexpected pointer at/before start */
+			break;
+		      } else if ((comma_location - n) >= n_length) {
+			/* unexpected pointer past end */
+			break;
+		      } else {
+			/* Looks ok, advance past */
+			n = comma_location + 1;
+			n_length = strlen(n);
+		      }
+		    }
+		  } 
+		}
+	      }
+	    }
+	  }
+	  
 		/* Features supported */
 		if (t->supported_features_query == NULL) {
 			gdb_interface_write_retval(RET_NOSUPP, out_buf);
