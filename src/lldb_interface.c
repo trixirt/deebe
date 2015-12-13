@@ -42,47 +42,66 @@
 #include <string.h>
 #include "gdb_interface.h"
 #include "lldb_interface.h"
+#include "target.h"
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+static char *endian_str = "little";
+#else
+static char *endian_str = "big";
+#endif
+
+static bool get_triple(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+
+    /* 
+     * How big will the triple string be..
+     * element are null terminated, 3 strlens
+     * need a null, and 2 '-' .. + 3
+     * need an 'unknown' vendor + 7
+     * maybe need a prefix '-gnu' or '-gnueabi' + 7
+     * so 17 known/maybe + 2 strlens.. , round 17 up to 32
+     */
+    *ptr = (char *) malloc (32 + strlen(&name.sysname[0]) + strlen(&name.machine[0]));
+    if (*ptr != NULL) {
+      if (strncmp(&name.sysname[0], "Linux", 5) == 0)
+	sprintf(*ptr, "%s-unknown-linux-gnu", &name.machine[0]);
+      else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
+	sprintf(*ptr, "%s-unknown-freebsd", &name.machine[0]);
+      else
+	sprintf(*ptr, "%s-unknown-%s", &name.machine[0], &name.sysname[0]);
+      ret = true;
+    }
+  }
+  return ret;
+}
 bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
+  char *triple_str = NULL;
 
   switch (*n) {
   case 'H':
     if (strncmp(n, "HostInfo", 8) == 0) {
-      struct utsname name;
-      if (uname(&name)) {
-	gdb_interface_write_retval(RET_ERR, out_buf);
+      if (get_triple(&triple_str)) {
+	snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s", triple_str, (unsigned) sizeof(void *), endian_str);
+	free(triple_str);
       } else {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	char *endian_str = "little";
-#else
-	char *endian_str = "big";
-#endif
-
-	/* 
-	 * How big will the triple string be..
-	 * element are null terminated, 3 strlens
-	 * need a null, and 2 '-' .. + 3
-	 * need an 'unknown' vendor + 7
-	 * maybe need a prefix '-gnu' or '-gnueabi' + 7
-	 * so 17 known/maybe + 2 strlens.. , round 17 up to 32
-	 */
-	char *triple_str = (char *) malloc (32 + strlen(&name.sysname[0]) + strlen(&name.machine[0]));
-	if (triple_str) {
-	  if (strncmp(&name.sysname[0], "Linux", 5) == 0)
-	    sprintf(triple_str, "%s-unknown-linux-gnu", &name.machine[0]);
-	  else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
-	    sprintf(triple_str, "%s-unknown-freebsd", &name.machine[0]);
-	  else
-	    sprintf(triple_str, "%s-unknown-%s", &name.machine[0], &name.sysname[0]);
-//	  snprintf(out_buf, out_buf_len, "triple:%s ptrsize:%z endian:%s", triple_str, sizeof(void *), endian_str);
-	  snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s", triple_str, (unsigned) sizeof(void *), endian_str);
-	  free(triple_str);
-	} else {
-	  gdb_interface_write_retval(RET_ERR, out_buf);
-	}
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      }
+      req_handled = true;
+      goto end;
+    }
+    break;
+  case 'P':
+    if (strncmp(n, "ProcessInfo", 11) == 0) {
+      if (get_triple(&triple_str)) {
+	snprintf(out_buf, out_buf_len, "pid:%x;triple:%s;ptrsize:%u;endian:%s", CURRENT_PROCESS_PID, triple_str, (unsigned) sizeof(void *), endian_str);
+	free(triple_str);
+      } else {
+	gdb_interface_write_retval(RET_ERR, out_buf);
       }
       req_handled = true;
       goto end;

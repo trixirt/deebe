@@ -3108,8 +3108,8 @@ int gdb_interface_packet()
 				ret = 0;
 				break;
 			case 'q':
-			  if (! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
-			      ! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			  if (! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
+			      ! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
 			    /* Not supported */
 			  } else {
 			    /* Supported */
