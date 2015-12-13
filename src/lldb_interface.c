@@ -76,11 +76,31 @@ static bool get_triple(char **ptr) {
   }
   return ret;
 }
+
+static bool get_ostype(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+    *ptr = (char *) malloc (1 + strlen(&name.sysname[0]));
+    if (*ptr != NULL) {
+      if (strncmp(&name.sysname[0], "Linux", 5) == 0)
+	sprintf(*ptr, "linux");
+      else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
+	sprintf(*ptr, "freebsd");
+      else
+	sprintf(*ptr, "%s", &name.machine[0]);
+      ret = true;
+    }
+  }
+  return ret;
+}
+
 bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
   char *triple_str = NULL;
+  char *ostype_str = NULL;
 
   switch (*n) {
   case 'H':
@@ -116,7 +136,20 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       goto end;
     } else if (strncmp(n, "ProcessInfo", 11) == 0) {
       if (get_triple(&triple_str)) {
-	snprintf(out_buf, out_buf_len, "pid:%x;triple:%s;ptrsize:%u;endian:%s", CURRENT_PROCESS_PID, triple_str, (unsigned) sizeof(void *), endian_str);
+	if (get_ostype(&ostype_str)) {
+	  /* Not supporting multi process so ever process is created by deebe */
+	  pid_t my_pid = getpid();
+	  /* Keep it simple and use deebe's uid/euid till it breaks */
+	  uid_t my_uid = getuid();
+	  uid_t my_euid = geteuid();
+	  gid_t my_gid = getgid();
+	  gid_t my_egid = getgid();
+	  snprintf(out_buf, out_buf_len, "pid:%x;parent-pid:%x;real-uid:%x;real-guid:%x;effective-uid:%x;effective-gid:%x;triple:%s;ostype:%s;endian:%s;ptrsize:%u", CURRENT_PROCESS_PID, my_pid, my_uid, my_gid, my_euid, my_egid, triple_str, ostype_str, endian_str, (unsigned) sizeof(void *));
+	  free(ostype_str);
+	  ostype_str = NULL;
+	} else {
+	  gdb_interface_write_retval(RET_ERR, out_buf);
+	}
 	free(triple_str);
 	triple_str = NULL;
       } else {
