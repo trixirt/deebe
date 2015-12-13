@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "macros.h"
 
 const char util_hex[] = "0123456789abcdef";
@@ -149,4 +150,51 @@ bool util_decode_byte(const char *in, uint8_t *byte_ptr)
 		}
 	}
 	return  ret;
+}
+
+/* Convert an array of bytes into an array of characters */
+int util_encode_data(const unsigned char *data, size_t data_len, char *out, size_t out_size)
+{
+  size_t i;
+  int ret = 1;
+
+  if (((data_len*2) >= out_size) ||
+      (data == NULL) ||
+      (out == NULL) ||
+      (data_len == 0)) {
+    /* Error conditions, bail */
+    goto end;
+  }
+
+  for (i = 0;  i < data_len;  i++, data++, out += 2)
+    util_encode_byte(*data, out);
+
+  *out = 0;
+
+  ret = 0;
+end:
+  return ret;
+}
+
+/* Encode string into an array of characters, s must be null terminated */
+int util_encode_string(const char *s, char *out, size_t out_size)
+{
+  int i = 0;
+  if (s != NULL && out != NULL && out_size > 0) {
+    /* +1 for the null, x2 for the byte to 2 chars */
+    if ((strlen(s) * 2) + 1 >= out_size) {
+      /* We do not have enough space to encode the data */
+      goto end;
+    }
+    while (*s) {
+      *out++ = util_hex[(*s >> 4) & 0x0f];
+      *out++ = util_hex[*s & 0x0f];
+      s++;
+      i += 2;
+    }
+    *out = '\0';
+    i++;
+  }
+end:
+  return i;
 }

@@ -211,10 +211,6 @@ static int gdb_encode_regs(const unsigned char *data,
 			   size_t data_len,
 			   char *out,
 			   size_t out_size);
-static int rp_encode_data(const unsigned char *data,
-			  size_t data_len,
-			  char *out,
-			  size_t out_size);
 static int rp_encode_process_query_response(unsigned int mask,
 					    const gdb_thread_ref *ref,
 					    const rp_thread_info *info,
@@ -978,14 +974,14 @@ void handle_read_memory_command(char * const in_buf,
 	switch (ret) {
 	case RET_OK:
 		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
-		rp_encode_data(data_buf, len, out_buf, out_buf_len);
+		util_encode_data(data_buf, len, out_buf, out_buf_len);
 		break;
 	case RET_ERR:
 		if (cmdline_silence_memory_read_errors) {
 			gdb_interface_log(GDB_INTERFACE_LOGLEVEL_WARNING,
 					  " : silencing memory read error\n");
 			memset(data_buf, 0, len);
-			rp_encode_data(data_buf, len, out_buf, out_buf_len);
+			util_encode_data(data_buf, len, out_buf, out_buf_len);
 		} else {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 		}
@@ -1660,7 +1656,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	status = t->threadextrainfo_query(thread_id, data_buf, GDB_INTERFACE_PARAM_DATABYTES_MAX);
 	switch (status) {
 	case RET_OK:
-	  rp_encode_data(
+	  util_encode_data(
 	    (unsigned char *)data_buf, strlen(data_buf),
 	    out_buf, out_buf_len);
 	  break;
@@ -2440,54 +2436,7 @@ static int gdb_encode_regs(const unsigned char *data,
 	return  TRUE;
 }
 
-/* Convert an array of bytes into an array of characters */
-static int rp_encode_data(const unsigned char *data,
-			  size_t data_len,
-			  char *out,
-			  size_t out_size)
-{
-	size_t i;
 
-	ASSERT(data != NULL);
-	ASSERT(data_len > 0);
-	ASSERT(out != NULL);
-	ASSERT(out_size > 0);
-
-	if ((data_len*2) >= out_size) {
-		/* We do not have enough space to encode the data */
-		return  FALSE;
-	}
-
-	for (i = 0;  i < data_len;  i++, data++, out += 2)
-		util_encode_byte(*data, out);
-
-	*out = 0;
-
-	return  TRUE;
-}
-
-/* Encode string into an array of characters, s must be null terminated */
-int rp_encode_string(const char *s, char *out, size_t out_size)
-{
-  int i = 0;
-  if (s != NULL && out != NULL && out_size > 0) {
-    /* +1 for the null, x2 for the byte to 2 chars */
-    if ((strlen(s) * 2) + 1 >= out_size) {
-      /* We do not have enough space to encode the data */
-      goto end;
-    }
-    while (*s) {
-      *out++ = util_hex[(*s >> 4) & 0x0f];
-      *out++ = util_hex[*s & 0x0f];
-      s++;
-      i += 2;
-    }
-    *out = '\0';
-    i++;
-  }
-end:
-  return i;
-}
 
 /* Encode result of process query:
    qQMMMMMMMMRRRRRRRRRRRRRRRR(TTTTTTTTLLVV..V)*,
@@ -3201,7 +3150,7 @@ void gdb_interface_put_console(char *b)
 	int esize;
 	char ebuf[2049]; /* 1 for 'O', 2 * buf */
 	ebuf[0] = 'O';
-	esize = rp_encode_string(b, &ebuf[1], 2048);
+	esize = util_encode_string(b, &ebuf[1], 2048);
 	if (esize > 0)
 		gdb_interface_put_packet(&ebuf[0], esize+1);
 }

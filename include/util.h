@@ -47,5 +47,6 @@ void util_encode_byte(unsigned int val, char *out);
 bool util_decode_byte(const char *in, uint8_t *byte_ptr);
 bool util_decode_nibble(const char *in, uint8_t *nibble);
 int util_hex_nibble(char in);
-
+int util_encode_data(const unsigned char *data, size_t data_len, char *out, size_t out_size);
+int util_encode_string(const char *s, char *out, size_t out_size);
 #endif
