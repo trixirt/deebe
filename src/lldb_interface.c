@@ -88,6 +88,7 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       if (get_triple(&triple_str)) {
 	snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s", triple_str, (unsigned) sizeof(void *), endian_str);
 	free(triple_str);
+	triple_str = NULL;
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
@@ -96,10 +97,28 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
     }
     break;
   case 'P':
-    if (strncmp(n, "ProcessInfo", 11) == 0) {
+    /* Because of the gdb 'P' packet, all lldb 'P*' packets must be handled */
+    if (strncmp(n, "Platform_shell:", 15) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Platform_mkdir:", 15) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Platform_chmod:", 15) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "ProcessInfoPID", 14) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "ProcessInfo", 11) == 0) {
       if (get_triple(&triple_str)) {
 	snprintf(out_buf, out_buf_len, "pid:%x;triple:%s;ptrsize:%u;endian:%s", CURRENT_PROCESS_PID, triple_str, (unsigned) sizeof(void *), endian_str);
 	free(triple_str);
+	triple_str = NULL;
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
