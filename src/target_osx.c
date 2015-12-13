@@ -138,7 +138,6 @@ gdb_target osx_target = {
 	.current_thread_query     = osx_current_thread_query,
 	.offsets_query            = ptrace_offsets_query,
 	.crc_query                = ptrace_crc_query,
-	.raw_query                = ptrace_raw_query,
 	.add_break                = ptrace_add_break,
 	.remove_break             = ptrace_remove_break,
 	.threadinfo_query         = ptrace_threadinfo_query,

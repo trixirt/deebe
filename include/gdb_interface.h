@@ -350,27 +350,19 @@ struct gdb_target_s {
 	/* Query crc32 of memory area */
 	int (*crc_query)(uint64_t addr, size_t len, uint32_t *val);
 
-	/* Raw query, see gdb-XXXX/gdb/remote.c. we got buffer
-	   call this function. It is a responsibility of the target
-	   to fill out out_buf correctly in case of success.
-
-	   It is planned to have more more specific queries in
-	   the nearest future.  */
-	int (*raw_query)(char *in_buf, char *out_buf, size_t out_buf_size);
-
 	/*============ Breakpoints ===========================*/
 
 	int (*add_break)(pid_t tid, int type, uint64_t addr, size_t length);
 	int (*remove_break)(pid_t tid, int type, uint64_t addr, size_t length);
 
 	/* Query thread info */
-	int (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
+  void (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
 
 	/* Query thread extra info */
   int (*threadextrainfo_query)(int64_t thread, char *out_buf, size_t out_buf_size);
 
 	/* Query Supported features */
-	int (*supported_features_query)(char *out_buf, size_t out_buf_size);
+  void (*supported_features_query)(char *out_buf, size_t out_buf_size);
 
 	/* Query current signal */
 	int (*query_current_signal)(int *sig);
@@ -444,6 +436,7 @@ int gdb_interface_packet();
 int gdb_interface_quick_packet();
 void gdb_interface_put_console(char *b);
 void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long watch_addr);
+void gdb_interface_write_retval(int ret, char *buf);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);

@@ -146,8 +146,8 @@ extern int ptrace_resume_from_current(pid_t pid, pid_t tid, int step, int gdb_si
 extern int ptrace_resume_with_syscall(pid_t tid);
 extern int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len);
 extern void ptrace_stop(pid_t pid, pid_t tid);
-extern int ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
-extern int ptrace_threadinfo_query(int first, char *out_buf,
+extern void ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
+extern void ptrace_threadinfo_query(int first, char *out_buf,
 				   size_t out_buf_size);
 extern int ptrace_wait(char *status_string, size_t status_string_len, int step, bool skip_continue_others);
 extern void ptrace_quick_signal(pid_t pid, pid_t tid, int sig);

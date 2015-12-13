@@ -1391,11 +1391,6 @@ int ptrace_crc_query(uint64_t addr, size_t len, uint32_t *val)
 	return RET_ERR;
 }
 
-int ptrace_raw_query(char *in_buf, char *out_buf, size_t out_buf_size)
-{
-	return RET_ERR;
-}
-
 int ptrace_add_break(pid_t tid, int type, uint64_t addr, size_t len)
 {
 	int ret = RET_ERR;
@@ -1974,9 +1969,8 @@ int ptrace_wait(char *str, size_t len, int step, bool skip_continue_others)
 	}
 }
 
-int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
+void ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 {
-	int ret = RET_OK;
 	static int n;
 	pid_t p, t;
 	if (first)
@@ -1993,12 +1987,10 @@ int ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 	} else {
 	        sprintf(out_buf, "l");
 	}
-	return ret;
 }
 
-int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
+void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 {
-	int ret = RET_ERR;
 	char str[128];
 	size_t c = 1;
 	sprintf(str, "PacketSize=%x;", GDB_INTERFACE_PARAM_DATABYTES_MAX);
@@ -2047,10 +2039,6 @@ int ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 #endif
-	if (c > 1)
-		ret = RET_OK;
-
-	return ret;
 }
 
 int ptrace_get_signal(void)

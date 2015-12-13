@@ -75,6 +75,7 @@
 #include <unistd.h>
 #include "gdb_interface.h"
 #include "global.h"
+#include "lldb_interface.h"
 #include "macros.h"
 #include "network.h"
 #include "target.h"
@@ -230,9 +231,6 @@ static int rp_decode_8bytes(const char *in, uint64_t *val);
 static int gdb_decode_uint32(char **in, uint32_t *val, char break_char);
 static int gdb_decode_uint64(char **in, uint64_t *val, char break_char);
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char);
-
-/* Funcions to stuff output value */
-static void gdb_interface_write_retval(int ret, char *buf);
 
 static int extended_protocol;
 
@@ -1301,417 +1299,390 @@ static size_t _escape_binary(uint8_t *dst, uint8_t *src, size_t size)
 	return j;
 }
 
-void handle_query_command(char * const in_buf,
-			  int in_len,
-			  char *out_buf,
-			  int out_buf_len,
-			  gdb_target *t)
+static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
 {
-	int  ret;
-	int64_t process, thread;
-	gdb_thread_ref ref;
-	rp_thread_info info;
-	unsigned int mask;
-	gdb_thread_ref arg;
-	gdb_thread_ref *found;
-	size_t max_found;
-	size_t count;
-	int done;
-	int first;
-	unsigned int len;
-	uint32_t val;
-	uint64_t addr;
-	char *cp;
-	char str[128];
-	char *n = in_buf + 1;
-	if (in_len == 1) {
-		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
-				  ": bad 'q' command received");
-		return;
-	}
-	if (strncmp(n, "Offsets", 7) == 0) {
-		uint64_t text;
-		uint64_t data;
-		uint64_t bss;
-		/* Get the program segment offsets */
-		ret = t->offsets_query(&text, &data, &bss);
-		if (ret == RET_OK) {
-			sprintf(out_buf,
-				"Text=%016"PRIu64";Data=%016"PRIu64";Bss=%016"PRIu64"",
-				text,
-				data,
-				bss);
+  int status;
+  uint32_t val;
+  uint64_t addr;
+  char str[128];
+  char *n = in_buf + 1;
+
+  bool req_handled = false;
+  if (in_len == 1) {
+    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
+		      ": bad 'q' command received");
+    req_handled = true;
+    goto end;
+  }
+
+  switch (*n) {
+  case 'f':
+    if (strncmp(n, "fThreadInfo", 11) == 0) {
+      if (t->threadinfo_query == NULL)
+	gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      else
+	t->threadinfo_query(1, out_buf, out_buf_len);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "fProcessInfo", 12) == 0) {
+      /* Get first string of process info */
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
+  case 's':
+    if (strncmp(n, "sThreadInfo", 11) == 0) {
+      if (t->threadinfo_query == NULL)
+	gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      else 
+	t->threadinfo_query(0, out_buf, out_buf_len);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "sProcessInfo", 12) == 0) {
+      /* Get subsequent string of process info */
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
+  case 'A':
+    if (strncmp(n, "Attached:", 9) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Attached", 8) == 0) {
+      bool is_attached = target_is_attached();
+      if (is_attached)
+	sprintf(out_buf, "1");
+      else
+	sprintf(out_buf, "0");
+      req_handled = true;
+      goto end;
+    }
+  break;
+  case 'C':
+    if (strncmp(n, "CRC:", 4) == 0) {
+      char *cp = &in_buf[5];
+      unsigned int len;
+      /* Find the CRC32 value of the specified memory area */
+      if (!gdb_decode_uint64(&cp, &addr, ',')) {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+	req_handled = true;
+	goto end;
+      }
+      if (!gdb_decode_uint32(&cp, &len, '\0')) {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+	req_handled = true;
+	goto end;
+      }
+      status = t->crc_query(addr, len, &val);
+      if (status == RET_OK)
+	sprintf(out_buf, "C%x", val);
+      else
+	gdb_interface_write_retval(status, out_buf);
+      req_handled = true;
+      goto end;
+    } else {
+      int64_t process, thread;
+      /* Current thread query */
+      status = t->current_thread_query(&process, &thread);
+      if (status == RET_OK) {
+	/*
+	 * On FreeBSD the thread id is not known until later
+	 * Until that happens the thread id is process id.
+	 * Do not report this back to gdb because then it will
+	 * be confused when the thread is is set later.
+	 */
+	if (process != thread)
+	  sprintf(out_buf, "QCp%"PRIx64".%"PRIx64, process, thread);
+	else
+	  sprintf(out_buf, "QCp%"PRIx64".-1", process);
+      } else {
+	gdb_interface_write_retval(status, out_buf);
+	req_handled = true;
+	goto end;
+      }
+    }
+    break;
+  case 'L':
+  {
+    int done, first;
+    size_t count, max_found;
+    gdb_thread_ref arg, *found;
+ 
+    /* Thread list query */
+    status = rp_decode_list_query(&in_buf[2], &first, &max_found, &arg);
+    if (!status  ||  max_found > 255) {
+      gdb_interface_write_retval(RET_ERR, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    found = malloc(max_found * sizeof(gdb_thread_ref));
+    if (found == NULL) {
+      gdb_interface_write_retval(RET_ERR, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    status = t->list_query(first, &arg, found, max_found, &count, &done);
+    if (status != RET_OK  ||  count > max_found) {
+      free(found);
+      gdb_interface_write_retval(status, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    status = rp_encode_list_query_response(count, done, &arg, found, out_buf, out_buf_len);
+    free(found);
+    if (!status)
+      gdb_interface_write_retval(RET_ERR, out_buf);
+
+    req_handled = true;
+    goto end;
+  }
+  break;
+
+  case 'O':
+    if (strncmp(n, "Offsets", 7) == 0) {
+      uint64_t text, data, bss;
+      /* Get the program segment offsets */
+      status = t->offsets_query(&text, &data, &bss);
+      if (status == RET_OK)
+	sprintf(out_buf,"Text=%016"PRIu64";Data=%016"PRIu64";Bss=%016"PRIu64"", text, data, bss);
+      else
+	gdb_interface_write_retval(status, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
+  case 'P':
+  {
+    rp_thread_info info;
+    gdb_thread_ref ref;
+    unsigned int mask;
+
+    /* Thread info query */
+    status = rp_decode_process_query(&in_buf[2], &mask, &ref);
+    if (!status) {
+      gdb_interface_write_retval(RET_ERR, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    info.thread_id.val = 0;
+    info.display[0] = 0;
+    info.thread_name[0] = 0;
+    info.more_display[0] = 0;
+    status = t->process_query(&mask, &ref, &info);
+    if (status != RET_OK) {
+      gdb_interface_write_retval(status, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    status = rp_encode_process_query_response(mask, &ref, &info, out_buf, out_buf_len);
+    if (!status)
+      gdb_interface_write_retval(RET_ERR, out_buf);
+
+    req_handled = true;
+    goto end;
+  }
+  break;
+  case 'R':
+    if (strncmp(n, "Rcmd,", 5) == 0) {
+      /* Remote command */
+      rp_target_out_valid = TRUE;
+      status = handle_rcmd_command(&in_buf[6], rp_console_output, rp_data_output, t);
+      rp_target_out_valid = FALSE;
+      gdb_interface_write_retval(status, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
+  case 'S':
+    if (strncmp(n, "Supported", 9) == 0) {
+      /*
+       * Check if we were passed an xmlRegisters token as in
+       * qSupported:xmlRegisters=i386,arm,mips
+       * This mean we need to write registers back in xml
+       */
+      sprintf(str, "Supported");
+      n += strlen(str);
+      sprintf(str, ":xmlRegisters=");
+      if (strncmp(n, str, strlen(str)) == 0) {
+	n += strlen(str);
+	if (t->get_xml_register_string != NULL) {
+	  const char *xml_register_string = t->get_xml_register_string();
+	  if (xml_register_string != NULL) {
+	    size_t xml_register_string_length = strlen(xml_register_string);
+	    size_t n_length = strlen(n);
+	    if (xml_register_string_length) {
+	      while (n_length >= xml_register_string_length) {
+		if (strncmp(n, xml_register_string, xml_register_string_length) == 0) {
+		  if (t->set_xml_register_reporting != NULL)
+		    t->set_xml_register_reporting();
+		  break;
 		} else {
-			gdb_interface_write_retval(ret, out_buf);
+		  /* Look for ',' and advance past */
+		  char *comma_location = strchr(n, ',');
+		  if (comma_location == NULL) {
+		    /* last register string to compare, give up */
+		    break;
+		  } else if (comma_location <= n) {
+		    /* unexpected pointer at/before start */
+		    break;
+		  } else if ((comma_location - n) >= n_length) {
+		    /* unexpected pointer past end */
+		    break;
+		  } else {
+		    /* Looks ok, advance past */
+		    n = comma_location + 1;
+		    n_length = strlen(n);
+		  }
 		}
-		return;
-	}
-	if (strncmp(in_buf + 1, "CRC:", 4) == 0) {
-		/* Find the CRC32 value of the specified memory area */
-		cp = &in_buf[5];
-		if (!gdb_decode_uint64(&cp, &addr, ',')) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			return;
-		}
-		if (!gdb_decode_uint32(&cp, &len, '\0')) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			return;
-		}
-		ret = t->crc_query(addr, len, &val);
-		if (ret == RET_OK)
-			sprintf(out_buf, "C%x", val);
-		else
-			gdb_interface_write_retval(ret, out_buf);
-		return;
-	}
-	if (strncmp(in_buf + 1, "Symbol::", 8) == 0) {
-		gdb_interface_write_retval(RET_OK, out_buf);
-		return;
-	}
-	if (strncmp(in_buf + 1, "Symbol:", 7) == 0) {
-		gdb_interface_write_retval(RET_NOSUPP, out_buf);
-		return;
-	}
-	sprintf(str, "TStatus");
-	if (strncmp(n, str, strlen(str)) == 0) {
-		/* sprintf(out_buf, "T0"); */
-		gdb_interface_write_retval(RET_NOSUPP, out_buf);
-		return;
-	}
-	if (strncmp(in_buf + 1, "ThreadExtraInfo,", 16) == 0) {
-		char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
-		const char *in;
-		int64_t thread_id;
-		if (t->threadextrainfo_query == NULL) {
-			gdb_interface_write_retval(RET_NOSUPP, out_buf);
-			return;
-		}
-		in = &in_buf[17];
-		ret = gdb_decode_int64(&in, &thread_id, '\0');
-		if (!ret) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			return;
-		}
-		ret = t->threadextrainfo_query(
-			thread_id, data_buf,
-			GDB_INTERFACE_PARAM_DATABYTES_MAX);
-		switch (ret) {
-		case RET_OK:
-			rp_encode_data(
-				(unsigned char *)data_buf, strlen(data_buf),
-				out_buf, out_buf_len);
-			break;
-		case RET_ERR:
-		case RET_NOSUPP:
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-		return;
-	}
-	if (strncmp(in_buf + 1, "fThreadInfo", 11) == 0) {
-		if (t->threadinfo_query == NULL) {
-			gdb_interface_write_retval(RET_NOSUPP, out_buf);
-			return;
-		}
-		ret = t->threadinfo_query(1, out_buf, out_buf_len);
-		switch (ret) {
-		case RET_OK:
-			break;
-		case RET_NOSUPP:
-		case RET_ERR:
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		default:
-			/* This should not happen */
-			ASSERT(0);
-		}
-		return;
-	}
-	if (strncmp(in_buf + 1, "sThreadInfo", 11) == 0) {
-		if (t->threadinfo_query == NULL) {
-			gdb_interface_write_retval(RET_NOSUPP, out_buf);
-			return;
-		}
-		ret = t->threadinfo_query(0, out_buf, out_buf_len);
-		switch (ret) {
-		case RET_OK:
-			break;
-		case RET_NOSUPP:
-		case RET_ERR:
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		default:
-			/* This should not happen */
-			ASSERT(0);
-		}
-		return;
-	}
-	if (strncmp(in_buf + 1, "fProcessInfo", 12) == 0) {
-		/* Get first string of process info */
-		gdb_interface_write_retval(RET_NOSUPP, out_buf);
-		return;
-	}
-	if (strncmp(in_buf + 1, "sProcessInfo", 12) == 0) {
-		/* Get subsequent string of process info */
-		gdb_interface_write_retval(RET_NOSUPP, out_buf);
-		return;
-	}
-	if (strncmp(in_buf + 1, "Rcmd,", 5) == 0) {
-		/* Remote command */
-		rp_target_out_valid = TRUE;
-		ret = handle_rcmd_command(&in_buf[6],
-					  rp_console_output,
-					  rp_data_output,
-					  t);
-		rp_target_out_valid = FALSE;
-		gdb_interface_write_retval(ret, out_buf);
-		return;
-	}
-	sprintf(str, "Supported");
-	if (strncmp(n, str, strlen(str)) == 0) {
-	  /*
-	   * Check if we were passed an xmlRegisters token as in
-	   * qSupported:xmlRegisters=i386,arm,mips
-	   * This mean we need to write registers back in xml
-	   */
-	  n += strlen(str);
-	  sprintf(str, ":xmlRegisters=");
-	  if (strncmp(n, str, strlen(str)) == 0) {
-	    n += strlen(str);
-	    if (t->get_xml_register_string != NULL) {
-	      const char *xml_register_string = t->get_xml_register_string();
-	      if (xml_register_string != NULL) {
-		size_t xml_register_string_length = strlen(xml_register_string);
-		size_t n_length = strlen(n);
-		if (xml_register_string_length) {
-		  while (n_length >= xml_register_string_length) {
-		    if (strncmp(n, xml_register_string, xml_register_string_length) == 0) {
-		      if (t->set_xml_register_reporting != NULL)
-			t->set_xml_register_reporting();
-		      break;
-		    } else {
-		      /* Look for ',' and advance past */
-		      char *comma_location = strchr(n, ',');
-		      if (comma_location == NULL) {
-			/* last register string to compare, give up */
-			break;
-		      } else if (comma_location <= n) {
-			/* unexpected pointer at/before start */
-			break;
-		      } else if ((comma_location - n) >= n_length) {
-			/* unexpected pointer past end */
-			break;
-		      } else {
-			/* Looks ok, advance past */
-			n = comma_location + 1;
-			n_length = strlen(n);
-		      }
-		    }
-		  } 
-		}
-	      }
+	      } 
 	    }
 	  }
-	  
-		/* Features supported */
-		if (t->supported_features_query == NULL) {
-			gdb_interface_write_retval(RET_NOSUPP, out_buf);
-			return;
-		}
-		ret = t->supported_features_query(out_buf, out_buf_len);
-		switch (ret) {
-		case RET_OK:
-			break;
-		case RET_NOSUPP:
-		case RET_ERR:
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		default:
-			/* This should not happen */
-			ASSERT(0);
-		}
-		return;
 	}
-	sprintf(str, "Attached:");
-	if (strncmp(n, str, strlen(str)) == 0) {
-		gdb_interface_write_retval(RET_NOSUPP, out_buf);
-		return;
-	}
-	sprintf(str, "Attached");
-	if (strncmp(n, str, strlen(str)) == 0) {
-	  bool is_attached = target_is_attached();
-	  if (is_attached)
-	    sprintf(out_buf, "1");
-	  else
-	    sprintf(out_buf, "0");
-	  return;
-	}
+      }
+	    
+      /* Features supported */
+      if (t->supported_features_query == NULL)
+	gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      else
+	t->supported_features_query(out_buf, out_buf_len);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Symbol::", 8) == 0) {
+      gdb_interface_write_retval(RET_OK, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Symbol:", 7) == 0) {
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "Search:memory:", 14) == 0) {
 	sprintf(str, "Search:memory:");
-	if (strncmp(n, str, strlen(str)) == 0) {
-		n += strlen(str);
-		/* Look for addr */
-		uint64_t addr;
-		if (gdb_decode_uint64(&n, &addr, ';')) {
-			uint32_t len;
-			if (gdb_decode_uint32(&n, &len, ';')) {
-				size_t bmax = in_len - (n - in_buf);
-				uint8_t *pattern =
-					(uint8_t *) malloc(bmax *
-							   sizeof(uint8_t));
-				if (pattern) {
-					size_t pattern_len = 0;
-					pattern_len = _escape_binary(
-						pattern, (uint8_t *)n, bmax);
-					if (pattern_len > 0) {
-						if (pattern_len <= len) {
-							uint8_t *read_buf = (uint8_t *) malloc(len);
-							if (read_buf) {
-								if (t->read_mem) {
-									size_t bytes_read;
-									if (RET_OK == t->read_mem(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
-										if (bytes_read == len) {
-											void *found = NULL;
-											found = memmem(read_buf, len, pattern, pattern_len);
-											if (NULL != found) {
-												uint64_t loc = addr;
-												loc += (found - (void *)read_buf);
-												sprintf(out_buf, "1,%016"PRIx64"", loc);
-											} else {
-												/* Not found */
-												sprintf(out_buf, "0");
-											}
-										} else {
-											/* Expected to read what was fed in */
-											gdb_interface_write_retval(RET_ERR, out_buf);
-										}
-									} else {
-										/* A memory read error */
-										gdb_interface_write_retval(RET_ERR, out_buf);
-									}
-								} else {
-									/* Had to check.. */
-									gdb_interface_write_retval(RET_ERR, out_buf);
-								}
-								free(read_buf);
-								read_buf = NULL;
-							} else {
-								/* An internal error */
-								gdb_interface_write_retval(RET_ERR, out_buf);
-							}
-						} else {
-							/* Impossible to find pattern is greater than read length */
-							sprintf(out_buf, "0");
-						}
-					} else {
-						/* Pattern is 0 length ?!? */
-						gdb_interface_write_retval(RET_ERR, out_buf);
-					}
-					free(pattern);
-					pattern = NULL;
-				} else {
-					/* A memory alloc error */
-					gdb_interface_write_retval(RET_ERR, out_buf);
-				}
+	n += strlen(str);
+	/* Look for addr */
+	uint64_t addr;
+	if (gdb_decode_uint64(&n, &addr, ';')) {
+	  uint32_t len;
+	  if (gdb_decode_uint32(&n, &len, ';')) {
+	    size_t bmax = in_len - (n - in_buf);
+	    uint8_t *pattern =
+	      (uint8_t *) malloc(bmax *
+				 sizeof(uint8_t));
+	    if (pattern) {
+	      size_t pattern_len = 0;
+	      pattern_len = _escape_binary(
+		pattern, (uint8_t *)n, bmax);
+	      if (pattern_len > 0) {
+		if (pattern_len <= len) {
+		  uint8_t *read_buf = (uint8_t *) malloc(len);
+		  if (read_buf) {
+		    if (t->read_mem) {
+		      size_t bytes_read;
+		      if (RET_OK == t->read_mem(CURRENT_PROCESS_TID, addr, read_buf, len, &bytes_read)) {
+			if (bytes_read == len) {
+			  void *found = NULL;
+			  found = memmem(read_buf, len, pattern, pattern_len);
+			  if (NULL != found) {
+			    uint64_t loc = addr;
+			    loc += (found - (void *)read_buf);
+			    sprintf(out_buf, "1,%016"PRIx64"", loc);
+			  } else {
+			    /* Not found */
+			    sprintf(out_buf, "0");
+			  }
 			} else {
-				/* Decoding len error */
-				gdb_interface_write_retval(RET_ERR, out_buf);
+			  /* Expected to read what was fed in */
+			  gdb_interface_write_retval(RET_ERR, out_buf);
 			}
-		} else {
-			/* Decoding addr arror */
+		      } else {
+			/* A memory read error */
 			gdb_interface_write_retval(RET_ERR, out_buf);
-		}
-		return;
-	}
-	switch (in_buf[1]) {
-	case 'C':
-		/* Current thread query */
-		ret = t->current_thread_query(&process, &thread);
-		if (ret == RET_OK) {
-		  /*
-		   * On FreeBSD the thread id is not known until later
-		   * Until that happens the thread id is process id.
-		   * Do not report this back to gdb because then it will
-		   * be confused when the thread is is set later.
-		   */
-		  if (process != thread) {
-		    sprintf(out_buf, "QCp%"PRIx64".%"PRIx64, process, thread);
+		      }
+		    } else {
+		      /* Had to check.. */
+		      gdb_interface_write_retval(RET_ERR, out_buf);
+		    }
+		    free(read_buf);
+		    read_buf = NULL;
 		  } else {
-		    sprintf(out_buf, "QCp%"PRIx64".-1", process);
+		    /* An internal error */
+		    gdb_interface_write_retval(RET_ERR, out_buf);
 		  }
 		} else {
-			gdb_interface_write_retval(ret, out_buf);
+		  /* Impossible to find pattern is greater than read length */
+		  sprintf(out_buf, "0");
 		}
-		break;
-	case 'L':
-		/* Thread list query */
-		ret = rp_decode_list_query(&in_buf[2],
-					   &first,
-					   &max_found,
-					   &arg);
-		if (!ret  ||  max_found > 255) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			break;
-		}
-		found = malloc(max_found * sizeof(gdb_thread_ref));
-		if (found == NULL) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			break;
-		}
-		ret = t->list_query(first,
-				    &arg,
-				    found,
-				    max_found,
-				    &count,
-				    &done);
-		if (ret != RET_OK  ||  count > max_found) {
-			free(found);
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		}
-		ret = rp_encode_list_query_response(count,
-						    done,
-						    &arg,
-						    found,
-						    out_buf,
-						    out_buf_len);
-		free(found);
-		if (!ret)
-			gdb_interface_write_retval(RET_ERR, out_buf);
-		break;
-	case 'P':
-		/* Thread info query */
-		ret = rp_decode_process_query(&in_buf[2], &mask, &ref);
-		if (!ret) {
-			gdb_interface_write_retval(RET_ERR, out_buf);
-			break;
-		}
-		info.thread_id.val = 0;
-		info.display[0] = 0;
-		info.thread_name[0] = 0;
-		info.more_display[0] = 0;
-		ret = t->process_query(&mask, &ref, &info);
-		if (ret != RET_OK) {
-			gdb_interface_write_retval(ret, out_buf);
-			break;
-		}
-		ret = rp_encode_process_query_response(mask,
-						       &ref,
-						       &info,
-						       out_buf,
-						       out_buf_len);
-		if (!ret)
-			gdb_interface_write_retval(RET_ERR, out_buf);
-		break;
-	default:
-		/* Raw Query is a universal fallback */
-		ret = t->raw_query(in_buf, out_buf, out_buf_len);
-		if (ret != RET_OK)
-			gdb_interface_write_retval(ret, out_buf);
-		break;
+	      } else {
+		/* Pattern is 0 length ?!? */
+		gdb_interface_write_retval(RET_ERR, out_buf);
+	      }
+	      free(pattern);
+	      pattern = NULL;
+	    } else {
+	      /* A memory alloc error */
+	      gdb_interface_write_retval(RET_ERR, out_buf);
+	    }
+	  } else {
+	    /* Decoding len error */
+	    gdb_interface_write_retval(RET_ERR, out_buf);
+	  }
+	} else {
+	  /* Decoding addr arror */
+	  gdb_interface_write_retval(RET_ERR, out_buf);
 	}
+	req_handled = true;
+	goto end;
+      }
+      break;
+
+  case 'T':
+    if (strncmp(n, "TStatus", 7) == 0) {
+      /* sprintf(out_buf, "T0"); */
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      req_handled = true;
+      goto end;
+    } else if (strncmp(n, "ThreadExtraInfo,", 16) == 0) {
+      char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
+      const char *in;
+      int64_t thread_id;
+      if (t->threadextrainfo_query == NULL) {
+	gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      } else {
+	in = &in_buf[17];
+	status = gdb_decode_int64(&in, &thread_id, '\0');
+	if (!status) {
+	  gdb_interface_write_retval(RET_ERR, out_buf);
+	  req_handled = true;
+	  goto end;
+	}
+	status = t->threadextrainfo_query(thread_id, data_buf, GDB_INTERFACE_PARAM_DATABYTES_MAX);
+	switch (status) {
+	case RET_OK:
+	  rp_encode_data(
+	    (unsigned char *)data_buf, strlen(data_buf),
+	    out_buf, out_buf_len);
+	  break;
+	case RET_ERR:
+	case RET_NOSUPP:
+	  gdb_interface_write_retval(status, out_buf);
+	  break;
+	default:
+	  ASSERT(0);
+	  break;
+	}
+      }
+      req_handled = true;
+      goto end;
+      }
+      break;
+
+    default:
+      break;
+  }
+end:
+  return req_handled;
 }
 
 /* Decode a breakpoint (z or Z) packet */
@@ -2870,7 +2841,7 @@ end:
 }
 
 /* Encode return value */
-static void gdb_interface_write_retval(int ret, char *b)
+void gdb_interface_write_retval(int ret, char *b)
 {
 	switch (ret) {
 	case RET_OK:
@@ -3137,14 +3108,14 @@ int gdb_interface_packet()
 				ret = 0;
 				break;
 			case 'q':
-				handle_query_command(in_buf,
-						     in_len,
-						     out_buf,
-						     sizeof(out_buf),
-						     gdb_interface_target);
-				/* Supported */
-				ret = 0;
-				break;
+			  if (! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
+			      ! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			    /* Not supported */
+			  } else {
+			    /* Supported */
+			    ret = 0;
+			  }
+			  break;
 			case 'Q':
 				handle_general_set_command(in_buf,
 							   in_len,

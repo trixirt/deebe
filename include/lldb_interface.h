@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Tom Rix
+ * Copyright (c) 2014-2015, Tom Rix
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -35,5 +35,6 @@
 #ifndef DEEBE_LLDB_INTERFACE_H
 #define DEEBE_LLDB_INTERFACE_H
 
+bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
 
 #endif
