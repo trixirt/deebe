@@ -59,7 +59,6 @@
 #include "target.h"
 #include "util.h"
 
-static bool _general_set_verbose = false;
 static bool _read_mem_verbose = false;
 static bool _read_reg_verbose = false;
 static bool _resume_current_verbose = false;
@@ -1980,7 +1979,7 @@ void ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 
 	p = PROCESS_PID(0);
 	if (n == -1) {
-		sprintf(out_buf, "mp%x.-1", p);
+	  sprintf(out_buf, "mp%x.-1", p);
 	} else if (n < _target.number_processes) {
 		t = PROCESS_TID(n);
 		sprintf(out_buf, "mp%x.%x", p, t);
@@ -2044,67 +2043,6 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 int ptrace_get_signal(void)
 {
 	return CURRENT_PROCESS_SIG;
-}
-
-static void _all_stop()
-{
-	/* NOOP */
-}
-
-int ptrace_general_set(char *inbuf, char *outbuf, size_t size)
-{
-	int ret = RET_ERR;
-	char str[128];
-	if (_general_set_verbose) {
-		DBG_PRINT("%s %p %p %zu\n", __func__, inbuf, outbuf, size);
-	}
-	sprintf(str, "QPassSignals;");
-	if (strncmp(inbuf, str, strlen(str)) == 0) {
-		inbuf += strlen(str);
-		if (_general_set_verbose) {
-			DBG_PRINT("%s %p %p %zu\n",
-				  __func__, inbuf, outbuf, size);
-		}
-#if 0
-		size_t i;
-		/* Initialize */
-		for (i = 0; i < CURRENT_PROCESS_PTRACE_SIGNAL_MAX; i++)
-			pass_sig[i] = i;
-#endif
-		/* Parse and update */
-		/* XXX : TBD */
-		ret = RET_OK;
-	}
-#if 0
-	sprintf(str, "QProgramSignals;");
-	if (strncmp(inbuf, str, strlen(str)) == 0) {
-		inbuf += strlen(str);
-		size_t i;
-		/* Initialize */
-		for (i = 0; i < CURRENT_PROCESS_PTRACE_SIGNAL_MAX; i++)
-			program_sig[i] = i;
-		/* Parse and update */
-		/* XXX : TBD */
-		ret = RET_OK;
-	}
-#endif
-	sprintf(str, "QStartNoAckMode");
-	if (strncmp(inbuf, str, strlen(str)) == 0) {
-		_target.no_ack = 1;
-		ret = RET_OK;
-	}
-	sprintf(str, "QNonStop:");
-	if (strncmp(inbuf, str, strlen(str)) == 0) {
-		inbuf += strlen(str);
-		if (inbuf[0] == '0') {
-			_all_stop() ;
-			_target.nonstop = NS_OFF;
-		} else {
-			_target.nonstop = NS_ON;
-		}
-		ret = RET_OK;
-	}
-	return ret;
 }
 
 int ptrace_no_ack()

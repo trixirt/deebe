@@ -120,7 +120,6 @@ extern int ptrace_connect(char *status_string, size_t status_string_len,
 extern int ptrace_detach();
 extern int ptrace_crc_query(uint64_t addr, size_t len, uint32_t *val);
 extern int ptrace_disconnect(void);
-extern int ptrace_general_set(char *inbuf, char *outbuf, size_t size);
 extern enum process_state ptrace_get_process_state(void);
 extern int ptrace_go_waiting(int gdb_sig);
 extern void ptrace_help(/*@unused@*/char *prog_name);

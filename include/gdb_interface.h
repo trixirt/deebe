@@ -367,9 +367,6 @@ struct gdb_target_s {
 	/* Query current signal */
 	int (*query_current_signal)(int *sig);
 
-	/* General set command */
-	int (*general_set)(char *in_buf, char *out_buf, size_t out_buf_size);
-
 	/* If it is ok not to ack / nak */
 	int (*no_ack)();
 

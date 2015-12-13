@@ -2200,16 +2200,37 @@ static int handle_v_command(char * const in_buf,
 	return ret;
 }
 
-static void handle_general_set_command(char * const in_buf,
-				       int in_len,
-				       char *out_buf,
-				       int out_buf_len,
-				       gdb_target *t)
+static void handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len)
 {
-	int ret = RET_ERR;
-	if (t->general_set)
-		ret = t->general_set(in_buf, out_buf, out_buf_len);
-	gdb_interface_write_retval(ret, out_buf);
+  int ret = RET_ERR;
+  char *n = in_buf + 1;
+  switch (*n) {
+  case 'N':
+    if (strncmp(n, "NonStop:", 8) == 0) {
+      n += 8;
+      if (*n == '0') {
+	_target.nonstop = NS_OFF;
+      } else {
+	_target.nonstop = NS_ON;
+      }
+      ret = RET_OK;
+      goto end;
+    }
+    break;
+
+  case 'S':
+    if (strncmp(n, "StartNoAckMode", 14) == 0) {
+      _target.no_ack = 1;
+      ret = RET_OK;
+      goto end;
+    }
+    break;
+    
+  default:
+    break;
+  }
+end:
+  gdb_interface_write_retval(ret, out_buf);
 }
 
 /* Send an 'O' packet (console output) to GDB */
@@ -3066,11 +3087,7 @@ int gdb_interface_packet()
 			  }
 			  break;
 			case 'Q':
-				handle_general_set_command(in_buf,
-							   in_len,
-							   out_buf,
-							   sizeof(out_buf),
-							   gdb_interface_target);
+				handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf));
 				/* Supported */
 				ret = 0;
 				break;
