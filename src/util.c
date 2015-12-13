@@ -182,7 +182,7 @@ int util_encode_string(const char *s, char *out, size_t out_size)
   int i = 0;
   if (s != NULL && out != NULL && out_size > 0) {
     /* +1 for the null, x2 for the byte to 2 chars */
-    if ((strlen(s) * 2) + 1 >= out_size) {
+    if ((strlen(s) * 2) + 1 > out_size) {
       /* We do not have enough space to encode the data */
       goto end;
     }
