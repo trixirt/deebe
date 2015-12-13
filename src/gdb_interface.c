@@ -188,7 +188,6 @@ static void rp_console_output(const char *buf);
 static void rp_data_output(const char *buf);
 
 /* Decode/encode functions */
-static int gdb_decode_reg(char *in, unsigned int *reg_no);
 
 static int gdb_decode_reg_assignment(char *in,
 				     unsigned int *reg_no,
@@ -224,7 +223,6 @@ static int rp_encode_list_query_response(size_t count,
 					 size_t out_size);
 static int rp_decode_4bytes(const char *in, uint32_t *val);
 static int rp_decode_8bytes(const char *in, uint64_t *val);
-static int gdb_decode_uint32(char **in, uint32_t *val, char break_char);
 static int gdb_decode_uint64(char **in, uint64_t *val, char break_char);
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char);
 
@@ -660,11 +658,11 @@ void handle_search_memory_command(char *in_buf,
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
-	if (!gdb_decode_uint32(&in, &pattern, ',')) {
+	if (!util_decode_uint32(&in, &pattern, ',')) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
-	if (!gdb_decode_uint32(&in, &mask, '\0')) {
+	if (!util_decode_uint32(&in, &mask, '\0')) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
@@ -864,9 +862,10 @@ void handle_read_single_register_command(char * const in_buf,
 	size_t len;
 	unsigned char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
 	unsigned char avail_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
+	char *in = &in_buf[1];
 
 	/* Get a single register. Format 'pNN' */
-	ret = gdb_decode_reg(&in_buf[1], &reg_no);
+	ret = util_decode_reg(&in, &reg_no);
 	if (!ret) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
@@ -1048,13 +1047,13 @@ void handle_running_commands(char * const in_buf,
 
 		in = &in_buf[1];
 		if (strchr(in, ';')) {
-			if (!gdb_decode_uint32(&in, &sig, ';'))	{
+			if (!util_decode_uint32(&in, &sig, ';'))	{
 				gdb_interface_write_retval(RET_ERR, out_buf);
 				return;
 			}
 			addr_ptr = in;
 		} else {
-			if (!gdb_decode_uint32(&in, &sig, '\0')) {
+			if (!util_decode_uint32(&in, &sig, '\0')) {
 				gdb_interface_write_retval(RET_ERR, out_buf);
 				return;
 			}
@@ -1346,7 +1345,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	req_handled = true;
 	goto end;
       }
-      if (!gdb_decode_uint32(&cp, &len, '\0')) {
+      if (!util_decode_uint32(&cp, &len, '\0')) {
 	gdb_interface_write_retval(RET_ERR, out_buf);
 	req_handled = true;
 	goto end;
@@ -1540,7 +1539,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	uint64_t addr;
 	if (gdb_decode_uint64(&n, &addr, ';')) {
 	  uint32_t len;
-	  if (gdb_decode_uint32(&n, &len, ';')) {
+	  if (util_decode_uint32(&n, &len, ';')) {
 	    size_t bmax = in_len - (n - in_buf);
 	    uint8_t *pattern =
 	      (uint8_t *) malloc(bmax *
@@ -1681,7 +1680,7 @@ static int gdb_decode_break(char *in,
 	*type = val;
 	if (!gdb_decode_uint64(&in, addr, ','))
 		return  FALSE;
-	if (!gdb_decode_uint32(&in, len, '\0'))
+	if (!util_decode_uint32(&in, len, '\0'))
 		return  FALSE;
 	return  TRUE;
 }
@@ -2283,13 +2282,6 @@ static void rp_data_output(const char *s)
 	} while (*s  &&  ret);
 }
 
-static int gdb_decode_reg(char *in, unsigned int *reg_no)
-{
-	if (!gdb_decode_uint32(&in, reg_no, '\0'))
-		return  FALSE;
-
-	return  TRUE;
-}
 
 /* Decode reg_no=XXXXXX */
 static int gdb_decode_reg_assignment(char *in,
@@ -2304,7 +2296,7 @@ static int gdb_decode_reg_assignment(char *in,
 	ASSERT(out_size > 0);
 	ASSERT(out_len != NULL);
 
-	if (!gdb_decode_uint32(&in, reg_no, '='))
+	if (!util_decode_uint32(&in, reg_no, '='))
 		return  FALSE;
 
 	out_size -= 8;
@@ -2326,7 +2318,7 @@ static int gdb_decode_mem(char *in, uint64_t *addr, size_t *len)
 		/* On 64 bit, size_t != uint32_t */
 		uint32_t l = 0;
 
-		if (FALSE != gdb_decode_uint32(&in, &l, '\0')) {
+		if (FALSE != util_decode_uint32(&in, &l, '\0')) {
 			*len = l;
 			ret = TRUE;
 		}
@@ -2681,41 +2673,6 @@ static int rp_decode_8bytes(const char *in, uint64_t *val)
   return ret;
 }
 
-/* Decode a hex string to an unsigned 32-bit value */
-static int gdb_decode_uint32(char **in, uint32_t *val, char break_char)
-{
-  int ret = FALSE;
-  
-  if (in != NULL && *in != NULL && val != NULL) {
-    uint8_t nibble;
-    uint32_t tmp;
-    int count;
-
-    if (**in == '\0') {
-      /* We are expecting at least one character */
-      goto end;
-    }
-    
-    for (tmp = 0, count = 0;  **in  &&  count < 8;  count++, (*in)++) {
-      if (!util_decode_nibble(*in, &nibble))
-	break;
-      tmp = (tmp << 4) + nibble;
-    }
-    
-    if (**in != break_char)	{
-      DBG_PRINT("ERROR wrong terminator expecting %d and got %d\n",
-		break_char, **in);
-      /* Wrong terminating character */
-      goto end;
-    }
-    if (**in)
-      (*in)++;
-    *val = tmp;
-    ret = TRUE;
-  }
-end:
-  return ret;
-}
 
 /* Decode a hex string to an unsigned 64-bit value */
 static int gdb_decode_uint64(char **in, uint64_t *val, char break_char)
@@ -2863,7 +2820,7 @@ int gdb_interface_quick_packet()
 				uint32_t sig;
 				char *in;
 				in = &in_buf[1];
-				if (gdb_decode_uint32(&in, &sig, '\0')) {
+				if (util_decode_uint32(&in, &sig, '\0')) {
 					dbg_ack_packet_received(false, NULL);
 					gdb_interface_target->quick_signal(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, sig);
 					ret = 0;

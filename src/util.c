@@ -198,3 +198,41 @@ int util_encode_string(const char *s, char *out, size_t out_size)
 end:
   return i;
 }
+
+/* Decode a hex string to an unsigned 32-bit value */
+bool util_decode_uint32(char **in, uint32_t *val, char break_char)
+{
+  bool ret = false;
+  
+  if (in != NULL && *in != NULL && val != NULL) {
+    uint8_t nibble;
+    uint32_t tmp;
+    int count;
+
+    if (**in == '\0') {
+      /* We are expecting at least one character */
+      goto end;
+    }
+    
+    for (tmp = 0, count = 0;  **in  &&  count < 8;  count++, (*in)++) {
+      if (!util_decode_nibble(*in, &nibble))
+	break;
+      tmp = (tmp << 4) + nibble;
+    }
+    
+    if (**in != break_char)	{
+      DBG_PRINT("ERROR wrong terminator expecting %d and got %d\n",
+		break_char, **in);
+      /* Wrong terminating character */
+      goto end;
+    }
+    if (**in)
+      (*in)++;
+    *val = tmp;
+    ret = true;
+  }
+end:
+  return ret;
+}
+
+
