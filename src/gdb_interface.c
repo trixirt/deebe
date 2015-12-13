@@ -244,28 +244,6 @@ typedef struct {
 	const char *help;
 } RP_RCMD_TABLE;
 
-static void gdb_interface_ack()
-{
-	int do_ack = 1;
-	if (gdb_interface_target && gdb_interface_target->no_ack)
-		do_ack = gdb_interface_target->no_ack();
-	if (do_ack) {
-		char *str = "+";
-		dbg_sock_write((unsigned char *)str, strlen(str));
-	}
-}
-
-static void gdb_interface_nak()
-{
-	int do_ack = 1;
-	if (gdb_interface_target && gdb_interface_target->no_ack)
-		do_ack = gdb_interface_target->no_ack();
-	if (do_ack) {
-		char *str = "-";
-		dbg_sock_write((unsigned char *)str, strlen(str));
-	}
-}
-
 /*
  * Send packet to debugger
  * For normal text packets, buf is null teminated and size = 0
@@ -330,12 +308,13 @@ static int gdb_interface_put_packet(const char *buf, size_t size)
 
 void dbg_ack_packet_received(bool seq_valid, char *seq)
 {
-	/* Acknowledge this good packet */
-	dbg_sock_putchar('+');
-	if (seq_valid) {
-		dbg_sock_putchar(seq[0]);
-		dbg_sock_putchar(seq[1]);
-	}
+  /* Acknowledge this good packet */
+  if (_target.ack)
+    dbg_sock_putchar('+');
+  if (seq_valid) {
+    dbg_sock_putchar(seq[0]);
+    dbg_sock_putchar(seq[1]);
+  }
 }
 
 #define STATE_INIT               0
@@ -2194,7 +2173,6 @@ static int handle_v_command(char * const in_buf,
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 	}
 	if (!binary_cmd) {
-		gdb_interface_ack();
 		gdb_interface_put_packet(out_buf, 0);
 	}
 	return ret;
@@ -2220,7 +2198,7 @@ static void handle_general_set_command(char * const in_buf, int in_len, char *ou
 
   case 'S':
     if (strncmp(n, "StartNoAckMode", 14) == 0) {
-      _target.no_ack = 1;
+      _target.ack = false;
       ret = RET_OK;
       goto end;
     }
@@ -3137,7 +3115,6 @@ int gdb_interface_packet()
 				break;
 			}
 			if (!binary_cmd) {
-				gdb_interface_ack();
 				gdb_interface_put_packet(out_buf, 0);
 			} else {
 				/* Now the binary command */
@@ -3155,8 +3132,9 @@ int gdb_interface_packet()
 			}
 		}
 	} else {
-		gdb_interface_nak();
-		DBG_PRINT("gdb_interface : error getting a packet\n");
+	  if (_target.ack)
+	    dbg_sock_putchar('-');
+	  DBG_PRINT("gdb_interface : error getting a packet\n");
 	}
 	return ret;
 }

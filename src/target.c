@@ -42,7 +42,7 @@
 #include "global.h"
 
 target_state _target = {
-	.no_ack = 0, /* ack until it is ok not to */
+	.ack = true, /* ack until it is ok not to */
 	/*
 	 * Older gdb's do not know the difference between
 	 * AllStop and NonStop mode for threading.
@@ -50,6 +50,7 @@ target_state _target = {
 	 */
 	.nonstop = NS_ON,
 	.multiprocess = 0, /* default to supporting multiple processes */
+	.xml_register_reporting = false, /* default to old style reporting */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 0,
 	.reg_size = 0,

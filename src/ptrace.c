@@ -2045,11 +2045,6 @@ int ptrace_get_signal(void)
 	return CURRENT_PROCESS_SIG;
 }
 
-int ptrace_no_ack()
-{
-	return _target.no_ack;
-}
-
 void ptrace_option_set_syscall(pid_t tid)
 {
 	ptrace_arch_option_set_syscall(tid);

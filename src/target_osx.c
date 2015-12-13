@@ -144,8 +144,6 @@ gdb_target osx_target = {
 	.threadextrainfo_query    = osx_threadextrainfo_query,
 	.supported_features_query = ptrace_supported_features_query,
 	.query_current_signal     = osx_query_current_signal,
-	.general_set              = ptrace_general_set,
-	.no_ack                   = ptrace_no_ack,
 };
 
 void target_init(struct gdb_target_s **target)

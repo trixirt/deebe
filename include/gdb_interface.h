@@ -367,9 +367,6 @@ struct gdb_target_s {
 	/* Query current signal */
 	int (*query_current_signal)(int *sig);
 
-	/* If it is ok not to ack / nak */
-	int (*no_ack)();
-
 	/* If the multiprocess extensions are supported 0 = no, 1 = yes */
 	int (*support_multiprocess)();
   
