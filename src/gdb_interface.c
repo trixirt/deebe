@@ -2869,13 +2869,8 @@ int gdb_interface_packet()
 				break;
 
 			case '?':
-				/* Report the last signal status */
-				handle_query_current_signal(out_buf,
-							    sizeof(out_buf),
-							    gdb_interface_target);
-				/* Supported */
-				ret = 0;
-				break;
+			  gdb_stop_string(out_buf, sizeof(out_buf), CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0);
+			  break;
 
 			case 'A':
 				/* Set the argv[] array of the target */
