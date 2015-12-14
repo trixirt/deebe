@@ -42,6 +42,7 @@
 #include "global.h"
 
 target_state _target = {
+  .lldb = false, /* we run assuming gdb until we know otherwise */
 	.ack = true, /* ack until it is ok not to */
 	/*
 	 * Older gdb's do not know the difference between

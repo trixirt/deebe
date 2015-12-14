@@ -208,5 +208,8 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
   }
 
 end:
+  if (req_handled)
+    _target.lldb = true;
+
   return req_handled;
 }

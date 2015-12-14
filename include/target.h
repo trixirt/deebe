@@ -73,6 +73,7 @@ typedef struct target_process_rec {
 } target_process;
 
 typedef struct target_state_rec {
+  bool lldb;
 	bool ack;
 	enum nonstop_state nonstop;
 	int multiprocess;
