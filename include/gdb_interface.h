@@ -376,6 +376,8 @@ struct gdb_target_s {
   void (*set_xml_register_reporting)();
   /* Fill in register info */
   bool (*register_info)(uint32_t reg, char *out_buff, size_t out_buf_size);
+  /* Fill in memory region info */
+  bool (*memory_region_info)(uint64_t addr, char *out_buff, size_t out_buf_size);
 };
 
 

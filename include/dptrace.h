@@ -104,7 +104,7 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void *
 			     void *arg4, void *ret);
 bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status);
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid);
-
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
 /* Internal functions used by arch's */
 bool _read_reg(pid_t tid, int GET, int SET, void **reg, uint8_t **reg_rw,
 	       size_t *reg_size);
@@ -163,5 +163,6 @@ extern void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void
 extern const char *ptrace_get_xml_register_string();
 extern void ptrace_set_xml_register_reporting();
 extern bool ptrace_register_info(uint32_t reg, char *out_buff, size_t out_buf_size);
+extern bool ptrace_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
 
 #endif

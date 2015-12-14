@@ -129,6 +129,41 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       goto end;
     }
     break;
+  case 'M':
+    if (strncmp(n, "MemoryRegionInfo:", 17) == 0) {
+      uint64_t addr;
+      bool err = false;
+      char *in = &n[17];
+      if (sizeof(void *) == 8) {
+	uint64_t be_addr;
+	if (util_decode_uint64(&in, &be_addr, '\0')) {
+	  addr = be64toh(be_addr);
+	} else {
+	  err = true;
+	}
+      } else {
+	uint32_t be_addr;
+	if (util_decode_uint32(&in, &be_addr, '\0')) {
+	  addr = be32toh(be_addr);
+	} else {
+	  err = true;
+	}
+      }
+      if (!err) {
+	if (t->memory_region_info) {
+	  if (!t->memory_region_info(addr, out_buf, out_buf_len)) {
+	    gdb_interface_write_retval(RET_ERR, out_buf);
+	  }
+	} else {
+	  gdb_interface_write_retval(RET_NOSUPP, out_buf);
+	}
+      } else {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      }
+      req_handled = true;
+      goto end;
+    }
+    break;
   case 'P':
     /* Because of the gdb 'P' packet, all lldb 'P*' packets must be handled */
     if (strncmp(n, "Platform_shell:", 15) == 0) {

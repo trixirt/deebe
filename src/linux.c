@@ -516,3 +516,10 @@ long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data)
   }
   return ret;
 }
+
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+{
+  bool ret = false;
+  /* STUB */
+  return  ret;
+}

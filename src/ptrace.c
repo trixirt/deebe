@@ -2129,3 +2129,8 @@ bool ptrace_register_info(uint32_t reg, char *out_buf, size_t out_buf_size)
   }
   return ret;
 }
+
+bool ptrace_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+{
+  return ptrace_arch_memory_region_info(addr, out_buff, out_buf_size);
+}
