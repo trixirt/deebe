@@ -119,7 +119,7 @@ typedef struct target_state_rec {
 
 extern target_state _target;
 
-bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting);
+bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting, int sig);
 int target_number_threads();
 pid_t target_get_pid();
 bool target_dead_thread(pid_t tid);

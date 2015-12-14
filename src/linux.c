@@ -136,7 +136,7 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status)
 		    if (errs < errs_max) {
 			    if (WIFSTOPPED(thread_status) &&
 				(WSTOPSIG(thread_status) == SIGSTOP)) {
-				    if (target_new_thread(CURRENT_PROCESS_PID, tid, 0, /* thread_status,*/ true)) {
+			      if (target_new_thread(CURRENT_PROCESS_PID, tid, 0, /* thread_status,*/ true, SIGSTOP)) {
 					    if (out_pid)
 						    *out_pid = tid;
 					    ret = true;
@@ -215,7 +215,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 				if (errs < errs_max) {
 					if (WIFSTOPPED(thread_status) &&
 					    (WSTOPSIG(thread_status) == SIGSTOP)) {
-						if (target_new_thread(CURRENT_PROCESS_PID, new_tid, 0, /* thread_status,*/ true)) {
+					  if (target_new_thread(CURRENT_PROCESS_PID, new_tid, 0, /* thread_status,*/ true, SIGSTOP)) {
 							if (out_pid)
 								*out_pid = new_tid;
 							ret = true;
@@ -260,7 +260,7 @@ void ptrace_os_wait(pid_t t) {
 	    PROCESS_WAIT(index) = true;
 	    PROCESS_WAIT_STATUS(index) = status;
 	}  else {
-	    if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
+	  if (!target_new_thread(PROCESS_PID(0), tid, status, true, SIGSTOP)) {
 		DBG_PRINT("error allocation of new thread\n");
 	    }
 	}
@@ -276,7 +276,7 @@ void ptrace_os_wait(pid_t t) {
 		PROCESS_WAIT(index) = true;
 		PROCESS_WAIT_STATUS(index) = status;
 	    }  else {
-		if (!target_new_thread(PROCESS_PID(0), tid, status, true)) {
+	      if (!target_new_thread(PROCESS_PID(0), tid, status, true, SIGSTOP)) {
 		    DBG_PRINT("error allocation of new thread\n");
 		}
 	    }

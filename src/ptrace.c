@@ -556,7 +556,7 @@ int ptrace_attach(pid_t process_id)
 				if (WIFSTOPPED(status) &&
 				    (WSTOPSIG(status) == SIGSTOP)) {
 
-					if (target_new_thread(process_id, process_id, status, true)) {
+				  if (target_new_thread(process_id, process_id, status, true, SIGSTOP)) {
 					    ptrace_arch_option_set_thread(process_id);
 					    target_attached(true);
 					    ret = RET_OK;
@@ -684,7 +684,7 @@ int ptrace_restart(void)
 						 */
 						if (WIFSTOPPED(status) &&
 						    (WSTOPSIG(status) == SIGTRAP)) {
-							if (target_new_thread(try_child, try_child, status, true)) {
+						  if (target_new_thread(try_child, try_child, status, true, SIGTRAP)) {
 								ptrace_arch_option_set_thread(try_child);
 								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
 								fflush(stdout);
@@ -1736,54 +1736,6 @@ static void _continued_all()
 	}
 }
 
-#if 0
-static void _newthread_single()
-{
-	if (CURRENT_PROCESS_WAIT) {
-		pid_t tid = CURRENT_PROCESS_TID;
-		int wait_status = CURRENT_PROCESS_WAIT_STATUS;
-		if (WIFSTOPPED(wait_status)) {
-			pid_t new_tid;
-			ptrace_arch_check_new_thread(tid, wait_status, &new_tid);
-		}
-	}
-}
-
-static void _newthread_all()
-{
-	int index;
-	for (index = 0; index < _target.number_processes; index++) {
-		if (!PROCESS_WAIT(index)) {
-			continue;
-		} else {
-			pid_t tid = PROCESS_TID(index);
-			/*
-			 * If the thread was caught in the general wait
-			 * then it's state would be set to 'PS_START'
-			 * and we would not have to check farther.
-			 */
-			if (PROCESS_STATE(index) == PS_START) {
-				PROCESS_STATE(index) = PS_STOP;
-				/* Clear state because this has been delt with */
-				PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
-			} else {
-				/* Check the hard way */
-				int wait_status = PROCESS_WAIT_STATUS(index);
-				if (WIFSTOPPED(wait_status)) {
-					pid_t new_tid;
-					if (ptrace_arch_check_new_thread(tid, wait_status, &new_tid)) {
-						/* Make sure this is not misreported */
-						PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
-						/* Only 1 new thread per visit */
-						break;
-					}
-				}
-			}
-		}
-	}
-}
-#endif
-
 static void _stopped_all(char *str, size_t len)
 {
 	int index;
@@ -1825,7 +1777,7 @@ static void _stopped_all(char *str, size_t len)
 						 * Looking for a thread create or an increase in the threads
 						 * reported by the kernel.
 						 */
-						if (!ptrace_os_new_thread(tid, wait_status)) {
+					         if (!ptrace_os_new_thread(tid, wait_status)) {
 							/* A normal breakpoint was hit, or a trap instruction */
 							gdb_stop_string(str, len, g, tid, 0);
 							target_thread_make_current(tid);

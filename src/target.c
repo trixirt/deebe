@@ -67,7 +67,7 @@ target_state _target = {
 	.process = NULL, /* TODO : FREE THIS */
 };
 
-bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting)
+bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting, int sig)
 {
     bool ret = false;
     int index = 0;
@@ -102,7 +102,7 @@ bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting)
     PROCESS_STATE(index) = PS_START;
     PROCESS_WAIT_STATUS(index) = wait_status;
     PROCESS_WAIT(index) = waiting;
-    PROCESS_SIG(index) = 0;
+    PROCESS_SIG(index) = sig;
     ret = true;
 
 end:
