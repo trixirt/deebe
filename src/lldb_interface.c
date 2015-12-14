@@ -135,16 +135,13 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       bool err = false;
       char *in = &n[17];
       if (sizeof(void *) == 8) {
-	uint64_t be_addr;
-	if (util_decode_uint64(&in, &be_addr, '\0')) {
-	  addr = be64toh(be_addr);
-	} else {
+	if (!util_decode_uint64(&in, &addr, '\0')) {
 	  err = true;
 	}
       } else {
-	uint32_t be_addr;
-	if (util_decode_uint32(&in, &be_addr, '\0')) {
-	  addr = be32toh(be_addr);
+	uint32_t addr32;
+	if (util_decode_uint32(&in, &addr32, '\0')) {
+	  addr = addr32;
 	} else {
 	  err = true;
 	}

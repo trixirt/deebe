@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -517,9 +517,63 @@ long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data)
   return ret;
 }
 
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+/*
+ * Tested on linux versions
+ * 3.11.0
+ * Assuming /proc/<pid>/maps format is like
+ *
+ * 7f3858d45000-7f3858d49000 r--p 001b3000 08:01 1179857                    /lib/x86_64-linux-gnu/libc-2.15.so
+ * <mem start>-<mem end> <perms> ... 
+ *
+ * For lldb, output is
+ * start:<mem start>;size:<siz>;permissions:rx;
+ *
+ * Only trick bit is the permissions field, its a permutation of rwx
+ * Assuming if there is no permissions, then shouldn't report the region.
+ */
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
 {
   bool ret = false;
-  /* STUB */
+  FILE *fp = NULL;
+  pid_t pid = CURRENT_PROCESS_PID;
+  char n[256];
+  snprintf (n, 256, "/proc/%u/maps", pid);
+  fp = fopen (n, "rt");
+  if (fp) {
+    char l[1024], perms[64];
+    while (fgets(l, 1024, fp) != NULL) {
+      memset(&perms[0], 0, 64);
+      uint64_t rs, re;
+      int status;
+      if (sizeof(void *) == 8) {
+	status = sscanf (l, "%016"PRIx64"-%016"PRIx64" %s ", &rs, &re, &perms[0]);
+      } else {
+	uint32_t s, e;
+	status = sscanf (l, "%08"PRIx32"-%08"PRIx32" %s ", &s, &e, &perms[0]);
+	rs = s;
+	re = e;
+      }
+      /* 3 items found.. */
+      if (status == 3) {
+	if ((addr >= rs) && (addr < re)) {
+	  uint8_t p = 0;
+	  char perm_strs[8][4] = { "", "r", "w", "rw", "x", "rx", "wx", "rwx" };
+	  if (strchr(&perms[0], 'r'))
+	    p |= 1;
+	  if (strchr(&perms[0], 'w'))
+	    p |= 2;
+	  if (strchr(&perms[0], 'x'))
+	    p |= 4;
+	  if (p > 0 && p < 8) {
+	    snprintf(out_buff, out_buff_size, "start:%"PRIx64";size:%"PRIx64";permissions:%s;",
+		     rs, re - rs, &perm_strs[p][0]);
+	    ret = true;
+	  }
+	  break;
+	}
+      }
+    }
+    fclose(fp);
+  }
   return  ret;
 }
