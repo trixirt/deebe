@@ -1970,22 +1970,39 @@ int ptrace_wait(char *str, size_t len, int step, bool skip_continue_others)
 
 void ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
 {
-	static int n;
-	pid_t p, t;
-	if (first)
-		n = -1;
-	else
-		n++;
+  static int n;
+  pid_t t;
 
-	p = PROCESS_PID(0);
-	if (n == -1) {
-	  sprintf(out_buf, "mp%x.-1", p);
-	} else if (n < _target.number_processes) {
-		t = PROCESS_TID(n);
-		sprintf(out_buf, "mp%x.%x", p, t);
-	} else {
-	        sprintf(out_buf, "l");
-	}
+  if (_target.lldb) {
+    if (first)
+      n = 0;
+    else
+      n++;
+
+    if (n < _target.number_processes) {
+      t = PROCESS_TID(n);
+      sprintf(out_buf, "m%x", t);
+    } else {
+      sprintf(out_buf, "l");
+    }
+
+  } else {
+    pid_t p = PROCESS_PID(0);
+
+    if (first)
+      n = -1;
+    else
+      n++;
+
+    if (n == -1) {
+      sprintf(out_buf, "mp%x.-1", p);
+    } else if (n < _target.number_processes) {
+      t = PROCESS_TID(n);
+      sprintf(out_buf, "mp%x.%x", p, t);
+    } else {
+      sprintf(out_buf, "l");
+    }
+  }
 }
 
 void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
