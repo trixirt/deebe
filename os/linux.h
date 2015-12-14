@@ -37,13 +37,15 @@
 
 #include <linux/elf.h>
 
-#define GRLL(N, E, GDB, O, S, GDB_S)				\
+#define GRLL(N, E, GDB, O, S, GDB_S, ENCODING, FORMAT)			\
 	{							\
 		.off = (O) + offsetof(struct user, E),		\
 		.size = (S) ? (S) : msizeof(struct user, E),	\
 		.gdb = (GDB),					\
 		.name = #N,					\
 		.gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct user, E), \
+		.encoding = #ENCODING,  				\
+		.format = #FORMAT,  				\
 	}
 
 /* Arch can define which struct to use */

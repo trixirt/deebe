@@ -2100,3 +2100,15 @@ void ptrace_set_xml_register_reporting()
 {
   _target.xml_register_reporting = true;
 }
+
+bool ptrace_register_info(uint32_t reg, char *out_buf, size_t out_buf_size)
+{
+  bool ret = false;
+  int i = 0;
+  if (is_reg(reg, &i, grll)) {
+    snprintf(out_buf, out_buf_size, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:General Purpose Registers;",
+	     grll[i].name, grll[i].size * 8, grll[i].off, grll[i].encoding, grll[i].format);
+    ret = true;
+  }
+  return ret;
+}

@@ -41,33 +41,33 @@
 #define GDB_ORIG_RAX 57
 
 struct reg_location_list grll[] = {
-	/* general */
-	GRLL(r15,      regs.r15,      GDB_R15,      0, 0, 0),
-	GRLL(r14,      regs.r14,      GDB_R14,      0, 0, 0),
-	GRLL(r13,      regs.r13,      GDB_R13,      0, 0, 0),
-	GRLL(r12,      regs.r12,      GDB_R12,      0, 0, 0),
-	GRLL(r11,      regs.r11,      GDB_R11,      0, 0, 0),
-	GRLL(r10,      regs.r10,      GDB_R10,      0, 0, 0),
-	GRLL(r9,       regs.r9,       GDB_R9,       0, 0, 0),
-	GRLL(r8,       regs.r8,       GDB_R8,       0, 0, 0),
-	GRLL(rsi,      regs.rsi,      GDB_RSI,      0, 0, 0),
-	GRLL(rdi,      regs.rdi,      GDB_RDI,      0, 0, 0),
-	GRLL(orig_rax, regs.orig_rax, GDB_ORIG_RAX, 0, 0, 0),
-	GRLL(rbp,      regs.rbp,      GDB_RBP,      0, 0, 0),
-	GRLL(rbx,      regs.rbx,      GDB_RBX,      0, 0, 0),
-	GRLL(rdx,      regs.rdx,      GDB_RDX,      0, 0, 0),
-	GRLL(rcx,      regs.rcx,      GDB_RCX,      0, 0, 0),
-	GRLL(rax,      regs.rax,      GDB_RAX,      0, 0, 0),
-	GRLL(fs,       regs.fs,       GDB_FS,       0, 0, 4),
-	GRLL(gs,       regs.gs,       GDB_GS,       0, 0, 4),
-	GRLL(es,       regs.es,       GDB_ES,       0, 0, 4),
-	GRLL(ds,       regs.ds,       GDB_DS,       0, 0, 4),
-	GRLL(rip,      regs.rip,      GDB_RIP,      0, 0, 0),
-	GRLL(cs,       regs.cs,       GDB_CS,       0, 2, 4),
-	GRLL(rflags,   regs.eflags,   GDB_RFLAGS,   0, 0, 4),
-	GRLL(rsp,      regs.rsp,      GDB_RSP,      0, 0, 4),
-	GRLL(ss,       regs.ss,       GDB_SS,       0, 2, 4),
-	{0},
+  /* general */
+  GRLL(r15,      regs.r15,      GDB_R15,      0, 0, 0, uint, hex),
+  GRLL(r14,      regs.r14,      GDB_R14,      0, 0, 0, uint, hex),
+  GRLL(r13,      regs.r13,      GDB_R13,      0, 0, 0, uint, hex),
+  GRLL(r12,      regs.r12,      GDB_R12,      0, 0, 0, uint, hex),
+  GRLL(r11,      regs.r11,      GDB_R11,      0, 0, 0, uint, hex),
+  GRLL(r10,      regs.r10,      GDB_R10,      0, 0, 0, uint, hex),
+  GRLL(r9,       regs.r9,       GDB_R9,       0, 0, 0, uint, hex),
+  GRLL(r8,       regs.r8,       GDB_R8,       0, 0, 0, uint, hex),
+  GRLL(rsi,      regs.rsi,      GDB_RSI,      0, 0, 0, uint, hex),
+  GRLL(rdi,      regs.rdi,      GDB_RDI,      0, 0, 0, uint, hex),
+  GRLL(orig_rax, regs.orig_rax, GDB_ORIG_RAX, 0, 0, 0, uint, hex),
+  GRLL(rbp,      regs.rbp,      GDB_RBP,      0, 0, 0, uint, hex),
+  GRLL(rbx,      regs.rbx,      GDB_RBX,      0, 0, 0, uint, hex),
+  GRLL(rdx,      regs.rdx,      GDB_RDX,      0, 0, 0, uint, hex),
+  GRLL(rcx,      regs.rcx,      GDB_RCX,      0, 0, 0, uint, hex),
+  GRLL(rax,      regs.rax,      GDB_RAX,      0, 0, 0, uint, hex),
+  GRLL(fs,       regs.fs,       GDB_FS,       0, 0, 4, uint, hex),
+  GRLL(gs,       regs.gs,       GDB_GS,       0, 0, 4, uint, hex),
+  GRLL(es,       regs.es,       GDB_ES,       0, 0, 4, uint, hex),
+  GRLL(ds,       regs.ds,       GDB_DS,       0, 0, 4, uint, hex),
+  GRLL(rip,      regs.rip,      GDB_RIP,      0, 0, 0, uint, hex),
+  GRLL(cs,       regs.cs,       GDB_CS,       0, 2, 4, uint, hex),
+  GRLL(rflags,   regs.eflags,   GDB_RFLAGS,   0, 0, 4, uint, hex),
+  GRLL(rsp,      regs.rsp,      GDB_RSP,      0, 0, 4, uint, hex),
+  GRLL(ss,       regs.ss,       GDB_SS,       0, 2, 4, uint, hex),
+  {0},
 };
 
 #define FXRLL(N, E, GDB, O, S, GDB_S)					\
@@ -200,4 +200,10 @@ bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
 	return ptrace_os_check_new_thread(pid, status, out_pid);
+}
+
+bool ptrace_arch_register_info(uint32_t reg, char *out_buf, size_t out_buf_size)
+{
+  bool ret = false;
+  return ret;
 }

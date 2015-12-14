@@ -374,6 +374,8 @@ struct gdb_target_s {
   const char *(*get_xml_register_string)();
   /* Tell target to report registers as xml */
   void (*set_xml_register_reporting)();
+  /* Fill in register info */
+  bool (*register_info)(uint32_t reg, char *out_buff, size_t out_buf_size);
 };
 
 

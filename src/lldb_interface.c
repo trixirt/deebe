@@ -183,6 +183,25 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       goto end;
     }
     break;
+  case 'R':
+    if (strncmp(n, "RegisterInfo", 12) == 0) {
+      uint32_t reg;
+      char *in = &n[12];
+      if (util_decode_reg(&in, &reg)) {
+	if (t->register_info) {
+	  if (!t->register_info(reg, out_buf, out_buf_len)) {
+	    gdb_interface_write_retval(RET_ERR, out_buf);
+	  }
+	} else {
+	  gdb_interface_write_retval(RET_NOSUPP, out_buf);
+	}
+      } else {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      }
+      req_handled = true;
+      goto end;
+    }
+    break;
 
   default:
     break;

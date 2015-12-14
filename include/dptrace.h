@@ -162,6 +162,6 @@ extern void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2, void
 
 extern const char *ptrace_get_xml_register_string();
 extern void ptrace_set_xml_register_reporting();
-
+extern bool ptrace_register_info(uint32_t reg, char *out_buff, size_t out_buf_size);
 
 #endif
