@@ -223,7 +223,6 @@ static int rp_encode_list_query_response(size_t count,
 					 size_t out_size);
 static int rp_decode_4bytes(const char *in, uint32_t *val);
 static int rp_decode_8bytes(const char *in, uint64_t *val);
-static int gdb_decode_uint64(char **in, uint64_t *val, char break_char);
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char);
 
 static int extended_protocol;
@@ -654,7 +653,7 @@ void handle_search_memory_command(char *in_buf,
 	   supplied pattern PP and mask MM. PP and MM are 4 bytes. addr
 	   must be at least 3 digits. */
 	in = &in_buf[1];
-	if (!gdb_decode_uint64(&in, &addr, ':')) {
+	if (!util_decode_uint64(&in, &addr, ':')) {
 		gdb_interface_write_retval(RET_ERR, out_buf);
 		return;
 	}
@@ -1067,7 +1066,7 @@ void handle_running_commands(char * const in_buf,
 	if (go) {
 		ret = t->go_waiting(sig);
 	} else if (addr_ptr) {
-		if (!gdb_decode_uint64(&addr_ptr, &addr, '\0'))	{
+		if (!util_decode_uint64(&addr_ptr, &addr, '\0'))	{
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		} /* XXX */
@@ -1340,7 +1339,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       char *cp = &in_buf[5];
       unsigned int len;
       /* Find the CRC32 value of the specified memory area */
-      if (!gdb_decode_uint64(&cp, &addr, ',')) {
+      if (!util_decode_uint64(&cp, &addr, ',')) {
 	gdb_interface_write_retval(RET_ERR, out_buf);
 	req_handled = true;
 	goto end;
@@ -1363,15 +1362,22 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       status = t->current_thread_query(&process, &thread);
       if (status == RET_OK) {
 	/*
+	 * LLDB only want the thread id
+	 *
+	 * GDB
 	 * On FreeBSD the thread id is not known until later
 	 * Until that happens the thread id is process id.
 	 * Do not report this back to gdb because then it will
 	 * be confused when the thread is is set later.
 	 */
-	if (process != thread)
-	  sprintf(out_buf, "QCp%"PRIx64".%"PRIx64, process, thread);
-	else
-	  sprintf(out_buf, "QCp%"PRIx64".-1", process);
+	if (_target.lldb) {
+	  sprintf(out_buf, "QC%"PRIx64, thread);
+	} else {
+	  if (process != thread)
+	    sprintf(out_buf, "QCp%"PRIx64".%"PRIx64, process, thread);
+	  else
+	    sprintf(out_buf, "QCp%"PRIx64".-1", process);
+	}
       } else {
 	gdb_interface_write_retval(status, out_buf);
 	req_handled = true;
@@ -1537,7 +1543,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	n += strlen(str);
 	/* Look for addr */
 	uint64_t addr;
-	if (gdb_decode_uint64(&n, &addr, ';')) {
+	if (util_decode_uint64(&n, &addr, ';')) {
 	  uint32_t len;
 	  if (util_decode_uint32(&n, &len, ';')) {
 	    size_t bmax = in_len - (n - in_buf);
@@ -1678,7 +1684,7 @@ static int gdb_decode_break(char *in,
 	if (*in++ != ',')
 		return  FALSE;
 	*type = val;
-	if (!gdb_decode_uint64(&in, addr, ','))
+	if (!util_decode_uint64(&in, addr, ','))
 		return  FALSE;
 	if (!util_decode_uint32(&in, len, '\0'))
 		return  FALSE;
@@ -2314,7 +2320,7 @@ static int gdb_decode_mem(char *in, uint64_t *addr, size_t *len)
 
 	*len = 0;
 
-	if (FALSE != gdb_decode_uint64(&in, addr, ',')) {
+	if (FALSE != util_decode_uint64(&in, addr, ',')) {
 		/* On 64 bit, size_t != uint32_t */
 		uint32_t l = 0;
 
@@ -2673,39 +2679,6 @@ static int rp_decode_8bytes(const char *in, uint64_t *val)
   return ret;
 }
 
-
-/* Decode a hex string to an unsigned 64-bit value */
-static int gdb_decode_uint64(char **in, uint64_t *val, char break_char)
-{
-  int ret = FALSE;
-  if (in != NULL && *in != NULL && val != NULL) {
-    uint8_t nibble;
-    uint64_t tmp;
-    int count;
-
-    if (**in == '\0') {
-      /* We are expecting at least one character */
-      goto end;
-    }
-
-    for (tmp = 0, count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-      if (!util_decode_nibble(*in, &nibble))
-	break;
-      tmp = (tmp << 4) + nibble;
-    }
-
-    if (**in != break_char)	{
-      /* Wrong terminating character */
-      goto end;
-    }
-    if (**in)
-      (*in)++;
-    *val = tmp;
-    ret = true;
-  }
-end:
-  return ret;
-}
 
 /* Decode a hex string to an unsigned 64-bit value */
 static int gdb_decode_int64(char const **in, int64_t *val, char break_char)

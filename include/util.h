@@ -50,6 +50,7 @@ int util_hex_nibble(char in);
 int util_encode_data(const unsigned char *data, size_t data_len, char *out, size_t out_size);
 int util_encode_string(const char *s, char *out, size_t out_size);
 bool util_decode_uint32(char **in, uint32_t *val, char break_char);
+bool util_decode_uint64(char **in, uint64_t *val, char break_char);
 #define util_decode_reg(a, b) util_decode_uint32((a), (b), '\0')
 
 #endif
