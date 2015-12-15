@@ -150,9 +150,6 @@ extern void ptrace_threadinfo_query(int first, char *out_buf,
 				   size_t out_buf_size);
 extern int ptrace_wait(char *status_string, size_t status_string_len, int step, bool skip_continue_others);
 extern void ptrace_quick_signal(pid_t pid, pid_t tid, int sig);
-extern int ptrace_wait_partial(int first, char *status_string,
-			       size_t status_string_len, int *implemented,
-			       int *more);
 extern int ptrace_write_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
 extern int ptrace_write_registers(pid_t tid, uint8_t *data, size_t size);
 extern int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data,

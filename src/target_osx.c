@@ -131,7 +131,6 @@ gdb_target osx_target = {
 	.resume_from_current      = ptrace_resume_from_current,
 	.resume_from_addr         = ptrace_resume_from_addr,
 	.go_waiting               = ptrace_go_waiting,
-	.wait_partial             = ptrace_wait_partial,
 	.wait                     = ptrace_wait,
 	.process_query            = osx_process_query,
 	.list_query               = osx_list_query,

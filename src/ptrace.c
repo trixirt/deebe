@@ -1221,6 +1221,7 @@ int _ptrace_resume(pid_t pid, pid_t tid, int step, int gdb_sig)
 		PROCESS_STATE(index) = PS_RUN;
 		PROCESS_WAIT(index) = false;
 		PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
+		PROCESS_SIG(index) = 0;
 		if (sig) {
 			PROCESS_STATE(index) = PS_SIG_PENDING;
 		} else {

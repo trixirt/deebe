@@ -121,10 +121,6 @@ static size_t dbg_sock_write(unsigned char *b, size_t l)
 #define RP_VAL_MISCREADCHARRET_TMOUT (-2)
 #define RP_VAL_MISCREADCHARRET_ERR   (-1)
 
-static char status_string[RP_PARAM_INOUTBUF_SIZE];
-/* -1 so strncpy will null terminate */
-#define status_string_len ((size_t)(sizeof(status_string) -1))
-
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
 
@@ -1007,19 +1003,47 @@ void handle_write_memory_command(char * const in_buf,
 	gdb_interface_write_retval(ret, out_buf);
 }
 
-
+static int _target_wait(char *out_buf, int out_buf_len, gdb_target *target, int step, int sig) {
+  int ret = RET_NOSUPP;
+  if (target->wait) {
+    /*
+     * Sometimes 'wait' is used internally
+     * If wait returns an ignore status, do not send
+     * update to gdb, continue and go back to waiting
+     */
+    do {
+      /* Check for Debugee console output */
+      if (gPipeStdout[0] > 0) {
+	char buf[1024];
+	ssize_t read_size;
+	while (0 < (read_size = read(gPipeStdout[0], &buf[0], 1023))) {
+	  /* gdb_interface_put_console depends on string to be null terminated */
+	  buf[read_size] = 0;
+	  /* Out to deebe console */
+	  fprintf(stdout, "%s", buf);
+	  /* Back to gdb */
+	  gdb_interface_put_console(buf);
+	  network_write();
+	}
+      }
+      ret = target->wait(out_buf, out_buf_len, step, false);
+      if (ret == RET_IGNORE) {
+	target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
+      }
+    } while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
+  }
+  return ret;
+}
 
 void handle_running_commands(char * const in_buf,
 			     int in_len,
 			     char *out_buf,
 			     int out_buf_len,
-			     gdb_target *t)
+			     gdb_target *target)
 {
 	int step;
 	uint32_t sig;
 	int go;
-	int more;
-	int implemented;
 	char *addr_ptr;
 	uint64_t addr;
 	int ret;
@@ -1064,57 +1088,23 @@ void handle_running_commands(char * const in_buf,
 	}
 
 	if (go) {
-		ret = t->go_waiting(sig);
+		ret = target->go_waiting(sig);
 	} else if (addr_ptr) {
 		if (!util_decode_uint64(&addr_ptr, &addr, '\0'))	{
 			gdb_interface_write_retval(RET_ERR, out_buf);
 			return;
 		} /* XXX */
-		ret = t->resume_from_addr(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig, addr);
+		ret = target->resume_from_addr(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig, addr);
 	} else { /* XXX */
-	    ret = t->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
+	    ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 	}
-
 	if (ret != RET_OK) {
 		gdb_interface_write_retval(ret, out_buf);
 		return;
 	}
-
-	/* Try a partial wait first */
-	ret = t->wait_partial(TRUE,
-			      status_string,
-			      status_string_len,
-			      &implemented,
-			      &more);
+	ret = _target_wait(out_buf, out_buf_len, target, step, sig);
 	if (ret != RET_OK) {
-		gdb_interface_write_retval(ret, out_buf);
-		return;
-	}
-	if (!implemented) {
-		/* There is no pertial wait facility for this target, so use a
-		   blocking wait */
-		if (t->wait) {
-			ret = t->wait(status_string,
-				      status_string_len, step, false);
-		} else {
-			ret = RET_NOSUPP;
-		}
-
-		if (ret == RET_OK) {
-			/* Cast to size_t to make compiler happy */
-			ASSERT(strlen(status_string) <
-			       (size_t)status_string_len);
-			strncpy(out_buf, status_string, status_string_len);
-		} else {
-			gdb_interface_write_retval(ret, out_buf);
-		}
-		return;
-	}
-	if (!more) {
-		/* We are done. The program has already stopped */
-		/* Cast to size_t to make compiler happy */
-		ASSERT(strlen(status_string) < (size_t) status_string_len);
-		strncpy(out_buf, status_string, status_string_len);
+	    gdb_interface_write_retval(ret, out_buf);
 	}
 }
 
@@ -1815,35 +1805,8 @@ static int handle_v_command(char * const in_buf,
 			if (!err) {
 				ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 				if (RET_OK == ret) {
-					if (target->wait) {
-						/*
-						 * Sometimes 'wait' is used internally
-						 * If wait returns an ignore status, do not send
-						 * update to gdb, continue and go back to waiting
-						 */
-						do {
-							/* Check for Debugee console output */
-							if (gPipeStdout[0] > 0) {
-								char buf[1024];
-								ssize_t read_size;
-								while (0 < (read_size = read(gPipeStdout[0], &buf[0], 1023))) {
-									/* gdb_interface_put_console depends on string to be null terminated */
-									buf[read_size] = 0;
-									/* Out to deebe console */
-									fprintf(stdout, "%s", buf);
-									/* Back to gdb */
-									gdb_interface_put_console(buf);
-									network_write();
-								}
-							}
-							ret = target->wait(out_buf,
-									   out_buf_len, step, false);
-							if (ret == RET_IGNORE) {
-								target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
-							}
-						} while ((ret == RET_IGNORE) || (ret == RET_CONTINUE_WAIT));
-						handled = true;
-					}
+				  ret = _target_wait(out_buf, out_buf_len, target, step, sig);
+				  handled = true;
 				}
 			}
 		}

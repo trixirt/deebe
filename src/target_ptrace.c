@@ -161,7 +161,6 @@ gdb_target ptrace_target = {
 	.resume_from_current      = ptrace_resume_from_current,
 	.resume_from_addr         = ptrace_resume_from_addr,
 	.go_waiting               = ptrace_go_waiting,
-	.wait_partial             = ptrace_wait_partial,
 	.wait                     = ptrace_wait,
 	.quick_signal             = ptrace_quick_signal,
 	.process_query            = ptrace_process_query,
