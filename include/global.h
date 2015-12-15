@@ -119,12 +119,12 @@ struct sockaddr_in network_address = { 0 };
 struct sockaddr_in network_client_address = { 0 };
 struct sockaddr_in network_address_fwd = { 0 };
 socklen_t network_client_address_size = sizeof(struct sockaddr_in);
-uint8_t network_out_buffer[RP_PARAM_INOUTBUF_SIZE];
-uint8_t network_in_buffer[RP_PARAM_INOUTBUF_SIZE];
-size_t network_out_buffer_size = RP_PARAM_INOUTBUF_SIZE;
+uint8_t network_out_buffer[INOUTBUF_SIZE];
+uint8_t network_in_buffer[INOUTBUF_SIZE];
+size_t network_out_buffer_size = INOUTBUF_SIZE;
 size_t network_out_buffer_current = 0;
 size_t network_out_buffer_total = 0;
-size_t network_in_buffer_size = RP_PARAM_INOUTBUF_SIZE;
+size_t network_in_buffer_size = INOUTBUF_SIZE;
 size_t network_in_buffer_current = 0;
 size_t network_in_buffer_total = 0;
 /* gdb interface */

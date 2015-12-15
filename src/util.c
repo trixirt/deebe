@@ -268,4 +268,21 @@ end:
   return ret;
 }
 
+size_t util_escape_binary(uint8_t *dst, uint8_t *src, size_t size)
+{
+  size_t i, j;
+  for (i = 0, j = 0; i < size; i++) {
+    uint8_t c = src[i];
+    if ((0x23 == c) ||
+	(0x24 == c) ||
+	(0x2a == c) ||
+	(0x7d == c)) {
+      dst[j++] = 0x7d;
+      dst[j++] = c & ~0x20;
+    } else {
+      dst[j++] = c;
+    }
+  }
+  return j;
+}
 

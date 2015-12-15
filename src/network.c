@@ -868,3 +868,63 @@ void network_clear_write()
 		network_out_buffer_total = network_out_buffer_current = 0;
 	}
 }
+
+static size_t _sock_write(unsigned char *b, size_t l)
+{
+  size_t ret = 0;
+  if (l < network_out_buffer_size - network_out_buffer_total) {
+    memcpy(&network_out_buffer[network_out_buffer_total], b, l);
+    network_out_buffer_total += l;
+    ret = l;
+  }
+  return ret;
+}
+
+/*
+ * Send packet to debugger
+ * For normal text packets, buf is null teminated and size = 0
+ * For binary packets, size must be use
+ */
+int network_put_dbg_packet(const char *buf, size_t size)
+{
+  int i;
+  int ret = 1;
+  size_t len;
+  uint8_t csum;
+  uint8_t *d;
+  const char *s;
+  uint8_t buf2[INOUTBUF_SIZE + 4];
+
+  ASSERT(buf != NULL);
+
+  /* Copy the packet into buf2, encapsulate it, and give
+     it a checksum. */
+  d = buf2;
+  *d++ = '$';
+  csum = 0;
+  /* Normal text packet */
+  if (size == 0) {
+    for (s = buf, i = 0; *s; i++) {
+      csum += *s;
+      *d++ = *s++;
+    }
+    ASSERT(*s == '\0');
+  } else {
+    /* Binary packet */
+    for (s = buf, i = 0; i < size; i++) {
+      csum += *s;
+      *d++ = *s++;
+    }
+  }
+  /* Add the sumcheck to the end of the message */
+  *d++ = '#';
+  *d++ = util_hex[(csum >> 4) & 0xf];
+  *d++ = util_hex[(csum & 0xf)];
+  /* Do not null terminate binary transfers */
+  if (0 == size)
+    *d = '\0';
+  /* Send it over and over until we get a positive ack. */
+  len = d - buf2;
+  ret = _sock_write(buf2, len);
+  return ret;
+}

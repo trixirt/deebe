@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -49,5 +49,6 @@ int network_write();
 int network_write_fwd();
 int network_quick_write();
 void network_clear_write();
+int network_put_dbg_packet(const char *buf, size_t size);
 
 #endif /* DEEBE_NETWORK_H */

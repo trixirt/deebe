@@ -44,19 +44,6 @@
 
 typedef void (*log_func)(int level, const char *string, ...);
 
-/*=================  Global Parameters ================================ */
-
-/* Size of data buffer  */
-#define GDB_INTERFACE_PARAM_DATABYTES_MAX (16384)
-
-
-/* Size of input and out buffers */
-#define RP_PARAM_INOUTBUF_SIZE (2*GDB_INTERFACE_PARAM_DATABYTES_MAX+32)
-
-/* First socket port to try */
-#define RP_PARAM_SOCKPORT_MIN (2000)
-
-
 /*================= Debugger Parameters ================================*/
 
 /* These values have to be in synch with corresponding values used

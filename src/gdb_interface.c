@@ -105,16 +105,6 @@ static uint16_t dbg_sock_readchar()
 	}
 	return ret;
 }
-static size_t dbg_sock_write(unsigned char *b, size_t l)
-{
-	size_t ret = 0;
-	if (l < network_out_buffer_size - network_out_buffer_total) {
-		memcpy(&network_out_buffer[network_out_buffer_total], b, l);
-		network_out_buffer_total += l;
-		ret = l;
-	}
-	return ret;
-}
 
 /* Return values for readchar: either character
    code or one of the following*/
@@ -237,67 +227,6 @@ typedef struct {
 	const char *help;
 } RP_RCMD_TABLE;
 
-/*
- * Send packet to debugger
- * For normal text packets, buf is null teminated and size = 0
- * For binary packets, size must be use
- */
-static int gdb_interface_put_packet(const char *buf, size_t size)
-{
-	int i;
-	int ret = 1;
-	size_t len;
-	uint8_t csum;
-	uint8_t *d;
-	const char *s;
-	uint8_t buf2[RP_PARAM_INOUTBUF_SIZE + 4];
-
-	ASSERT(buf != NULL);
-
-	/* Copy the packet into buf2, encapsulate it, and give
-	   it a checksum. */
-	d = buf2;
-	*d++ = '$';
-	csum = 0;
-	/* Normal text packet */
-	if (size == 0) {
-		for (s = buf, i = 0; *s && i < RP_PARAM_INOUTBUF_SIZE; i++) {
-			csum += *s;
-			*d++ = *s++;
-		}
-		ASSERT(*s == '\0');
-	} else {
-		/* Binary packet */
-		for (s = buf, i = 0;
-		     i < size && i < RP_PARAM_INOUTBUF_SIZE;
-		     i++) {
-			csum += *s;
-			*d++ = *s++;
-		}
-	}
-	/* Add the sumcheck to the end of the message */
-	*d++ = '#';
-	*d++ = util_hex[(csum >> 4) & 0xf];
-	*d++ = util_hex[(csum & 0xf)];
-	/* Do not null terminate binary transfers */
-	if (0 == size)
-		*d = '\0';
-	/* Send it over and over until we get a positive ack. */
-	len = d - buf2;
-	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG2,
-			  ": sending packet: %d bytes: %s...",
-			  len,
-			  buf2);
-	ret = dbg_sock_write(buf2, len);
-	if (ret == 0) {
-		/* Something went wrong */
-		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-				  ": write failed");
-	} else {
-		ret = 0;
-	}
-	return ret;
-}
 
 void dbg_ack_packet_received(bool seq_valid, char *seq)
 {
@@ -1151,7 +1080,7 @@ int handle_kill_command(char * const in_buf,
 				  ": unable to restart target %s",
 				  t->name);
 		gdb_interface_write_retval(RET_ERR, out_buf);
-		gdb_interface_put_packet(out_buf, 0);
+		network_put_dbg_packet(out_buf, 0);
 		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 				  ": will wait for a new connection");
 		return  FALSE;
@@ -1199,7 +1128,7 @@ int handle_restart_target_command(char * const in_buf,
 				  ": unable to restart target %s",
 				  t->name);
 		gdb_interface_write_retval(RET_ERR, out_buf);
-		gdb_interface_put_packet(out_buf, 0);
+		network_put_dbg_packet(out_buf, 0);
 		if (cmdline_once) {
 			/*
 			 * If the current target cannot restart,
@@ -1229,7 +1158,7 @@ void handle_detach_command(char * const in_buf,
 		t->disconnect();
 	gdb_interface_write_retval(ret, out_buf);
 	/* Note: The current GDB does not expect a reply */
-	gdb_interface_put_packet(out_buf, 0);
+	network_put_dbg_packet(out_buf, 0);
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO, ": debugger detached");
 	if (cmdline_once) {
 		/*
@@ -1242,24 +1171,6 @@ void handle_detach_command(char * const in_buf,
 	}
 	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
 			  ": will wait for a new connection");
-}
-
-static size_t _escape_binary(uint8_t *dst, uint8_t *src, size_t size)
-{
-	size_t i, j;
-	for (i = 0, j = 0; i < size; i++) {
-		uint8_t c = src[i];
-		if ((0x23 == c) ||
-		    (0x24 == c) ||
-		    (0x2a == c) ||
-		    (0x7d == c)) {
-			dst[j++] = 0x7d;
-			dst[j++] = c & ~0x20;
-		} else {
-			dst[j++] = c;
-		}
-	}
-	return j;
 }
 
 static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
@@ -1542,8 +1453,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 				 sizeof(uint8_t));
 	    if (pattern) {
 	      size_t pattern_len = 0;
-	      pattern_len = _escape_binary(
-		pattern, (uint8_t *)n, bmax);
+	      pattern_len = util_escape_binary(pattern, (uint8_t *)n, bmax);
 	      if (pattern_len > 0) {
 		if (pattern_len <= len) {
 		  uint8_t *read_buf = (uint8_t *) malloc(len);
@@ -2082,9 +1992,9 @@ static int handle_v_command(char * const in_buf,
 									preamble_size = strlen(out_buf);
 									/* this is binary data, need to escape special chars */
 									dst = (uint8_t *)out_buf + preamble_size;
-									escaped_size = _escape_binary(dst, buf, bytes_read);
+									escaped_size = util_escape_binary(dst, buf, bytes_read);
 									/* send packet out here because being binary, can not use upstream packet put */
-									ret = gdb_interface_put_packet(out_buf, escaped_size + preamble_size);
+									ret = network_put_dbg_packet(out_buf, escaped_size + preamble_size);
 									/* Make sure upstream doesn't push again */
 									out_buf[0] = 0; /* null terminated */
 									binary_cmd = true;
@@ -2141,7 +2051,7 @@ static int handle_v_command(char * const in_buf,
 		gdb_interface_write_retval(RET_NOSUPP, out_buf);
 	}
 	if (!binary_cmd) {
-		gdb_interface_put_packet(out_buf, 0);
+		network_put_dbg_packet(out_buf, 0);
 	}
 	return ret;
 }
@@ -2211,7 +2121,7 @@ static void rp_console_output(const char *s)
 		for (count = 1;  *s  &&  count < lim;  s++, d++, count++)
 			*d = *s;
 		*d = '\0';
-		ret = gdb_interface_put_packet(buf, 0);
+		ret = network_put_dbg_packet(buf, 0);
 	} while (*s  &&  ret);
 }
 
@@ -2247,7 +2157,7 @@ static void rp_data_output(const char *s)
 		     *s != 0  &&  count < lim;  s++, d++, count++)
 			*d = *s;
 		*d = '\0';
-		ret = gdb_interface_put_packet(buf, 0);
+		ret = network_put_dbg_packet(buf, 0);
 	} while (*s  &&  ret);
 }
 
@@ -2726,7 +2636,7 @@ int gdb_interface_quick_packet()
 	int s;
 
 	/* Various buffers used by the system */
-	static char in_buf[RP_PARAM_INOUTBUF_SIZE];
+	static char in_buf[INOUTBUF_SIZE];
 	/*
 	 * Because no implicit ack's while reading the
 	 * ack's must be explicitly done for each handled packet.
@@ -2800,8 +2710,8 @@ int gdb_interface_packet()
 	bool binary_cmd = false;
 
 	/* Various buffers used by the system */
-	static char in_buf[RP_PARAM_INOUTBUF_SIZE];
-	static char out_buf[RP_PARAM_INOUTBUF_SIZE];
+	static char in_buf[INOUTBUF_SIZE];
+	static char out_buf[INOUTBUF_SIZE];
 
 	s = gdb_interface_getpacket(in_buf, sizeof(in_buf),
 				    &in_len, true /* do acks */);
@@ -2991,6 +2901,13 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
+			case 'x':
+			  if (!lldb_handle_binary_read_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			    /* Not handled */
+			  } else {
+			    ret = 0;
+			  }
+			  break;
 			case 'Z':
 			case 'z':
 				handle_breakpoint_command(in_buf,
@@ -3010,7 +2927,7 @@ int gdb_interface_packet()
 				break;
 			}
 			if (!binary_cmd) {
-				gdb_interface_put_packet(out_buf, 0);
+				network_put_dbg_packet(out_buf, 0);
 			} else {
 				/* Now the binary command */
 				switch (in_buf[0]) {
@@ -3042,7 +2959,7 @@ void gdb_interface_put_console(char *b)
 	ebuf[0] = 'O';
 	esize = util_encode_string(b, &ebuf[1], 2048);
 	if (esize > 0)
-		gdb_interface_put_packet(&ebuf[0], esize+1);
+		network_put_dbg_packet(&ebuf[0], esize+1);
 }
 
 /*

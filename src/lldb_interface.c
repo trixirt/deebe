@@ -42,6 +42,7 @@
 #include <string.h>
 #include "gdb_interface.h"
 #include "lldb_interface.h"
+#include "network.h"
 #include "target.h"
 #include "util.h"
 
@@ -279,6 +280,75 @@ bool lldb_handle_json_command(char * const in_buf, int in_len, char *out_buf, in
   }
 
 end:
+  if (req_handled)
+    _target.lldb = true;
+
+  return req_handled;
+}
+
+bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+{
+  char *n = in_buf + 1;
+  bool req_handled = false;
+
+  /* Look for special $x0,0 packet */
+  if (strncmp(n, "0,0", 3) == 0) {
+    gdb_interface_write_retval(RET_OK, out_buf);
+  } else {
+    uint64_t addr;
+    uint64_t size;
+    bool err = true;
+    char *endptr;
+    
+    /* lldb x packet doesn't follow gdb convention
+     * 
+     * $x0x7f50cc408600,0x200#80
+     * 
+     * From the lldb-gdb-remote.txt doc
+     *   The "0x" prefixes are optional - like most of the gdb-remote packets,
+     *   omitting them will work fine; these numbers are always base 16. 
+     *
+     * This forces us to do something special for this command
+     */
+    addr = strtoull(n, &endptr, 16);
+    /* 1 for inc past 'x', 1 for ',' */
+    if ((n != endptr) && ((endptr - n + 2 ) < in_len)) {
+      /* assume ',' */
+      n = endptr + 1;
+      size = strtoull(n, &endptr, 16);
+      if (n != endptr)
+	err = false;
+    }
+
+    if (err) {
+      gdb_interface_write_retval(RET_ERR, out_buf);
+    } else {
+
+      /*
+       * Only only handle a singled buffer worth
+       * *2 to account for worst case, every value must be escaped
+       */
+      if (size * 2 > out_buf_len) {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      } else {
+	/*
+	 * Use the last half of the out buf as our scratch buffer
+	 * The escape conversion will read from the second half
+	 * and place in the first half.
+	 */
+	size_t len;
+	char *scratch_buf = out_buf + (out_buf_len / 2);
+	/* Since we are not going to handle the error at least clear memory */
+	memset(scratch_buf, 0, size);
+	target->read_mem(CURRENT_PROCESS_TID, addr, (uint8_t *)scratch_buf, size, &len);
+	/* ignore len, ignore ret, go ahead and escap */
+	len = util_escape_binary((uint8_t *)out_buf, (uint8_t *)scratch_buf, size);
+	network_put_dbg_packet(out_buf, len);
+      }
+    }
+  }
+  req_handled = true;
+
   if (req_handled)
     _target.lldb = true;
 

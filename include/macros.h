@@ -54,4 +54,9 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 
 #define PRINTABLE(c) (((c) >= (__typeof__(c))0x20 && (c) < (__typeof__(c))127) ? (c) : '.')
 
+/* Size of data buffer  */
+#define GDB_INTERFACE_PARAM_DATABYTES_MAX (16384)
+/* Size of input and out buffers */
+#define INOUTBUF_SIZE (2*GDB_INTERFACE_PARAM_DATABYTES_MAX+32)
+
 #endif
