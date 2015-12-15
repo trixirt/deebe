@@ -2894,6 +2894,13 @@ int gdb_interface_packet()
 				/* Supported */
 				ret = 0;
 				break;
+			case 'j':
+			  if (! lldb_handle_json_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			    /* Not supported */
+			  } else {
+			    ret = 0;
+			  }
+			  break;
 			case 'k':
 				handle_kill_command(in_buf,
 						    in_len,

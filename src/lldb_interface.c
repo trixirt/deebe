@@ -96,7 +96,7 @@ static bool get_ostype(char **ptr) {
   return ret;
 }
 
-bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
+bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
@@ -147,8 +147,8 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
 	}
       }
       if (!err) {
-	if (t->memory_region_info) {
-	  if (!t->memory_region_info(addr, out_buf, out_buf_len)) {
+	if (target->memory_region_info) {
+	  if (!target->memory_region_info(addr, out_buf, out_buf_len)) {
 	    gdb_interface_write_retval(RET_ERR, out_buf);
 	  }
 	} else {
@@ -220,8 +220,8 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       uint32_t reg;
       char *in = &n[12];
       if (util_decode_reg(&in, &reg)) {
-	if (t->register_info) {
-	  if (!t->register_info(reg, out_buf, out_buf_len)) {
+	if (target->register_info) {
+	  if (!target->register_info(reg, out_buf, out_buf_len)) {
 	    gdb_interface_write_retval(RET_ERR, out_buf);
 	  }
 	} else {
@@ -235,6 +235,45 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
     }
     break;
 
+  default:
+    break;
+  }
+
+end:
+  if (req_handled)
+    _target.lldb = true;
+
+  return req_handled;
+}
+
+bool lldb_handle_json_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target) {
+
+  char *n = in_buf + 1;
+  bool req_handled = false;
+
+  switch (*n) {
+  case 'T':
+    if (strncmp(n, "ThreadExtendedInfo:", 19) == 0) {
+      int64_t process, thread;
+      int status;
+      /* Current thread query */
+      status = target->current_thread_query(&process, &thread);
+      if (status == RET_OK) {
+	/*
+	 * This cores lldb :
+	 * snprintf(out_buf, out_buf_len, "jThreadExtendedInfo:{\"thread\":%lu}", thread);
+	 *
+	 * From inspection, it looks like json is apple (?) specific.
+	 * So return error instead
+	 *
+	 */
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      } else {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      }
+      req_handled = true;
+      goto end;
+    }
   default:
     break;
   }
