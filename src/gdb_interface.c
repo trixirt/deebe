@@ -1432,7 +1432,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       req_handled = true;
       goto end;
     } else if (strncmp(n, "Symbol::", 8) == 0) {
-      gdb_interface_write_retval(RET_OK, out_buf);
+      gdb_interface_write_retval(RET_NOSUPP, out_buf);
       req_handled = true;
       goto end;
     } else if (strncmp(n, "Symbol:", 7) == 0) {
