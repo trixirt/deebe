@@ -2969,11 +2969,55 @@ void gdb_interface_put_console(char *b)
 void gdb_stop_string(char *str, size_t len, int sig,
 		     pid_t tid, unsigned long watch_addr)
 {
-	char tstr[32] = "";
-	char wstr[32] = "";
-	if (target_number_threads() > 0)
-		snprintf(&tstr[0], 32, "thread:%x;", tid);
-	if (watch_addr)
-		snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
-	snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
+  char tstr[32] = "";
+  char wstr[32] = "";
+  int chars_written;
+  if (target_number_threads() > 0)
+    snprintf(&tstr[0], 32, "thread:%x;", tid);
+  if (watch_addr)
+    snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
+  chars_written = snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
+  if ((target_number_threads() > 0) &&
+      (chars_written > 0) && (chars_written < len)) {
+    char *save_str;
+    len -= chars_written;
+    str += chars_written;
+    save_str = str;
+    /* List the threads */
+    chars_written = snprintf(str, len, "threads:");
+    if ((chars_written > 0) && (chars_written < len)) {
+      int index;
+      bool first = true;
+      len -= chars_written;
+      str += chars_written;
+      for (index = 0; index < _target.number_processes; index++) {
+	if (PROCESS_STATE(index) != PS_EXIT) {
+	  pid_t tid = PROCESS_TID(index);
+	  if (first) {
+	    chars_written = snprintf(str, len, "%x", tid);
+	    first = false;
+	  } else {
+	    chars_written = snprintf(str, len, ",%x", tid);
+	  }
+	  if ((chars_written > 0) && (chars_written < len)) {
+	    len -= chars_written;
+	    str += chars_written;
+	  } else {
+	    /* failure */
+	    break;
+	  }
+	}
+      }
+      if (index == _target.number_processes) {
+	/* do not recover from ';' failure */
+	snprintf(str, len, ";");
+      } else {
+	/* recover from partial write */
+	save_str[0] = '\0';
+      }
+    } else {
+      /* recover from partial write */
+      save_str[0] = '\0';
+    }
+  }
 }
