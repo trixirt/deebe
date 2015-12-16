@@ -74,7 +74,7 @@ static bool _add_break_verbose = false;
 static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
-static bool _stop_verbose = false;
+static bool _stop_verbose = true;
 static bool _restart_verbose = false;
 static bool _detach_verbose = false;
 
@@ -1772,9 +1772,12 @@ static void _stopped_all(char *str)
 						      * If the pc and the breakpoint don't match, lldb puts itself in a bad
 						      * state.  So check if we are on lldb and roll back the pc one sw break's
 						      * worth.
+						      * 
+						      * On freebsd arm, the pc isn't advanced so use the arch dependent function
+						      * ptrace_arch_swbreak_rollback
 						      */
 						     if (_target.lldb)
-						       ptrace_arch_set_pc(tid, pc - ptrace_arch_swbreak_size());
+						       ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
 
 						     reason = LLDB_STOP_REASON_BREAKPOINT;
 						   }

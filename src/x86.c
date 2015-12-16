@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -473,4 +473,9 @@ bool ptrace_arch_support_hardware_breakpoints(pid_t tid) {
 const char *ptrace_arch_get_xml_register_string() {
   static char *str = "i386";
   return str;
+}
+
+size_t ptrace_arch_swbrk_rollback()
+{
+  return ptrace_arch_swbreak_size();
 }

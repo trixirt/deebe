@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Juniper Networks, Inc.
+ * Copyright (c) 2013-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -106,6 +106,7 @@ bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status);
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid);
 bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
 bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size);
+size_t ptrace_arch_swbrk_rollback();
 /* Internal functions used by arch's */
 bool _read_reg(pid_t tid, int GET, int SET, void **reg, uint8_t **reg_rw,
 	       size_t *reg_size);
