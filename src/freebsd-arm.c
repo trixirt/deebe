@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -35,20 +35,15 @@
 #include "os.h"
 #include "gdb-arm.h"
 
-struct reg_location_list frll[] = {
-	FRLL(fp0, fpr[0], GDB_FPR0, 0, 0, 0),
-	FRLL(fp1, fpr[1], GDB_FPR1, 0, 0, 0),
-	FRLL(fp2, fpr[2], GDB_FPR2, 0, 0, 0),
-	FRLL(fp3, fpr[3], GDB_FPR3, 0, 0, 0),
-	FRLL(fp4, fpr[4], GDB_FPR4, 0, 0, 0),
-	FRLL(fp5, fpr[5], GDB_FPR5, 0, 0, 0),
-	FRLL(fp6, fpr[6], GDB_FPR6, 0, 0, 0),
-	FRLL(fp7, fpr[7], GDB_FPR7, 0, 0, 0),
-	FRLL(fpsr, fpr_fpsr, GDB_FPS, 0, 0, 0),
-	{0},
-};
-
 bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
 {
   return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
+}
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size)
+{
+  return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
+}
+size_t ptrace_arch_swbrk_rollback()
+{
+  return 0;
 }

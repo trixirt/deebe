@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Juniper Networks, Inc.
+ * Copyright (c) 2015-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -35,15 +35,3 @@
 #include "os.h"
 #include "gdb-arm.h"
 
-struct reg_location_list frll[] = {
-	FRLL(fp0, vfp_regs[0], GDB_FPR0, 0, 0, 0),
-	FRLL(fp1, vfp_regs[1], GDB_FPR1, 0, 0, 0),
-	FRLL(fp2, vfp_regs[2], GDB_FPR2, 0, 0, 0),
-	FRLL(fp3, vfp_regs[3], GDB_FPR3, 0, 0, 0),
-	FRLL(fp4, vfp_regs[4], GDB_FPR4, 0, 0, 0),
-	FRLL(fp5, vfp_regs[5], GDB_FPR5, 0, 0, 0),
-	FRLL(fp6, vfp_regs[6], GDB_FPR6, 0, 0, 0),
-	FRLL(fp7, vfp_regs[7], GDB_FPR7, 0, 0, 0),
-	FRLL(fpsr, vfp_fpscr, GDB_FPS, 0, 0, 0),
-	{0},
-};
