@@ -37,33 +37,6 @@
 
 #include <linux/elf.h>
 
-#define GRLL(N, E, GDB, O, S, GDB_S, ENCODING, FORMAT, GCC, DWARF, GENERIC)	\
-	{							\
-		.off = (O) + offsetof(struct user, E),		\
-		.size = (S) ? (S) : msizeof(struct user, E),	\
-		.gdb = (GDB),					\
-		.name = #N,					\
-		.gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct user, E), \
-		.encoding = #ENCODING,  				\
-		.format = #FORMAT,  				\
-	  .gcc = GCC, \
-	  .dwarf = DWARF, \
-	  .generic = #GENERIC, \
-	}
-
-/* Arch can define which struct to use */
-#ifndef FP_STRUCT
-#define FP_STRUCT user_fpregs_struct
-#endif
-
-#define FRLL(N, E, GDB, O, S, GDB_S)				\
-	{							\
-		.off = (O) + offsetof(struct FP_STRUCT, E),	\
-		.size = (S) ? (S) : msizeof(struct FP_STRUCT, E), \
-		.gdb = (GDB),					\
-		.name = #N,					\
-		.gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct FP_STRUCT, E) \
-	}
 /*
  * To get the cast of normal arguements correct,
  * default is linux so this is a noop

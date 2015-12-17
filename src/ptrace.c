@@ -2093,16 +2093,13 @@ bool ptrace_register_info(uint32_t reg, char *buf, size_t len)
 {
   bool ret = false;
   int i = 0;
+
   if (is_reg(reg, &i, grll)) {
+    /* General Purpose Reg */
     int chars_written;
     chars_written = snprintf(buf, len, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:General Purpose Registers;",
 			     grll[i].name, 
-			     /* lldb assumes all the gp registers are the same size, obviously not true for x86.. 
-				so instead of this ..
-				grll[i].size * 8, 
-				do this
-			     */
-			     sizeof(void *) * 8,
+			     grll[i].size * 8, 
 			     grll[i].off, grll[i].encoding, grll[i].format);
     if (chars_written > 0 && chars_written < len) {
       ret = true;
@@ -2134,6 +2131,55 @@ bool ptrace_register_info(uint32_t reg, char *buf, size_t len)
       /* XXX Magic 'X' means this is a non value */
       if (strlen(grll[i].generic) && grll[i].generic[0] != 'X'){
 	chars_written = snprintf(buf, len, "generic:%s;", grll[i].generic);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+    }
+  } else if (is_reg(reg, &i, frll)) {
+    /* Floating Point Reg */
+    /* XXX Combine similar logic from above */
+    /* General Purpose Reg */
+    int chars_written;
+    chars_written = snprintf(buf, len, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:Floating Point Registers;",
+			     frll[i].name, 
+			     frll[i].size * 8, 
+			     frll[i].off, frll[i].encoding, frll[i].format);
+    if (chars_written > 0 && chars_written < len) {
+      ret = true;
+      len -= chars_written; 
+      buf += chars_written;
+      char *buf_save = buf;
+      if (frll[i].gcc >= 0){
+	chars_written = snprintf(buf, len, "gcc:%d;", frll[i].gcc);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+      if (frll[i].dwarf >= 0){
+	chars_written = snprintf(buf, len, "dwarf:%d;", frll[i].dwarf);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+      /* XXX Magic 'X' means this is a non value */
+      if (strlen(frll[i].generic) && frll[i].generic[0] != 'X'){
+	chars_written = snprintf(buf, len, "generic:%s;", frll[i].generic);
 	if (chars_written > 0 && chars_written < len) {
 	  len -= chars_written; 
 	  buf += chars_written;
