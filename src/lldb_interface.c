@@ -354,3 +354,28 @@ bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_
 
   return req_handled;
 }
+
+bool lldb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+{
+  char *n = in_buf + 1;
+  bool req_handled = false;
+
+  switch (*n) {
+  case 'T':
+    if (strncmp(n, "ThreadSuffixSupported", 21) == 0) {
+      gdb_interface_write_retval(RET_OK, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
+    
+  default:
+    break;
+  }
+
+end:
+  if (req_handled)
+    _target.lldb = true;
+
+  return req_handled;
+}

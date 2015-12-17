@@ -775,52 +775,49 @@ void handle_write_registers_command(char * const in_buf,
 	gdb_interface_write_retval(ret, out_buf);
 }
 
-void handle_read_single_register_command(char * const in_buf,
-					 int in_len,
-					 char *out_buf,
-					 int out_buf_len,
-					 gdb_target *t)
+static bool _decode_reg_tid(char *const in_buf, int in_len, uint32_t *reg, pid_t *tid) {
+  bool ret = false;
+  char *in = &in_buf[1];
+  if (strchr(in, ';')) {
+    int64_t thread_id;
+    /* The QThreadSuffixSupported option */
+    ret = util_decode_uint32(&in, reg, ';');
+    if (!ret)
+      goto end;
+    if (strncmp(in, "thread:", 7) == 0) {
+      in += 7;
+      ret = gdb_decode_int64(&in, &thread_id, ';');
+      if (!ret)
+	goto end;
+      *tid = thread_id;
+    } else {
+      /* Get a single register. Format 'pNN' */
+      ret = util_decode_reg(&in, reg);
+      if (!ret)
+	goto end;
+    }
+    ret = true;
+  }
+  end:
+  return ret;
+}
+void handle_read_single_register_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
 {
-	int ret;
-	unsigned int reg_no;
-	size_t len;
-	unsigned char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
-	unsigned char avail_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
-	char *in = &in_buf[1];
-
-	/* Get a single register. Format 'pNN' */
-	ret = util_decode_reg(&in, &reg_no);
-	if (!ret) {
-		gdb_interface_write_retval(RET_ERR, out_buf);
-		return;
-	}
-
-	ret = t->read_single_register(CURRENT_PROCESS_TID,
-				      reg_no,
-				      data_buf,
-				      avail_buf,
-				      sizeof(data_buf),
-				      &len);
-	switch (ret) {
-	case RET_OK:
-		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
-		gdb_encode_regs(data_buf,
-				avail_buf,
-				len,
-				out_buf,
-				out_buf_len);
-		break;
-	case RET_ERR:
-		gdb_interface_write_retval(RET_ERR, out_buf);
-		break;
-		/* handle targets non supporting single register read */
-	case RET_NOSUPP:
-		break;
-	default:
-		/* This should not happen */
-		ASSERT(0);
-		break;
-	}
+  int ret;
+  uint32_t reg_no;
+  size_t len;
+  unsigned char data_buf[64];
+  unsigned char avail_buf[64];
+  pid_t tid = CURRENT_PROCESS_TID;
+  if (_decode_reg_tid(in_buf, in_len, &reg_no, &tid)) {
+    ret = t->read_single_register(tid, reg_no, data_buf, avail_buf, sizeof(data_buf), &len);
+    if (ret == RET_OK)
+      gdb_encode_regs(data_buf, avail_buf, len, out_buf, out_buf_len);
+    else
+      gdb_interface_write_retval(ret, out_buf);
+  } else {
+    gdb_interface_write_retval(RET_ERR, out_buf);
+  }
 }
 
 void handle_write_single_register_command(char * const in_buf,
@@ -2056,7 +2053,7 @@ static int handle_v_command(char * const in_buf,
 	return ret;
 }
 
-static void handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len)
+static void gdb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
 {
   int ret = RET_ERR;
   char *n = in_buf + 1;
@@ -2870,10 +2867,12 @@ int gdb_interface_packet()
 			  }
 			  break;
 			case 'Q':
-				handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf));
-				/* Supported */
-				ret = 0;
-				break;
+			  if (! lldb_handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			    gdb_handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target);
+			  } 
+			  /* Supported */
+			  ret = 0;
+			  break;
 			case 'R':
 				handle_restart_target_command(in_buf,
 							      in_len,

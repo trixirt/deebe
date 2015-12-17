@@ -38,5 +38,6 @@
 bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
 bool lldb_handle_json_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
 bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
+bool lldb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
 
 #endif

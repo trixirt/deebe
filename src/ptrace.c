@@ -2008,6 +2008,15 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 #endif
+	/*
+	 * On lldb
+	 * Support thread suffix support for 'g', 'G', 'p' and 'P'
+	 */
+	sprintf(str, "QThreadSuffixSupported+;");
+	if (((strlen(str)) + c) < out_buf_size) {
+		strcat(out_buf, str);
+		c += strlen(str);
+	}
 }
 
 int ptrace_get_signal(void)
