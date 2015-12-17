@@ -684,7 +684,7 @@ int ptrace_restart(void)
 						 */
 						if (WIFSTOPPED(status) &&
 						    (WSTOPSIG(status) == SIGTRAP)) {
-						  if (target_new_thread(try_child, try_child, status, true, SIGTRAP)) {
+						  if (target_new_thread(try_child, try_child, status, true, SIGSTOP /* lie, this is really SIGTRAP */)) {
 								ptrace_arch_option_set_thread(try_child);
 								fprintf(stdout, "Process %s created; pid = %d\n", cmdline_argv[0], CURRENT_PROCESS_PID);
 								fflush(stdout);
@@ -2071,15 +2071,63 @@ void ptrace_set_xml_register_reporting()
   _target.xml_register_reporting = true;
 }
 
-bool ptrace_register_info(uint32_t reg, char *out_buf, size_t out_buf_size)
+bool ptrace_register_info(uint32_t reg, char *buf, size_t len)
 {
   bool ret = false;
   int i = 0;
   if (is_reg(reg, &i, grll)) {
-    snprintf(out_buf, out_buf_size, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:General Purpose Registers;",
-	     grll[i].name, grll[i].size * 8, grll[i].off, grll[i].encoding, grll[i].format);
-    ret = true;
+    int chars_written;
+    chars_written = snprintf(buf, len, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:General Purpose Registers;",
+			     grll[i].name, 
+			     /* lldb assumes all the gp registers are the same size, obviously not true for x86.. 
+				so instead of this ..
+				grll[i].size * 8, 
+				do this
+			     */
+			     sizeof(void *) * 8,
+			     grll[i].off, grll[i].encoding, grll[i].format);
+    if (chars_written > 0 && chars_written < len) {
+      ret = true;
+      len -= chars_written; 
+      buf += chars_written;
+      char *buf_save = buf;
+      if (grll[i].gcc >= 0){
+	chars_written = snprintf(buf, len, "gcc:%d;", grll[i].gcc);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+      if (grll[i].dwarf >= 0){
+	chars_written = snprintf(buf, len, "dwarf:%d;", grll[i].dwarf);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+      /* XXX Magic 'X' means this is a non value */
+      if (strlen(grll[i].generic) && grll[i].generic[0] != 'X'){
+	chars_written = snprintf(buf, len, "generic:%s;", grll[i].generic);
+	if (chars_written > 0 && chars_written < len) {
+	  len -= chars_written; 
+	  buf += chars_written;
+	} else {
+	  /* recover */
+	  buf_save[0] = '\0';
+	  goto end;
+	}
+      }
+    }
   }
+  end:
   return ret;
 }
 

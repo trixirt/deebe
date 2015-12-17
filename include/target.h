@@ -146,6 +146,9 @@ struct reg_location_list {
 	size_t gdb_size;
   char *encoding;
   char *format;
+  int gcc;
+  int dwarf;
+  char *generic;
 };
 
 /* The register lookup lists */
