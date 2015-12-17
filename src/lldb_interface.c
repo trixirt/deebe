@@ -368,6 +368,15 @@ bool lldb_handle_general_set_command(char * const in_buf, int in_len, char *out_
       goto end;
     }
     break;
+
+  case 'L':
+    if (strncmp(n, "ListThreadsInStopReply", 22) == 0) {
+      _target.list_threads_in_stop_reply = true;
+      gdb_interface_write_retval(RET_OK, out_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
     
   default:
     break;

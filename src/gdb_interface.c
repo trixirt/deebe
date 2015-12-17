@@ -2976,47 +2976,49 @@ void gdb_stop_string(char *str, size_t len, int sig,
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
   chars_written = snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
-  if ((target_number_threads() > 0) &&
-      (chars_written > 0) && (chars_written < len)) {
-    char *save_str;
-    len -= chars_written;
-    str += chars_written;
-    save_str = str;
-    /* List the threads */
-    chars_written = snprintf(str, len, "threads:");
-    if ((chars_written > 0) && (chars_written < len)) {
-      int index;
-      bool first = true;
+  if (_target.list_threads_in_stop_reply) {
+    if ((target_number_threads() > 0) &&
+	(chars_written > 0) && (chars_written < len)) {
+      char *save_str;
       len -= chars_written;
       str += chars_written;
-      for (index = 0; index < _target.number_processes; index++) {
-	if (PROCESS_STATE(index) != PS_EXIT) {
-	  pid_t tid = PROCESS_TID(index);
-	  if (first) {
-	    chars_written = snprintf(str, len, "%x", tid);
-	    first = false;
-	  } else {
-	    chars_written = snprintf(str, len, ",%x", tid);
-	  }
-	  if ((chars_written > 0) && (chars_written < len)) {
-	    len -= chars_written;
-	    str += chars_written;
-	  } else {
-	    /* failure */
-	    break;
+      save_str = str;
+      /* List the threads */
+      chars_written = snprintf(str, len, "threads:");
+      if ((chars_written > 0) && (chars_written < len)) {
+	int index;
+	bool first = true;
+	len -= chars_written;
+	str += chars_written;
+	for (index = 0; index < _target.number_processes; index++) {
+	  if (PROCESS_STATE(index) != PS_EXIT) {
+	    pid_t tid = PROCESS_TID(index);
+	    if (first) {
+	      chars_written = snprintf(str, len, "%x", tid);
+	      first = false;
+	    } else {
+	      chars_written = snprintf(str, len, ",%x", tid);
+	    }
+	    if ((chars_written > 0) && (chars_written < len)) {
+	      len -= chars_written;
+	      str += chars_written;
+	    } else {
+	      /* failure */
+	      break;
+	    }
 	  }
 	}
-      }
-      if (index == _target.number_processes) {
-	/* do not recover from ';' failure */
-	snprintf(str, len, ";");
+	if (index == _target.number_processes) {
+	  /* do not recover from ';' failure */
+	  snprintf(str, len, ";");
+	} else {
+	  /* recover from partial write */
+	  save_str[0] = '\0';
+	}
       } else {
 	/* recover from partial write */
 	save_str[0] = '\0';
       }
-    } else {
-      /* recover from partial write */
-      save_str[0] = '\0';
     }
   }
 }
