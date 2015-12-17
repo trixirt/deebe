@@ -1227,6 +1227,10 @@ int _ptrace_resume(pid_t pid, pid_t tid, int step, int gdb_sig)
 		} else {
 			PROCESS_STATE(index) = PS_RUN;
 		}
+		if (step == 0)
+		  _target.step = false;
+		else
+		  _target.step = true;
 		/* TODO : Map sig to arg4 */
 		if (0 == ptrace_os_continue(pid, tid, step, sig)) {
 			ret = RET_OK;

@@ -278,7 +278,7 @@ size_t util_escape_binary(uint8_t *dst, uint8_t *src, size_t size)
 	(0x2a == c) ||
 	(0x7d == c)) {
       dst[j++] = 0x7d;
-      dst[j++] = c & ~0x20;
+      dst[j++] = c ^0x20;
     } else {
       dst[j++] = c;
     }

@@ -53,6 +53,7 @@ target_state _target = {
 	.nonstop = NS_ON,
 	.multiprocess = 0, /* default to supporting multiple processes */
 	.xml_register_reporting = false, /* default to old style reporting */
+  .step = false, /* no single stepping here.. */
 	.syscall_enter = false,
 	.flag_attached_existing_process = 0,
 	.reg_size = 0,

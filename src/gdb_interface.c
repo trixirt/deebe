@@ -2904,6 +2904,7 @@ int gdb_interface_packet()
 			  if (!lldb_handle_binary_read_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
 			    /* Not handled */
 			  } else {
+			    binary_cmd = true;
 			    ret = 0;
 			  }
 			  break;
@@ -2968,57 +2969,42 @@ void gdb_interface_put_console(char *b)
 void gdb_stop_string(char *str, size_t len, int sig,
 		     pid_t tid, unsigned long watch_addr)
 {
+  int index;
   char tstr[32] = "";
   char wstr[32] = "";
-  int chars_written;
   if (target_number_threads() > 0)
     snprintf(&tstr[0], 32, "thread:%x;", tid);
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
-  chars_written = snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
+  snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
   if (_target.list_threads_in_stop_reply) {
-    if ((target_number_threads() > 0) &&
-	(chars_written > 0) && (chars_written < len)) {
-      char *save_str;
-      len -= chars_written;
-      str += chars_written;
-      save_str = str;
-      /* List the threads */
-      chars_written = snprintf(str, len, "threads:");
-      if ((chars_written > 0) && (chars_written < len)) {
-	int index;
-	bool first = true;
-	len -= chars_written;
-	str += chars_written;
-	for (index = 0; index < _target.number_processes; index++) {
-	  if (PROCESS_STATE(index) != PS_EXIT) {
-	    pid_t tid = PROCESS_TID(index);
-	    if (first) {
-	      chars_written = snprintf(str, len, "%x", tid);
-	      first = false;
-	    } else {
-	      chars_written = snprintf(str, len, ",%x", tid);
-	    }
-	    if ((chars_written > 0) && (chars_written < len)) {
-	      len -= chars_written;
-	      str += chars_written;
-	    } else {
-	      /* failure */
-	      break;
-	    }
-	  }
-	}
-	if (index == _target.number_processes) {
-	  /* do not recover from ';' failure */
-	  snprintf(str, len, ";");
+    bool first = true;
+    strncat(str, "threads", len);
+    for (index = 0; index < _target.number_processes; index++) {
+      if (PROCESS_STATE(index) != PS_EXIT) {
+	pid_t tid = PROCESS_TID(index);
+	if (first) {
+	  snprintf(&tstr[0], 32, "%x", tid);
+	  first = false;
 	} else {
-	  /* recover from partial write */
-	  save_str[0] = '\0';
+	  snprintf(&tstr[0], 32, ",%x", tid);
 	}
-      } else {
-	/* recover from partial write */
-	save_str[0] = '\0';
+	strncat(str, &tstr[0], len);
       }
+    }
+    strncat(str, ";", len);
+  }
+  if (_target.lldb) {
+    if (watch_addr) {
+      strncat(str, "reason:watchpoint;", len);
+    } else if (sig == SIGTRAP) {
+      if (_target.step) {
+	strncat(str, "reason:trace;", len);
+      } else {
+	strncat(str, "reason:trap;", len);
+      }
+    } else if (sig) {
+      strncat(str, "reason:signal;", len);
     }
   }
 }
