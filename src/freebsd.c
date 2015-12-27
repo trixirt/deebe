@@ -151,7 +151,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 								for (i = 0; i < num_lwps; i++) {
 									/* Find the one that isn't already being tracked */
 									if (! target_is_tid(lwpid_list[i])) {
-										if (target_new_thread(parent, lwpid_list[i], 0, false)) {
+									    if (target_new_thread(parent, lwpid_list[i], 0, false, SIGSTOP)) {
 											if (out_pid)
 												*out_pid = lwpid_list[i];
 										}
@@ -254,7 +254,7 @@ static void check_lwplist_for_new_threads(pid_t pid)
 					 * Since the new thread is not in a wait state, set the
 					 * wait flag to false.
 					 */
-					if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+					if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false, SIGSTOP)) {
 					  DBG_PRINT("%s error allocating new thread\n", __func__);
 					} else {
 					  int index = target_index(new_tid);
@@ -348,7 +348,7 @@ static int check_lwpinfo(pid_t pid)
 			if (PROCESS_TID(0) == PROCESS_PID(0)) {
 				PROCESS_TID(0) = tid;
 			} else {
-				if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT, false)) {
+			    if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT, false, SIGSTOP)) {
 					DBG_PRINT("%s error allocating new thread\n", __func__);
 				}
 			}
