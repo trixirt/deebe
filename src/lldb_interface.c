@@ -34,6 +34,7 @@
  */
 
 #include <sys/utsname.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -96,6 +97,29 @@ static bool get_ostype(char **ptr) {
   return ret;
 }
 
+static bool get_osversion(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+    *ptr = (char *) malloc (1 + strlen(&name.release[0]));
+    if (*ptr != NULL) {
+      size_t i, max;
+      char *str = *ptr;
+      sprintf(str, "%s", &name.release[0]);
+      max = strlen(str);
+      /* Truncate string when we don't see something looking like 123. */
+      for (i = 0; i < max; i++) {
+	if (!((isdigit(str[i]) || str[i] == '.'))) {
+	  str[i] = '\0';
+	  break;
+	}
+      }
+      ret = true;
+    }
+  }
+  return ret;
+}
+
 bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
 {
   char *n = in_buf + 1;
@@ -103,6 +127,7 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
   char *triple_str = NULL;
   char *encoded_triple_str = NULL;
   char *ostype_str = NULL;
+  char *osversion_str = NULL;
   size_t encoded_triple_str_size = 0;
 
   switch (*n) {
@@ -112,11 +137,15 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
 	encoded_triple_str_size = 1 + 2 * strlen(triple_str);
 	encoded_triple_str = (char *) malloc (encoded_triple_str_size);
 	if (encoded_triple_str != NULL) {
-	  /* Assume the encoding doesn't fail.. */
-	  util_encode_string(triple_str, encoded_triple_str, encoded_triple_str_size);
-	  snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s", encoded_triple_str, (unsigned) sizeof(void *), endian_str);
-	  free(encoded_triple_str);
-	  encoded_triple_str = NULL;
+	    if (get_osversion(&osversion_str)) {
+	      /* Assume the encoding doesn't fail.. */
+	      util_encode_string(triple_str, encoded_triple_str, encoded_triple_str_size);
+	      snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s;os_version:%s;", encoded_triple_str, (unsigned) sizeof(void *), endian_str, osversion_str);
+	      free(osversion_str);
+	      osversion_str = NULL;
+	    }
+	    free(encoded_triple_str);
+	    encoded_triple_str = NULL;
 	} else {
 	  gdb_interface_write_retval(RET_ERR, out_buf);
 	}
@@ -186,7 +215,6 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
 	if (encoded_triple_str != NULL) {
 	  /* Assume the encoding doesn't fail.. */
 	  util_encode_string(triple_str, encoded_triple_str, encoded_triple_str_size);
-
 	  if (get_ostype(&ostype_str)) {
 	    /* Not supporting multi process so ever process is created by deebe */
 	    pid_t my_pid = getpid();
