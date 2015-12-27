@@ -2937,9 +2937,23 @@ void gdb_stop_string(char *str, size_t len, int sig,
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
   snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);
+  if (_target.lldb) {
+    if (cmdline_pid == 0) {
+      char *d = strdup(cmdline_argv[0]);
+      if (d) {
+	char *name = basename(d);
+	if (name && strlen(name)) {
+	  strncat(str, "name:", len);
+	  strncat(str, name, len);
+	  strncat(str, ";", len);
+	}
+	free(d);
+      }
+    }
+  }
   if (_target.list_threads_in_stop_reply) {
     bool first = true;
-    strncat(str, "threads", len);
+    strncat(str, "threads:", len);
     for (index = 0; index < _target.number_processes; index++) {
       if (PROCESS_STATE(index) != PS_EXIT) {
 	pid_t tid = PROCESS_TID(index);
