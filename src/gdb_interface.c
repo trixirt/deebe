@@ -66,6 +66,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -800,8 +801,8 @@ void handle_read_single_register_command(char * const in_buf, int in_len, char *
   int ret;
   uint32_t reg_no;
   size_t len;
-  unsigned char data_buf[64];
-  unsigned char avail_buf[64];
+  alignas (4) unsigned char data_buf[64];
+  alignas (4) unsigned char avail_buf[64];
   pid_t tid = CURRENT_PROCESS_TID;
   if (_decode_reg_tid(in_buf, in_len, &reg_no, &tid)) {
     ret = t->read_single_register(tid, reg_no, data_buf, avail_buf, sizeof(data_buf), &len);
@@ -2962,6 +2963,25 @@ void gdb_stop_string(char *str, size_t len, int sig,
       }
     }
     strncat(str, ";", len);
+  }
+ 
+  if (gdb_interface_target->read_single_register != NULL) {
+    int i;
+    alignas (4) unsigned char data_buf[64];
+    alignas (4) unsigned char avail_buf[64];
+    size_t read_size;
+    for (i = 0; i < 256; i++) {
+      if (RET_OK == gdb_interface_target->read_single_register(tid, i, data_buf, avail_buf, sizeof(data_buf), &read_size)) {
+	char reg_str[132];
+	snprintf(&reg_str[0], 132, "%2.2x:", i);
+	gdb_encode_regs(data_buf, avail_buf, read_size, &reg_str[3], 128);
+	strncat(&reg_str[0], ";", 132);
+	strncat(str, &reg_str[0], len);
+      } else {
+	/* No holes, we are done */
+	break;
+      }
+    }
   }
   if (_target.lldb) {
     if (watch_addr) {
