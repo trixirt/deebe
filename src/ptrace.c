@@ -1992,15 +1992,18 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 #endif
-#if 0
-	/* Disabling because it cause gdb to
-	   ignore errors on unsupported features */
+	/* 
+	 * gdb 
+	 * Cause gdb to ignore errors on unsupported features
+	 *
+	 * lldb
+	 * lldb assumes it is supported, it's first packet is QStartNoAckMode
+	 */
 	sprintf(str, "QStartNoAckMode+;");
 	if (((strlen(str)) + c) < out_buf_size) {
 		strcat(out_buf, str);
 		c += strlen(str);
 	}
-#endif
 #if 0
 	/*
 	 * NonStop means threads can run conncurrently
