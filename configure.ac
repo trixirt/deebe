@@ -146,6 +146,18 @@ mips-*-linux-*)
 esac
 AC_SUBST([TD_SRC])
 
+case ${target} in
+
+*freebsd*)
+	TD_LIBS='-lutil '
+	;;
+
+powerpc-*-linux*)
+	TD_LIBS=''
+	;;
+esac
+AC_SUBST([TD_LIBS])
+
 # Confusing..
 # Would like use 'host' to mean what gdb is running on
 case ${host} in
