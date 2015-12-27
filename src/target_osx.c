@@ -36,20 +36,6 @@
 #include "dptrace.h"
 #include "os.h"
 
-/* Table of commands */
-static const RCMD_TABLE ptrace_remote_commands[] = {
-	{0, 0, 0}     /* sentinel, end of table marker */
-};
-
-gdb_state _gdb_state = {
-	.gen_thread = {
-		.val = 0,
-	},
-	.ctrl_thread = {
-		 .val = 0,
-	 },
-};
-
 int osx_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
 {
 	return RET_NOSUPP;
@@ -105,9 +91,8 @@ static int osx_query_current_signal(int *s)
 
 gdb_target osx_target = {
 	.next                     = NULL,
-	.name                     = "ptrace",
-	.desc                     = "native ptrace target",
-	.remote_commands          = ptrace_remote_commands,
+	.name                     = "osx",
+	.desc                     = "osx target",
 	.help                     = ptrace_help,
 	.open                     = ptrace_open,
 	.attach                   = ptrace_attach,
@@ -142,6 +127,10 @@ gdb_target osx_target = {
 	.threadextrainfo_query    = osx_threadextrainfo_query,
 	.supported_features_query = ptrace_supported_features_query,
 	.query_current_signal     = osx_query_current_signal,
+	.get_xml_register_string  = ptrace_get_xml_register_string,
+	.set_xml_register_reporting = ptrace_set_xml_register_reporting,
+	.register_info = ptrace_register_info,
+	.memory_region_info = ptrace_memory_region_info,
 };
 
 void target_init(struct gdb_target_s **target)

@@ -164,3 +164,31 @@ bool ptrace_os_new_thread(pid_t tid, int status) {
 void ptrace_os_wait(pid_t tid)
 {
 }
+
+bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig)
+{
+	bool ret = false;
+	return ret;
+}
+
+void ptrace_os_option_set_thread(pid_t pid)
+{
+}
+
+/*
+ *
+ * For lldb, output is
+ * start:<mem start>;size:<siz>;permissions:rx;
+ *
+ */
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
+{
+  bool ret = false;
+  return ret;
+}
+
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig)
+{
+	long ret = -1;
+	return ret;
+}

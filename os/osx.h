@@ -58,13 +58,17 @@ extern int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail, size_t b
 extern int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data, uint8_t *avail, size_t buf_size, size_t *read_size);
 extern int osx_write_registers(pid_t tid, uint8_t *data, size_t size);
 extern int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, size_t size);
+
 bool osx_arch_read_registers(thread_act_t tid);
+void ptrace_os_option_set_syscall(pid_t pid);
+void ptrace_os_option_set_thread(pid_t pid);
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 void ptrace_os_continue_others();
 int ptrace_os_gen_thread(pid_t pid, pid_t tid);
 bool ptrace_os_new_thread(pid_t tid, int status);
 void ptrace_os_stopped_single(char *str, size_t len, bool debug);
 void ptrace_os_wait(pid_t tid);
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
 
 /* OSX ptrace returns int */
 #define ptrace_return_t int
