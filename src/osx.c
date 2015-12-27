@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013-2015 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -139,5 +139,28 @@ void ptrace_arch_read_dbreg()
 }
 
 void ptrace_arch_write_dbreg()
+{
+}
+
+int ptrace_os_gen_thread(pid_t pid, pid_t tid)
+{
+	int ret = RET_ERR;
+	return ret;
+}
+
+void ptrace_os_continue_others()
+{
+}
+
+void ptrace_os_stopped_single(char *str, size_t len, bool debug)
+{
+}
+
+bool ptrace_os_new_thread(pid_t tid, int status) {
+    bool ret = false;
+    return ret;
+}
+
+void ptrace_os_wait(pid_t tid)
 {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -63,6 +63,12 @@ extern int osx_write_registers(uint8_t *data, size_t size);
 extern int osx_write_single_register(unsigned int gdb, uint8_t *data,
 				     size_t size);
 bool osx_arch_read_registers(thread_act_t tid);
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
+void ptrace_os_continue_others();
+int ptrace_os_gen_thread(pid_t pid, pid_t tid);
+bool ptrace_os_new_thread(pid_t tid, int status);
+void ptrace_os_stopped_single(char *str, size_t len, bool debug);
+void ptrace_os_wait(pid_t tid);
 
 /* OSX ptrace returns int */
 #define ptrace_return_t int
