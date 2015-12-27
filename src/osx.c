@@ -58,7 +58,7 @@ void osx_report_kernel_error(FILE *fp, kern_return_t kret)
 	}
 }
 
-int osx_read_registers(uint8_t *data, uint8_t *avail,
+int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 		       size_t buf_size, size_t *read_size)
 {
 	/*
@@ -119,16 +119,16 @@ int osx_read_registers(uint8_t *data, uint8_t *avail,
 	return ret;
 }
 
-int osx_read_single_register(unsigned int gdb, uint8_t *data,
+int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 			     uint8_t *avail, size_t buf_size, size_t *read_size)
 {
 	return RET_NOSUPP;
 }
-int osx_write_registers(uint8_t *data, size_t size)
+int osx_write_registers(pid_t tid, uint8_t *data, size_t size)
 {
 	return RET_NOSUPP;
 }
-int osx_write_single_register(unsigned int gdb, uint8_t *data, size_t size)
+int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, size_t size)
 {
 	return RET_NOSUPP;
 }

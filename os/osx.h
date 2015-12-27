@@ -54,14 +54,10 @@ void arch_read_greg();
 void arch_write_greg();
 
 extern void osx_report_kernel_error(FILE *fp, kern_return_t kret);
-extern int osx_read_registers(uint8_t *data, uint8_t *avail,
-			      size_t buf_size, size_t *read_size);
-extern int osx_read_single_register(unsigned int gdb, uint8_t *data,
-				    uint8_t *avail, size_t buf_size,
-				    size_t *read_size);
-extern int osx_write_registers(uint8_t *data, size_t size);
-extern int osx_write_single_register(unsigned int gdb, uint8_t *data,
-				     size_t size);
+extern int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail, size_t buf_size, size_t *read_size);
+extern int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data, uint8_t *avail, size_t buf_size, size_t *read_size);
+extern int osx_write_registers(pid_t tid, uint8_t *data, size_t size);
+extern int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, size_t size);
 bool osx_arch_read_registers(thread_act_t tid);
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 void ptrace_os_continue_others();

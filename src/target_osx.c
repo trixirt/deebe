@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Juniper Networks, Inc.
+ * Copyright (c) 2013-2015 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -50,8 +50,7 @@ gdb_state _gdb_state = {
 	 },
 };
 
-int osx_threadextrainfo_query(gdb_thread_ref *thread,
-			      char *out_buf, size_t out_buf_size)
+int osx_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
 {
 	return RET_NOSUPP;
 }
