@@ -32,8 +32,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/syscall.h>
 #include <sys/thr.h>
+#include <sys/user.h>
+#include <stdint.h>
+#include <libutil.h>
 #include "target_ptrace.h"
 #include <machine/reg.h>
 #include "global.h"
@@ -628,6 +633,31 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
 {
   bool ret = false;
-  /* XXX STUB */
+  pid_t pid = CURRENT_PROCESS_PID;
+  struct kinfo_vmentry *ptr;
+  int cntp = 0;
+  ptr = kinfo_getvmmap(pid, &cntp);
+  if (ptr) {
+      int i;
+      for (i = 0; i < cntp; i++) {
+	  if ((addr >= ptr[i].kve_start) && (addr < ptr[i].kve_end)) {
+	      if (ptr[i].kve_protection & (KVME_PROT_READ | KVME_PROT_WRITE | KVME_PROT_EXEC)) {
+		  uint8_t p = 0;
+		  char perm_strs[8][4] = { "", "r", "w", "rw", "x", "rx", "wx", "rwx" };
+		  if (ptr[i].kve_protection & KVME_PROT_READ)
+		      p |= 1;
+		  if (ptr[i].kve_protection & KVME_PROT_WRITE)
+		      p |= 2;
+		  if (ptr[i].kve_protection & KVME_PROT_EXEC)
+		      p |= 4;
+		  snprintf(out_buff, out_buff_size, "start:%"PRIx64";size:%"PRIx64";permissions:%s;",
+			   ptr[i].kve_start, ptr[i].kve_end - ptr[i].kve_start, &perm_strs[p][0]);
+		  ret = true;
+	      }
+	      break;
+	  }
+      }
+      free(ptr);
+  }
   return  ret;
 }
