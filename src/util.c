@@ -236,6 +236,44 @@ end:
 }
 
 /* Decode a hex string to an unsigned 64-bit value */
+bool util_decode_int64(char **in, int64_t *val, char break_char)
+{
+  int ret = false;
+  if (in != NULL && *in != NULL && val != NULL) {
+    uint8_t nibble;
+    int64_t tmp = 0;
+    int count;
+    int sign = 1;
+    if (**in == '-') {
+      sign = -1;
+      (*in)++;
+    }
+    if (**in == '\0') {
+      /* We are expecting at least one character */
+      goto end;
+    }
+    for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
+      if (!util_decode_nibble(*in, &nibble))
+	break;
+      /* Overflow */
+      if ((count == 0) && (sign == -1) && (nibble & 0x8))
+	goto end;
+      tmp = (tmp << 4) + nibble;
+    }
+    if (**in != break_char)	{
+      /* Wrong terminating character */
+      goto end;
+    }
+    if (**in)
+      (*in)++;
+    *val = sign * tmp;
+    ret = true;
+  }
+end:
+  return ret;
+}
+
+/* Decode a hex string to an unsigned 64-bit value */
 bool util_decode_uint64(char **in, uint64_t *val, char break_char)
 {
   bool ret = false;

@@ -209,7 +209,6 @@ static int rp_encode_list_query_response(size_t count,
 					 size_t out_size);
 static int rp_decode_4bytes(const char *in, uint32_t *val);
 static int rp_decode_8bytes(const char *in, uint64_t *val);
-static int gdb_decode_int64(char const **in, int64_t *val, char break_char);
 
 static int extended_protocol;
 
@@ -593,20 +592,20 @@ void handle_search_memory_command(char *in_buf,
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
 }
 
-static int _decode_thread_id(const char *in_buf,
+static int _decode_thread_id(char *in_buf,
 			     int64_t *process_id, int64_t *thread_id)
 {
 	int ret = 0; /* assume ok */
-	const char *in;
+	char *in;
 	*process_id = 0; /* Any process */
 	*thread_id  = 0; /* Any thread */
 	/* Check for 'p' for input in the form 'p<pid>.<tid>' */
 	if (in_buf[0] == 'p') {
 		in = &in_buf[1];
-		if (!gdb_decode_int64(&in, process_id, '.')) {
+		if (!util_decode_int64(&in, process_id, '.')) {
 			ret = 1;
 		} else {
-			if (!gdb_decode_int64(&in, thread_id, '\0'))
+			if (!util_decode_int64(&in, thread_id, '\0'))
 				ret = 1;
 		}
 	} else {
@@ -619,7 +618,7 @@ static int _decode_thread_id(const char *in_buf,
 		int term = '\0';
 		if (strchr(in, ';'))
 			term = ';';
-		if (!gdb_decode_int64(&in, process_id, term))
+		if (!util_decode_int64(&in, process_id, term))
 			ret = 1;
 	}
 	return ret;
@@ -786,7 +785,7 @@ static bool _decode_reg_tid(char *const in_buf, int in_len, uint32_t *reg, pid_t
       goto end;
     if (strncmp(in, "thread:", 7) == 0) {
       in += 7;
-      ret = gdb_decode_int64(&in, &thread_id, ';');
+      ret = util_decode_int64(&in, &thread_id, ';');
       if (!ret)
 	goto end;
       *tid = thread_id;
@@ -1522,13 +1521,13 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       goto end;
     } else if (strncmp(n, "ThreadExtraInfo,", 16) == 0) {
       char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
-      const char *in;
+      char *in;
       int64_t thread_id;
       if (t->threadextrainfo_query == NULL) {
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
       } else {
 	in = &in_buf[17];
-	status = gdb_decode_int64(&in, &thread_id, '\0');
+	status = util_decode_int64(&in, &thread_id, '\0');
 	if (!status) {
 	  gdb_interface_write_retval(RET_ERR, out_buf);
 	  req_handled = true;
@@ -2546,45 +2545,6 @@ static int rp_decode_8bytes(const char *in, uint64_t *val)
     *val = tmp;
     ret = TRUE;
   }
-  return ret;
-}
-
-
-/* Decode a hex string to an unsigned 64-bit value */
-static int gdb_decode_int64(char const **in, int64_t *val, char break_char)
-{
-  int ret = FALSE;
-  if (in != NULL && *in != NULL && val != NULL) {
-    uint8_t nibble;
-    int64_t tmp = 0;
-    int count;
-    int sign = 1;
-    if (**in == '-') {
-      sign = -1;
-      (*in)++;
-    }
-    if (**in == '\0') {
-      /* We are expecting at least one character */
-      goto end;
-    }
-    for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
-      if (!util_decode_nibble(*in, &nibble))
-	break;
-      /* Overflow */
-      if ((count == 0) && (sign == -1) && (nibble & 0x8))
-	goto end;
-      tmp = (tmp << 4) + nibble;
-    }
-    if (**in != break_char)	{
-      /* Wrong terminating character */
-      goto end;
-    }
-    if (**in)
-      (*in)++;
-    *val = sign * tmp;
-    ret = TRUE;
-  }
-end:
   return ret;
 }
 
