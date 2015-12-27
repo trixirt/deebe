@@ -240,7 +240,7 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
 	uid_t my_euid = geteuid();
 	gid_t my_gid = getgid();
 	gid_t my_egid = getgid();
-	snprintf(out_buf, out_buf_len, "pid:%x;parent-pid:%x;real-uid:%x;real-guid:%x;effective-uid:%x;effective-gid:%x;triple:%s;ostype:%s;endian:%s;ptrsize:%u;", CURRENT_PROCESS_PID, my_pid, my_uid, my_gid, my_euid, my_egid, triple_str, ostype_str, endian_str, (unsigned) sizeof(void *));
+	snprintf(out_buf, out_buf_len, "pid:%x;parent-pid:%x;real-uid:%x;real-gid:%x;effective-uid:%x;effective-gid:%x;triple:%s;ostype:%s;endian:%s;ptrsize:%u;", CURRENT_PROCESS_PID, my_pid, my_uid, my_gid, my_euid, my_egid, triple_str, ostype_str, endian_str, (unsigned) sizeof(void *));
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
