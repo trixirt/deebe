@@ -106,11 +106,6 @@ static uint16_t dbg_sock_readchar()
 	return ret;
 }
 
-/* Return values for readchar: either character
-   code or one of the following*/
-#define RP_VAL_MISCREADCHARRET_TMOUT (-2)
-#define RP_VAL_MISCREADCHARRET_ERR   (-1)
-
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
 
