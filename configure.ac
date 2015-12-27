@@ -21,10 +21,10 @@ AM_INIT_AUTOMAKE
 # Checks for programs.
 # All warnings
 # Warnings as errors
-# c99 c
+# c11 c
 # _GNU_SOURCE to compile is non-c99 parts
 AC_PROG_CC
-CFLAGS="$CFLAGS -Wall -Werror -std=c99 -D_GNU_SOURCE"
+CFLAGS="$CFLAGS -Wall -Werror -std=c11 -D_GNU_SOURCE"
 
 
 AC_PROG_CC
