@@ -618,3 +618,16 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 		}
 	}
 }
+
+/*
+ *
+ * For lldb, output is
+ * start:<mem start>;size:<siz>;permissions:rx;
+ *
+ */
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
+{
+  bool ret = false;
+  /* XXX STUB */
+  return  ret;
+}

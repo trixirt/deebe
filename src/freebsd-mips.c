@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -369,4 +369,9 @@ bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
 bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
 {
   return false;
+}
+
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+{
+  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
 }

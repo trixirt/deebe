@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -47,3 +47,8 @@ struct reg_location_list frll[] = {
 	FRLL(fpsr, fpr_fpsr, GDB_FPS, 0, 0, 0),
 	{0},
 };
+
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+{
+  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
+}
