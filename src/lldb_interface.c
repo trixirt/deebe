@@ -35,11 +35,13 @@
 
 #include <sys/utsname.h>
 #include <ctype.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "gdb_interface.h"
 #include "lldb_interface.h"
 #include "network.h"
@@ -56,7 +58,7 @@ static bool get_triple(char **ptr) {
   bool ret = false;
   struct utsname name;
   if (uname(&name) == 0) {
-
+    char *str = NULL;
     /* 
      * How big will the triple string be..
      * element are null terminated, 3 strlens
@@ -65,15 +67,24 @@ static bool get_triple(char **ptr) {
      * maybe need a prefix '-gnu' or '-gnueabi' + 7
      * so 17 known/maybe + 2 strlens.. , round 17 up to 32
      */
-    *ptr = (char *) malloc (32 + strlen(&name.sysname[0]) + strlen(&name.machine[0]));
-    if (*ptr != NULL) {
+    str = (char *) malloc (32 + strlen(&name.sysname[0]) + strlen(&name.machine[0]));
+    if (str != NULL) {
+      char *encoded_str = NULL;
+      size_t encoded_str_size = 0;
       if (strncmp(&name.sysname[0], "Linux", 5) == 0)
-	sprintf(*ptr, "%s--linux-gnu", &name.machine[0]);
+	sprintf(str, "%s--linux-gnu", &name.machine[0]);
       else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
-	sprintf(*ptr, "%s-unknown-freebsd", &name.machine[0]);
+	sprintf(str, "%s-unknown-freebsd", &name.machine[0]);
       else
-	sprintf(*ptr, "%s-unknown-%s", &name.machine[0], &name.sysname[0]);
-      ret = true;
+	sprintf(str, "%s-unknown-%s", &name.machine[0], &name.sysname[0]);
+      encoded_str_size = 1 + 2 * strlen(str);
+      encoded_str = (char *) malloc (encoded_str_size);
+      if (encoded_str != NULL) {
+	util_encode_string(str, encoded_str, encoded_str_size);
+	*ptr = encoded_str;
+	ret = true;
+      }
+      free (str);
     }
   }
   return ret;
@@ -120,37 +131,46 @@ static bool get_osversion(char **ptr) {
   return ret;
 }
 
+static bool get_hostname(char **ptr) {
+  bool ret = false;
+  char *str = NULL;
+  str = (char *) malloc (HOST_NAME_MAX);
+  if (str != NULL) {
+    if (gethostname(str, HOST_NAME_MAX) == 0) {
+      char *encoded_str = NULL;
+      size_t encoded_str_size = 0;
+      encoded_str_size = 1 + 2 * strlen(str);
+      encoded_str = (char *) malloc (encoded_str_size);
+      if (encoded_str != NULL) {
+	util_encode_string(str, encoded_str, encoded_str_size);
+	*ptr = encoded_str;
+	ret = true;
+      }
+    }
+  }
+  return ret;
+}
+
 bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
   char *triple_str = NULL;
-  char *encoded_triple_str = NULL;
   char *ostype_str = NULL;
   char *osversion_str = NULL;
-  size_t encoded_triple_str_size = 0;
+  char *hostname_str = NULL;
 
   switch (*n) {
   case 'H':
     if (strncmp(n, "HostInfo", 8) == 0) {
-      if (get_triple(&triple_str)) {
-	encoded_triple_str_size = 1 + 2 * strlen(triple_str);
-	encoded_triple_str = (char *) malloc (encoded_triple_str_size);
-	if (encoded_triple_str != NULL) {
-	    if (get_osversion(&osversion_str)) {
-	      /* Assume the encoding doesn't fail.. */
-	      util_encode_string(triple_str, encoded_triple_str, encoded_triple_str_size);
-	      snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s;os_version:%s;", encoded_triple_str, (unsigned) sizeof(void *), endian_str, osversion_str);
-	      free(osversion_str);
-	      osversion_str = NULL;
-	    }
-	    free(encoded_triple_str);
-	    encoded_triple_str = NULL;
-	} else {
-	  gdb_interface_write_retval(RET_ERR, out_buf);
-	}
-	free(triple_str);
-	triple_str = NULL;
+      get_triple(&triple_str);
+      get_osversion(&osversion_str);
+      get_hostname(&hostname_str);
+      if ((triple_str != NULL) &&
+	  (osversion_str != NULL) &&
+	  (hostname_str != NULL)) {
+	snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s;os_version:%s;hostname:%s;", 
+		 triple_str, (unsigned) sizeof(void *), endian_str, osversion_str, hostname_str);
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
@@ -209,33 +229,18 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
       req_handled = true;
       goto end;
     } else if (strncmp(n, "ProcessInfo", 11) == 0) {
-      if (get_triple(&triple_str)) {
-	encoded_triple_str_size = 1 + 2 * strlen(triple_str);
-	encoded_triple_str = (char *) malloc (encoded_triple_str_size);
-	if (encoded_triple_str != NULL) {
-	  /* Assume the encoding doesn't fail.. */
-	  util_encode_string(triple_str, encoded_triple_str, encoded_triple_str_size);
-	  if (get_ostype(&ostype_str)) {
-	    /* Not supporting multi process so ever process is created by deebe */
-	    pid_t my_pid = getpid();
-	    /* Keep it simple and use deebe's uid/euid till it breaks */
-	    uid_t my_uid = getuid();
-	    uid_t my_euid = geteuid();
-	    gid_t my_gid = getgid();
-	    gid_t my_egid = getgid();
-	    snprintf(out_buf, out_buf_len, "pid:%x;parent-pid:%x;real-uid:%x;real-guid:%x;effective-uid:%x;effective-gid:%x;triple:%s;ostype:%s;endian:%s;ptrsize:%u;", CURRENT_PROCESS_PID, my_pid, my_uid, my_gid, my_euid, my_egid, encoded_triple_str, ostype_str, endian_str, (unsigned) sizeof(void *));
-	    free(ostype_str);
-	    ostype_str = NULL;
-	  } else {
-	    gdb_interface_write_retval(RET_ERR, out_buf);
-	  }
-	  free(encoded_triple_str);
-	  encoded_triple_str = NULL;
-	} else {
-	  gdb_interface_write_retval(RET_ERR, out_buf);
-	}
-	free(triple_str);
-	triple_str = NULL;
+      get_triple(&triple_str);
+      get_ostype(&ostype_str);
+      if ((triple_str != NULL) &&
+	  (ostype_str != NULL)) {
+	/* Not supporting multi process so ever process is created by deebe */
+	pid_t my_pid = getpid();
+	/* Keep it simple and use deebe's uid/euid till it breaks */
+	uid_t my_uid = getuid();
+	uid_t my_euid = geteuid();
+	gid_t my_gid = getgid();
+	gid_t my_egid = getgid();
+	snprintf(out_buf, out_buf_len, "pid:%x;parent-pid:%x;real-uid:%x;real-guid:%x;effective-uid:%x;effective-gid:%x;triple:%s;ostype:%s;endian:%s;ptrsize:%u;", CURRENT_PROCESS_PID, my_pid, my_uid, my_gid, my_euid, my_egid, triple_str, ostype_str, endian_str, (unsigned) sizeof(void *));
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
@@ -268,6 +273,16 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
   }
 
 end:
+
+  if (triple_str != NULL)
+    free(triple_str);
+  if (ostype_str != NULL)
+    free(ostype_str);
+  if (osversion_str != NULL)
+    free(osversion_str);
+  if (hostname_str != NULL)
+    free(hostname_str);
+
   if (req_handled)
     _target.lldb = true;
 
