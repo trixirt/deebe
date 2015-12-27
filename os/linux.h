@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -36,6 +36,7 @@
 #define __DEEBE_LINUX_H
 
 #include <linux/elf.h>
+#include <endian.h>
 
 /*
  * To get the cast of normal arguements correct,

@@ -34,7 +34,6 @@
  */
 
 #include <sys/utsname.h>
-#include <endian.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
