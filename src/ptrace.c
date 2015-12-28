@@ -2034,6 +2034,12 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		strcat(out_buf, str);
 		c += strlen(str);
 	}
+
+	sprintf(str, "qXfer:auxv:read+;");
+	if (((strlen(str)) + c) < out_buf_size) {
+		strcat(out_buf, str);
+		c += strlen(str);
+	}
 }
 
 int ptrace_get_signal(void)
@@ -2206,4 +2212,8 @@ bool ptrace_register_info(uint32_t reg, char *buf, size_t len)
 bool ptrace_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
 {
   return ptrace_arch_memory_region_info(addr, out_buff, out_buf_size);
+}
+
+bool ptrace_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t size) {
+  return ptrace_arch_read_auxv(out_buf, out_buf_size, offset, size);
 }

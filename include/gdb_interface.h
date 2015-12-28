@@ -342,6 +342,8 @@ struct gdb_target_s {
   bool (*register_info)(uint32_t reg, char *out_buff, size_t out_buf_size);
   /* Fill in memory region info */
   bool (*memory_region_info)(uint64_t addr, char *out_buff, size_t out_buf_size);
+  /* Fill in auxv info */
+  bool (*read_auxv)(char *out_buff, size_t out_buf_size, size_t offset, size_t size);
 };
 
 

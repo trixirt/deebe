@@ -70,6 +70,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid);
 void ptrace_os_stopped_single(char *str, size_t len, bool debug);
 long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data);
 bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
+bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t size);
 
 #ifndef PT_GETREGS
 #ifndef PTRACE_GETREGS

@@ -47,12 +47,10 @@
    Global Functions:
 
    Static Functions:
-     rp_putpkt          - send packet to debugger
      rp_console_output  - send output to debugger console
      rp_data_output     - send data to debugger (used remcmd)
      rp_decode_xxxxx    - various decode functions
      rp_encode_xxxxx    - various encode functions
-     rp_usage           - usage/help
      rp_write_xxxxx     - encode result of operation
 
 
@@ -207,21 +205,6 @@ static int rp_decode_4bytes(const char *in, uint32_t *val);
 static int rp_decode_8bytes(const char *in, uint64_t *val);
 
 static int extended_protocol;
-
-
-/* Remote command */
-#define RP_RCMD(name, hlp) {#name, rp_rcmd_##name, hlp}
-
-/* Table entry definition */
-typedef struct {
-	/* command name */
-	const char *name;
-	/* command function */
-	int (*function)(int, char **, out_func, data_func, gdb_target *);
-	/* one line of help text */
-	const char *help;
-} RP_RCMD_TABLE;
-
 
 void dbg_ack_packet_received(bool seq_valid, char *seq)
 {
@@ -1151,18 +1134,40 @@ void handle_detach_command(char * const in_buf,
 	gdb_interface_write_retval(ret, out_buf);
 	/* Note: The current GDB does not expect a reply */
 	network_put_dbg_packet(out_buf, 0);
-	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO, ": debugger detached");
-	if (cmdline_once) {
-		/*
-		 * If the current target cannot restart,
-		 * we have little choice but
-		 * to exit right now.
-		 */
-		gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-				  ": target is not restartable. Exiting");
+}
+
+static bool gdb_handle_qxfer_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, bool *binary_cmd, gdb_target *t)
+{
+  char *n = in_buf + 1;
+  bool req_handled = false;
+  if (strncmp(n, "Xfer:auxv:read::", 16) == 0)
+  {
+    if (t->read_auxv) {
+      bool status = false;
+      uint32_t offset, size;
+      char *in = &n[16];
+      if (util_decode_uint32(&in, &offset, ',')) {
+	if (util_decode_uint32(&in, &size, '\0')) {
+	  status = true;
 	}
-	gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-			  ": will wait for a new connection");
+      }
+      if (status == true)
+	status = t->read_auxv(out_buf, out_buf_len, offset, size);
+
+      if (status == false) {
+	gdb_interface_write_retval(RET_ERR, out_buf);
+      } else {
+	network_put_dbg_packet(out_buf, size);
+	*binary_cmd = true;
+      }
+
+      req_handled = true;
+    } 
+    goto end;
+  }
+
+end:
+return req_handled;
 }
 
 static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
@@ -2814,12 +2819,18 @@ int gdb_interface_packet()
 				ret = 0;
 				break;
 			case 'q':
-			  if (! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
-			      ! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
-			    /* Not supported */
+			  /* qXfer */
+			  if (strncmp(in_buf, "qXfer", 5) == 0) {
+			    if (gdb_handle_qxfer_command(in_buf, in_len, out_buf, sizeof(out_buf), &binary_cmd, gdb_interface_target))
+			      ret = 0;
 			  } else {
-			    /* Supported */
-			    ret = 0;
+			    if (! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
+				! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			      /* Not supported */
+			    } else {
+			      /* Supported */
+			      ret = 0;
+			    }
 			  }
 			  break;
 			case 'Q':

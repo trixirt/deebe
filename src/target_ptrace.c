@@ -179,6 +179,7 @@ gdb_target ptrace_target = {
 	.set_xml_register_reporting = ptrace_set_xml_register_reporting,
 	.register_info = ptrace_register_info,
 	.memory_region_info = ptrace_memory_region_info,
+	.read_auxv = ptrace_read_auxv,
 };
 
 void target_init(struct gdb_target_s **target)
