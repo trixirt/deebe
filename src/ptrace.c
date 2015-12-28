@@ -2035,6 +2035,11 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 		c += strlen(str);
 	}
 
+	sprintf(str, "qEcho+;");
+	if (((strlen(str)) + c) < out_buf_size) {
+		strcat(out_buf, str);
+		c += strlen(str);
+	}
 	sprintf(str, "qXfer:auxv:read+;");
 	if (((strlen(str)) + c) < out_buf_size) {
 		strcat(out_buf, str);

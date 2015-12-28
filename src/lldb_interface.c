@@ -161,6 +161,13 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
   char *hostname_str = NULL;
 
   switch (*n) {
+  case 'E':
+    if (strncmp(n, "Echo", 4) == 0) {
+      snprintf(out_buf, out_buf_len, "%s", in_buf);
+      req_handled = true;
+      goto end;
+    }
+    break;
   case 'H':
     if (strncmp(n, "HostInfo", 8) == 0) {
       get_triple(&triple_str);
