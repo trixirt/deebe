@@ -137,6 +137,14 @@ void network_cleanup()
 	network_out_buffer_total = 0;
 	network_in_buffer_current = 0;
 	network_in_buffer_total = 0;
+	if (network_in_buffer != NULL)
+	  free (network_in_buffer);
+	network_in_buffer = NULL;
+	network_in_buffer_size = 0;
+	if (network_out_buffer != NULL)
+	  free (network_out_buffer);
+	network_out_buffer = NULL;
+	network_out_buffer_size = 0;
 
 #if defined(NETWORK_INPUT_PLAYBACK) || defined(NETWORK_INPUT_RECORD)
 	if (fp_playback) {
@@ -191,6 +199,22 @@ bool network_init()
 	bool ret = false;
 	/* Cleanup possible old use */
 	network_cleanup();
+
+	if (network_in_buffer == NULL) {
+	  network_in_buffer = (uint8_t *) malloc(INOUTBUF_SIZE);
+	  if (network_in_buffer != NULL)
+	    network_in_buffer_size = INOUTBUF_SIZE;
+	  else
+	    goto end;
+	}
+
+	if (network_out_buffer == NULL) {
+	  network_out_buffer = (uint8_t *) malloc(INOUTBUF_SIZE);
+	  if (network_out_buffer != NULL)
+	    network_out_buffer_size = INOUTBUF_SIZE;
+	  else
+	    goto end;
+	}
 
 #ifdef NETWORK_INPUT_PLAYBACK
 	/*
@@ -273,6 +297,7 @@ bool network_init()
 		}
 	}
 #endif /* NETWORK_INPUT_PLAYBACK */
+end:
 	if (!ret) {
 		network_cleanup();
 	}
@@ -869,62 +894,40 @@ void network_clear_write()
 	}
 }
 
-static size_t _sock_write(unsigned char *b, size_t l)
-{
-  size_t ret = 0;
-  if (l < network_out_buffer_size - network_out_buffer_total) {
-    memcpy(&network_out_buffer[network_out_buffer_total], b, l);
-    network_out_buffer_total += l;
-    ret = l;
-  }
-  return ret;
-}
-
 /*
  * Send packet to debugger
  * For normal text packets, buf is null teminated and size = 0
  * For binary packets, size must be use
  */
-int network_put_dbg_packet(const char *buf, size_t size)
+bool network_put_dbg_packet(const char *buf, size_t size)
 {
-  int i;
-  int ret = 1;
-  size_t len;
-  uint8_t csum;
-  uint8_t *d;
-  const char *s;
-  uint8_t buf2[INOUTBUF_SIZE + 4];
+  bool ret = false;
+  if (buf != NULL) {
+    /* A null terminated text string */
+    if (size == 0)
+      size = strlen(buf);
 
-  ASSERT(buf != NULL);
+    size_t avail_size = network_out_buffer_size - network_out_buffer_total;
+    if (avail_size >= size + 4) {
+      size_t i;
+      uint8_t csum;
+      const char *s = buf;
+      uint8_t *d = &network_out_buffer[network_out_buffer_total];
+      *d++ = '$';
+      csum = 0;
+      for (i = 0; i < size; i++) {
+	csum += *s;
+	*d++ = *s++;
+      }
+      /* Add the sumcheck to the end of the message */
+      *d++ = '#';
+      *d++ = util_hex[(csum >> 4) & 0xf];
+      *d++ = util_hex[(csum & 0xf)];
 
-  /* Copy the packet into buf2, encapsulate it, and give
-     it a checksum. */
-  d = buf2;
-  *d++ = '$';
-  csum = 0;
-  /* Normal text packet */
-  if (size == 0) {
-    for (s = buf, i = 0; *s; i++) {
-      csum += *s;
-      *d++ = *s++;
-    }
-    ASSERT(*s == '\0');
-  } else {
-    /* Binary packet */
-    for (s = buf, i = 0; i < size; i++) {
-      csum += *s;
-      *d++ = *s++;
-    }
+      network_out_buffer_total += size;
+      network_out_buffer_total += 4;
+      ret = true;;
+    } 
   }
-  /* Add the sumcheck to the end of the message */
-  *d++ = '#';
-  *d++ = util_hex[(csum >> 4) & 0xf];
-  *d++ = util_hex[(csum & 0xf)];
-  /* Do not null terminate binary transfers */
-  if (0 == size)
-    *d = '\0';
-  /* Send it over and over until we get a positive ack. */
-  len = d - buf2;
-  ret = _sock_write(buf2, len);
   return ret;
 }
