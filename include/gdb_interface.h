@@ -278,7 +278,6 @@ struct gdb_target_s {
 	   status_string is unchanged unless return value is OK and
 	   implemented is non 0 */
 	int (*wait)(char *status_string,
-		    size_t status_string_len,
 		    int step,
 		    bool skip_continue_others
 	    );
@@ -320,13 +319,13 @@ struct gdb_target_s {
 	int (*remove_break)(pid_t tid, int type, uint64_t addr, size_t length);
 
 	/* Query thread info */
-  void (*threadinfo_query)(int first, char *out_buf, size_t out_buf_size);
+  void (*threadinfo_query)(int first, char *out_buf);
 
 	/* Query thread extra info */
-  int (*threadextrainfo_query)(int64_t thread, char *out_buf, size_t out_buf_size);
+  int (*threadextrainfo_query)(int64_t thread, char *out_buf);
 
 	/* Query Supported features */
-  void (*supported_features_query)(char *out_buf, size_t out_buf_size);
+  void (*supported_features_query)(char *out_buf);
 
 	/* Query current signal */
 	int (*query_current_signal)(int *sig);
@@ -399,7 +398,7 @@ void gdb_interface_init();
 int gdb_interface_packet();
 int gdb_interface_quick_packet();
 void gdb_interface_put_console(char *b);
-void gdb_stop_string(char *str, size_t len, int sig, pid_t tid, unsigned long watch_addr);
+void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr);
 void gdb_interface_write_retval(int ret, char *buf);
 
 /* Defined by the target to initalize and cleanup its support */

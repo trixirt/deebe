@@ -185,22 +185,7 @@ static int rp_decode_list_query(const char *in,
 				int *first,
 				size_t *max,
 				gdb_thread_ref *arg);
-static int gdb_encode_regs(const unsigned char *data,
-			   const unsigned char *avail,
-			   size_t data_len,
-			   char *out,
-			   size_t out_size);
-static int rp_encode_process_query_response(unsigned int mask,
-					    const gdb_thread_ref *ref,
-					    const rp_thread_info *info,
-					    char *out,
-					    size_t out_size);
-static int rp_encode_list_query_response(size_t count,
-					 int done,
-					 const gdb_thread_ref *arg,
-					 const gdb_thread_ref *found,
-					 char *out,
-					 size_t out_size);
+
 static int rp_decode_4bytes(const char *in, uint32_t *val);
 static int rp_decode_8bytes(const char *in, uint64_t *val);
 
@@ -226,11 +211,15 @@ void dbg_ack_packet_received(bool seq_valid, char *seq)
 #define STATE_HASHMARK           9
 #define STATE_CSUM               10
 
+/* Various buffers used by the system */
+static char *in_buf = NULL;
+static char *out_buf = NULL;
+static char *in_buf_quick = NULL;
+
 
 /* Read a packet from the remote machine, with error checking,
    and store it in buf. */
-static int gdb_interface_getpacket(char *buf, size_t buf_len,
-				   size_t *len, bool ret_ack)
+static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack)
 {
 	int ret = -1;
 	char seq[2];
@@ -241,6 +230,7 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 	size_t pkt_len;
 	bool esc_found = false;
 	int state;
+	size_t buf_len = INOUTBUF_SIZE;
 
 	ASSERT(buf != NULL);
 	ASSERT(buf_len > 6);
@@ -542,9 +532,7 @@ static int gdb_interface_getpacket(char *buf, size_t buf_len,
 }
 
 void handle_search_memory_command(char *in_buf,
-				  int in_len,
 				  char *out_buf,
-				  int out_buf_len,
 				  gdb_target *t)
 {
 	uint64_t addr;
@@ -604,16 +592,10 @@ static int _decode_thread_id(char *in_buf,
 }
 
 void handle_thread_commands(char * const in_buf,
-			    int in_len,
 			    char *out_buf,
-			    int out_buf_len,
 			    gdb_target *target)
 {
 	int ret;
-	if (in_len == 1) {
-		/* Either short or an obsolete form */
-		return;
-	}
 	if ((in_buf[1] == 'c') ||
 	    (in_buf[1] == 'g')) {
 		int cmd_type = cmd_type = in_buf[1];
@@ -636,7 +618,7 @@ void handle_thread_commands(char * const in_buf,
 	}
 }
 
-void handle_query_current_signal(char *out_buf, int out_buf_len, gdb_target *t)
+void handle_query_current_signal(char *out_buf, gdb_target *t)
 {
 	if (t && t->query_current_signal) {
 		int s = 0;
@@ -653,10 +635,37 @@ void handle_query_current_signal(char *out_buf, int out_buf_len, gdb_target *t)
 	}
 }
 
+
+/* If a byte of avail is 0 then the corresponding data byte is
+   encoded as 'xx', otherwise it is encoded in normal way */
+static int gdb_encode_regs(const unsigned char *data,
+			   const unsigned char *avail,
+			   size_t data_len,
+			   char *out)
+{
+	size_t i;
+
+	ASSERT(data != NULL);
+	ASSERT(avail != NULL);
+	ASSERT(data_len > 0);
+	ASSERT(out != NULL);
+
+	for (i = 0;  i < data_len;  i++, data++, avail++, out += 2) {
+		if (*avail) {
+			util_encode_byte(*data, out);
+		} else {
+			*out = 'x';
+			*(out + 1) = 'x';
+		}
+	}
+
+	*out = 0;
+
+	return  TRUE;
+}
+
 void handle_read_registers_command(char * const in_buf,
-				   int in_len,
 				   char *out_buf,
-				   int out_buf_len,
 				   gdb_target *t)
 {
 	int ret;
@@ -677,8 +686,7 @@ void handle_read_registers_command(char * const in_buf,
 		gdb_encode_regs(data_buf,
 				avail_buf,
 				len,
-				out_buf,
-				out_buf_len);
+				out_buf);
 		break;
 	case RET_ERR:
 	case RET_NOSUPP:
@@ -733,9 +741,7 @@ static int gdb_decode_data(const char *in,
 
 
 void handle_write_registers_command(char * const in_buf,
-				    int in_len,
 				    char *out_buf,
-				    int out_buf_len,
 				    gdb_target *t)
 {
 	int ret;
@@ -753,7 +759,7 @@ void handle_write_registers_command(char * const in_buf,
 	gdb_interface_write_retval(ret, out_buf);
 }
 
-static bool _decode_reg_tid(char *const in_buf, int in_len, uint32_t *reg, pid_t *tid) {
+static bool _decode_reg_tid(char *const in_buf, uint32_t *reg, pid_t *tid) {
   bool ret = false;
   char *in = &in_buf[1];
   if (strchr(in, ';')) {
@@ -779,7 +785,7 @@ static bool _decode_reg_tid(char *const in_buf, int in_len, uint32_t *reg, pid_t
   end:
   return ret;
 }
-void handle_read_single_register_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
+void handle_read_single_register_command(char * const in_buf, char *out_buf, gdb_target *t)
 {
   int ret;
   uint32_t reg_no;
@@ -787,10 +793,10 @@ void handle_read_single_register_command(char * const in_buf, int in_len, char *
   alignas (4) unsigned char data_buf[64];
   alignas (4) unsigned char avail_buf[64];
   pid_t tid = CURRENT_PROCESS_TID;
-  if (_decode_reg_tid(in_buf, in_len, &reg_no, &tid)) {
+  if (_decode_reg_tid(in_buf, &reg_no, &tid)) {
     ret = t->read_single_register(tid, reg_no, data_buf, avail_buf, sizeof(data_buf), &len);
     if (ret == RET_OK)
-      gdb_encode_regs(data_buf, avail_buf, len, out_buf, out_buf_len);
+      gdb_encode_regs(data_buf, avail_buf, len, out_buf);
     else
       gdb_interface_write_retval(ret, out_buf);
   } else {
@@ -799,9 +805,7 @@ void handle_read_single_register_command(char * const in_buf, int in_len, char *
 }
 
 void handle_write_single_register_command(char * const in_buf,
-					  int in_len,
 					  char *out_buf,
-					  int out_buf_len,
 					  gdb_target *t)
 {
 	int ret;
@@ -826,9 +830,7 @@ void handle_write_single_register_command(char * const in_buf,
 }
 
 void handle_read_memory_command(char * const in_buf,
-				int in_len,
 				char *out_buf,
-				int out_buf_len,
 				gdb_target *t)
 {
 	int ret;
@@ -851,14 +853,14 @@ void handle_read_memory_command(char * const in_buf,
 	switch (ret) {
 	case RET_OK:
 		ASSERT(len <= GDB_INTERFACE_PARAM_DATABYTES_MAX);
-		util_encode_data(data_buf, len, out_buf, out_buf_len);
+		util_encode_data(data_buf, len, out_buf, INOUTBUF_SIZE);
 		break;
 	case RET_ERR:
 		if (cmdline_silence_memory_read_errors) {
 			gdb_interface_log(GDB_INTERFACE_LOGLEVEL_WARNING,
 					  " : silencing memory read error\n");
 			memset(data_buf, 0, len);
-			util_encode_data(data_buf, len, out_buf, out_buf_len);
+			util_encode_data(data_buf, len, out_buf, INOUTBUF_SIZE);
 		} else {
 			gdb_interface_write_retval(RET_ERR, out_buf);
 		}
@@ -871,9 +873,7 @@ void handle_read_memory_command(char * const in_buf,
 }
 
 void handle_write_memory_command(char * const in_buf,
-				 int in_len,
 				 char *out_buf,
-				 int out_buf_len,
 				 gdb_target *t)
 {
 	int ret;
@@ -907,7 +907,7 @@ void handle_write_memory_command(char * const in_buf,
 	gdb_interface_write_retval(ret, out_buf);
 }
 
-static int _target_wait(char *out_buf, int out_buf_len, gdb_target *target, int step, int sig) {
+static int _target_wait(char *out_buf, gdb_target *target, int step, int sig) {
   int ret = RET_NOSUPP;
   if (target->wait) {
     /*
@@ -930,7 +930,7 @@ static int _target_wait(char *out_buf, int out_buf_len, gdb_target *target, int 
 	  network_write();
 	}
       }
-      ret = target->wait(out_buf, out_buf_len, step, false);
+      ret = target->wait(out_buf, step, false);
       if (ret == RET_IGNORE) {
 	target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
       }
@@ -940,9 +940,7 @@ static int _target_wait(char *out_buf, int out_buf_len, gdb_target *target, int 
 }
 
 void handle_running_commands(char * const in_buf,
-			     int in_len,
 			     char *out_buf,
-			     int out_buf_len,
 			     gdb_target *target)
 {
 	int step;
@@ -1006,16 +1004,14 @@ void handle_running_commands(char * const in_buf,
 		gdb_interface_write_retval(ret, out_buf);
 		return;
 	}
-	ret = _target_wait(out_buf, out_buf_len, target, step, sig);
+	ret = _target_wait(out_buf, target, step, sig);
 	if (ret != RET_OK) {
 	    gdb_interface_write_retval(ret, out_buf);
 	}
 }
 
 int handle_kill_command(char * const in_buf,
-			int in_len,
 			char *out_buf,
-			int out_buf_len,
 			gdb_target *t)
 {
 	int ret;
@@ -1064,9 +1060,7 @@ int handle_kill_command(char * const in_buf,
 }
 
 void handle_thread_alive_command(char * const in_buf,
-				 int in_len,
 				 char *out_buf,
-				 int out_buf_len,
 				 gdb_target *target)
 {
 	int ret;
@@ -1086,9 +1080,7 @@ void handle_thread_alive_command(char * const in_buf,
 }
 
 int handle_restart_target_command(char * const in_buf,
-				  int in_len,
 				  char *out_buf,
-				  int out_buf_len,
 				  gdb_target *t)
 {
 	int ret;
@@ -1121,9 +1113,7 @@ int handle_restart_target_command(char * const in_buf,
 }
 
 void handle_detach_command(char * const in_buf,
-			   int in_len,
 			   char *out_buf,
-			   int out_buf_len,
 			   gdb_target *t)
 {
 	int ret = RET_NOSUPP;
@@ -1136,7 +1126,7 @@ void handle_detach_command(char * const in_buf,
 	network_put_dbg_packet(out_buf, 0);
 }
 
-static bool gdb_handle_qxfer_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, bool *binary_cmd, gdb_target *t)
+static bool gdb_handle_qxfer_command(char * const in_buf, char *out_buf, bool *binary_cmd, gdb_target *t)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
@@ -1152,7 +1142,7 @@ static bool gdb_handle_qxfer_command(char * const in_buf, int in_len, char *out_
 	}
       }
       if (status == true)
-	status = t->read_auxv(out_buf, out_buf_len, offset, size);
+	status = t->read_auxv(out_buf, INOUTBUF_SIZE, offset, size);
 
       if (status == false) {
 	gdb_interface_write_retval(RET_ERR, out_buf);
@@ -1170,7 +1160,159 @@ end:
 return req_handled;
 }
 
-static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t)
+/* Encode result of list query:
+   qMCCDAAAAAAAAAAAAAAAA(FFFFFFFFFFFFFFFF)*,
+   where
+   C   reprsents  count
+   D   represents done
+   A   represents arg thread reference
+   F   represents found thread reference(s) */
+static int rp_encode_list_query_response(size_t count,
+					 int done,
+					 const gdb_thread_ref *arg,
+					 const gdb_thread_ref *found,
+					 char *out)
+{
+	size_t i;
+
+	ASSERT(arg != NULL);
+	ASSERT(found != NULL  ||  count == 0);
+	ASSERT(count <= 255);
+
+	*out++ = 'q';
+	*out++ = 'M';
+
+	util_encode_byte(count, out);
+	out += 2;
+
+	*out++ = (done)  ?  '1'  :  '0';
+
+	sprintf(out, "%016"PRIu64"x", arg->val);
+
+	out += 16;
+
+	/* Encode found */
+	for (i = 0;  i < count;  i++, found++) {
+		sprintf(out, "%016"PRIu64"x", found->val);
+		out += 16;
+	}
+
+	return  TRUE;
+}
+
+
+
+/* Encode result of process query:
+   qQMMMMMMMMRRRRRRRRRRRRRRRR(TTTTTTTTLLVV..V)*,
+   where
+   M   represents mask
+   R   represents ref
+   T   represents tag
+   L   represents length
+   V   represents value */
+static int rp_encode_process_query_response(unsigned int mask,
+					    const gdb_thread_ref *ref,
+					    const rp_thread_info *info,
+					    char *out)
+{
+	size_t len;
+	unsigned int tag;
+	int i;
+
+	ASSERT(ref != NULL);
+	ASSERT(info != NULL);
+	ASSERT(out != NULL);
+
+	/* Encode header */
+	*out++ = 'q';
+	*out++ = 'Q';
+
+	/* Encode mask */
+	sprintf(out, "%08x", mask);
+	out += 8;
+
+	/* Encode reference thread */
+	sprintf(out, "%016"PRIu64"x", ref->val);
+
+	out += 16;
+
+	for (i = 0, tag = 0;  i < 32;  i++, tag <<= 1) {
+		if ((mask & tag) == 0)
+			continue;
+
+		/* Encode tag */
+		sprintf(out, "%08x", tag);
+		out += 8;
+
+		switch (tag) {
+		case RP_BIT_PROCQMASK_THREADID:
+
+			/* Encode length - it is 16 */
+			util_encode_byte(16, out);
+			out += 2;
+
+			/* Encode value */
+			sprintf(out, "%016"PRIu64"x", info->thread_id.val);
+
+			out += 16;
+			break;
+		case RP_BIT_PROCQMASK_EXISTS:
+
+			/* Encode Length */
+			util_encode_byte(1, out);
+			out += 2;
+
+			/* Encode value */
+			*out++    = (info->exists) ? '1' : '0';
+			*out      = 0;
+			break;
+		case RP_BIT_PROCQMASK_DISPLAY:
+			/* Encode length */
+			len = strlen(info->display);
+			ASSERT(len <= 255);
+
+			util_encode_byte(len, out);
+			out += 2;
+
+			/* Encode value */
+			strcpy(out, info->display);
+			out      += len;
+			break;
+		case RP_BIT_PROCQMASK_THREADNAME:
+			/* Encode length */
+			len = strlen(info->thread_name);
+			ASSERT(len <= 255);
+
+			util_encode_byte(len, out);
+			out += 2;
+
+			/* Encode value */
+			strcpy(out, info->thread_name);
+			out      += len;
+			break;
+		case RP_BIT_PROCQMASK_MOREDISPLAY:
+			/* Encode length */
+			len = strlen(info->more_display);
+			ASSERT(len <= 255);
+
+			util_encode_byte(len, out);
+			out += 2;
+
+			/* Encode value */
+			strcpy(out, info->more_display);
+			out += len;
+			break;
+		default:
+			/* Unexpected tag value */
+			ASSERT(0);
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+static bool gdb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *t)
 {
   int status;
   uint32_t val;
@@ -1179,12 +1321,6 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
   char *n = in_buf + 1;
 
   bool req_handled = false;
-  if (in_len == 1) {
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
-		      ": bad 'q' command received");
-    req_handled = true;
-    goto end;
-  }
 
   switch (*n) {
   case 'f':
@@ -1192,7 +1328,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       if (t->threadinfo_query == NULL)
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
       else
-	t->threadinfo_query(1, out_buf, out_buf_len);
+	t->threadinfo_query(1, out_buf);
       req_handled = true;
       goto end;
     } else if (strncmp(n, "fProcessInfo", 12) == 0) {
@@ -1207,7 +1343,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       if (t->threadinfo_query == NULL)
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
       else 
-	t->threadinfo_query(0, out_buf, out_buf_len);
+	t->threadinfo_query(0, out_buf);
       req_handled = true;
       goto end;
     } else if (strncmp(n, "sProcessInfo", 12) == 0) {
@@ -1309,7 +1445,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       req_handled = true;
       goto end;
     }
-    status = rp_encode_list_query_response(count, done, &arg, found, out_buf, out_buf_len);
+    status = rp_encode_list_query_response(count, done, &arg, found, out_buf);
     free(found);
     if (!status)
       gdb_interface_write_retval(RET_ERR, out_buf);
@@ -1355,7 +1491,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       req_handled = true;
       goto end;
     }
-    status = rp_encode_process_query_response(mask, &ref, &info, out_buf, out_buf_len);
+    status = rp_encode_process_query_response(mask, &ref, &info, out_buf);
     if (!status)
       gdb_interface_write_retval(RET_ERR, out_buf);
 
@@ -1425,7 +1561,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
       if (t->supported_features_query == NULL)
 	gdb_interface_write_retval(RET_NOSUPP, out_buf);
       else
-	t->supported_features_query(out_buf, out_buf_len);
+	t->supported_features_query(out_buf);
       req_handled = true;
       goto end;
     } else if (strncmp(n, "Symbol::", 8) == 0) {
@@ -1444,7 +1580,7 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	if (util_decode_uint64(&n, &addr, ';')) {
 	  uint32_t len;
 	  if (util_decode_uint32(&n, &len, ';')) {
-	    size_t bmax = in_len - (n - in_buf);
+	    size_t bmax = INOUTBUF_SIZE - (n - in_buf);
 	    uint8_t *pattern =
 	      (uint8_t *) malloc(bmax *
 				 sizeof(uint8_t));
@@ -1534,12 +1670,10 @@ static bool gdb_handle_query_command(char * const in_buf, int in_len, char *out_
 	  req_handled = true;
 	  goto end;
 	}
-	status = t->threadextrainfo_query(thread_id, data_buf, GDB_INTERFACE_PARAM_DATABYTES_MAX);
+	status = t->threadextrainfo_query(thread_id, data_buf);
 	switch (status) {
 	case RET_OK:
-	  util_encode_data(
-	    (unsigned char *)data_buf, strlen(data_buf),
-	    out_buf, out_buf_len);
+	  util_encode_data((unsigned char *)data_buf, strlen(data_buf), out_buf, INOUTBUF_SIZE);
 	  break;
 	case RET_ERR:
 	case RET_NOSUPP:
@@ -1589,9 +1723,7 @@ static int gdb_decode_break(char *in,
 }
 
 static void handle_breakpoint_command(char * const in_buf,
-				      int in_len,
 				      char *out_buf,
-				      int out_buf_len,
 				      gdb_target *t)
 {
 	uint64_t addr;
@@ -1642,9 +1774,7 @@ static void handle_breakpoint_command(char * const in_buf,
 		m |= S_##N
 
 static int handle_v_command(char * const in_buf,
-			    int in_len,
 			    char *out_buf,
-			    int out_buf_len,
 			    gdb_target *target)
 {
 	int ret = RET_ERR;
@@ -1712,7 +1842,7 @@ static int handle_v_command(char * const in_buf,
 			if (!err) {
 				ret = target->resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, step, sig);
 				if (RET_OK == ret) {
-				  ret = _target_wait(out_buf, out_buf_len, target, step, sig);
+				  ret = _target_wait(out_buf, target, step, sig);
 				  handled = true;
 				}
 			}
@@ -1911,14 +2041,14 @@ static int handle_v_command(char * const in_buf,
 						 * n - in_buf is how much has already been read
 						 * -3 for end of buffer #XY crc check
 						 */
-						if ((n - in_buf) < in_len) {
+						if ((n - in_buf) < INOUTBUF_SIZE) {
 							if (off != lseek(s_fd, off, SEEK_SET)) {
 								/* Error */
 								sprintf(out_buf, "F%d", -1);
 							} else {
 								size_t bytes_to_write = 0;
 								size_t bytes_written = 0;
-								bytes_to_write = in_len - (n - in_buf);
+								bytes_to_write = INOUTBUF_SIZE - (n - in_buf);
 								/* Data is binary, no need to decode */
 								bytes_written = write(s_fd, n, bytes_to_write);
 								sprintf(out_buf, "F%zx", bytes_written);
@@ -2053,7 +2183,7 @@ static int handle_v_command(char * const in_buf,
 	return ret;
 }
 
-static void gdb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+static void gdb_handle_general_set_command(char * const in_buf, char *out_buf, gdb_target *target)
 {
   int ret = RET_ERR;
   char *n = in_buf + 1;
@@ -2268,246 +2398,6 @@ static int rp_decode_list_query(const char *in,
 }
 
 
-/* If a byte of avail is 0 then the corresponding data byte is
-   encoded as 'xx', otherwise it is encoded in normal way */
-static int gdb_encode_regs(const unsigned char *data,
-			   const unsigned char *avail,
-			   size_t data_len,
-			   char *out,
-			   size_t out_size)
-{
-	size_t i;
-
-	ASSERT(data != NULL);
-	ASSERT(avail != NULL);
-	ASSERT(data_len > 0);
-	ASSERT(out != NULL);
-	ASSERT(out_size > 0);
-
-	if ((data_len*2) >= out_size) {
-		/* We do not have enough space to encode the data */
-		return  FALSE;
-	}
-
-	for (i = 0;  i < data_len;  i++, data++, avail++, out += 2) {
-		if (*avail) {
-			util_encode_byte(*data, out);
-		} else {
-			*out = 'x';
-			*(out + 1) = 'x';
-		}
-	}
-
-	*out = 0;
-
-	return  TRUE;
-}
-
-
-
-/* Encode result of process query:
-   qQMMMMMMMMRRRRRRRRRRRRRRRR(TTTTTTTTLLVV..V)*,
-   where
-   M   represents mask
-   R   represents ref
-   T   represents tag
-   L   represents length
-   V   represents value */
-static int rp_encode_process_query_response(unsigned int mask,
-					    const gdb_thread_ref *ref,
-					    const rp_thread_info *info,
-					    char *out,
-					    size_t out_size)
-{
-	size_t len;
-	unsigned int tag;
-	int i;
-
-	ASSERT(ref != NULL);
-	ASSERT(info != NULL);
-	ASSERT(out != NULL);
-	ASSERT(out_size > 0);
-
-	/* In all cases we will have at least mask and reference thread */
-	if (out_size <= 26)
-		return 0;
-
-	/* Encode header */
-	*out++ = 'q';
-	*out++ = 'Q';
-	out_size -= 2;
-
-	/* Encode mask */
-	sprintf(out, "%08x", mask);
-	out += 8;
-	out_size -= 8;
-
-	/* Encode reference thread */
-	sprintf(out, "%016"PRIu64"x", ref->val);
-
-	out += 16;
-	out_size -= 16;
-
-	for (i = 0, tag = 0;  i < 32;  i++, tag <<= 1) {
-		if ((mask & tag) == 0)
-			continue;
-
-		if (out_size <= 10) {
-			/* We have no place to put even tag and length */
-			return 0;
-		}
-
-		/* Encode tag */
-		sprintf(out, "%08x", tag);
-		out += 8;
-		out_size -= 8;
-
-		switch (tag) {
-		case RP_BIT_PROCQMASK_THREADID:
-			if (out_size <= 18)
-				return 0;
-
-			/* Encode length - it is 16 */
-			util_encode_byte(16, out);
-			out += 2;
-			out_size -= 2;
-
-			/* Encode value */
-			sprintf(out, "%016"PRIu64"x", info->thread_id.val);
-
-			out += 16;
-			out_size -= 16;
-			break;
-		case RP_BIT_PROCQMASK_EXISTS:
-			/* One nibble is enough */
-			if (out_size <= 3)
-				return 0;
-
-			/* Encode Length */
-			util_encode_byte(1, out);
-			out += 2;
-			out_size -= 2;
-
-			/* Encode value */
-			*out++    = (info->exists) ? '1' : '0';
-			out_size-- ;
-			*out      = 0;
-			break;
-		case RP_BIT_PROCQMASK_DISPLAY:
-			/* Encode length */
-			len = strlen(info->display);
-			ASSERT(len <= 255);
-
-			if (out_size <= (len + 2))
-				return 0;
-
-			util_encode_byte(len, out);
-			out += 2;
-			out_size -= 2;
-
-			/* Encode value */
-			strcpy(out, info->display);
-			out      += len;
-			out_size -= len;
-			break;
-		case RP_BIT_PROCQMASK_THREADNAME:
-			/* Encode length */
-			len = strlen(info->thread_name);
-			ASSERT(len <= 255);
-
-			if (out_size <= (len + 2))
-				return 0;
-
-			util_encode_byte(len, out);
-			out += 2;
-			out_size -= 2;
-
-			/* Encode value */
-			strcpy(out, info->thread_name);
-			out      += len;
-			out_size -= len;
-			break;
-		case RP_BIT_PROCQMASK_MOREDISPLAY:
-			/* Encode length */
-			len = strlen(info->more_display);
-			ASSERT(len <= 255);
-
-			if (out_size <= (len + 2))
-				return 0;
-
-			util_encode_byte(len, out);
-			out += 2;
-			out_size -= 2;
-
-			/* Encode value */
-			strcpy(out, info->more_display);
-			out += len;
-			out_size -= len;
-			break;
-		default:
-			/* Unexpected tag value */
-			ASSERT(0);
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
-/* Encode result of list query:
-   qMCCDAAAAAAAAAAAAAAAA(FFFFFFFFFFFFFFFF)*,
-   where
-   C   reprsents  count
-   D   represents done
-   A   represents arg thread reference
-   F   represents found thread reference(s) */
-static int rp_encode_list_query_response(size_t count,
-					 int done,
-					 const gdb_thread_ref *arg,
-					 const gdb_thread_ref *found,
-					 char *out,
-					 size_t out_size)
-{
-	size_t i;
-
-	ASSERT(arg != NULL);
-	ASSERT(found != NULL  ||  count == 0);
-	ASSERT(count <= 255);
-
-	/* Encode header, count, done and arg */
-	if (out_size <= 21)
-		return  FALSE;
-
-	*out++ = 'q';
-	*out++ = 'M';
-	out_size -= 2;
-
-	util_encode_byte(count, out);
-	out += 2;
-	out_size -= 2;
-
-	*out++ = (done)  ?  '1'  :  '0';
-	out_size--;
-
-	sprintf(out, "%016"PRIu64"x", arg->val);
-
-	out += 16;
-	out_size -= 16;
-
-	/* Encode found */
-	for (i = 0;  i < count;  i++, found++) {
-		if (out_size <= 16)
-			return  FALSE;
-
-		sprintf(out, "%016"PRIu64"x", found->val);
-
-		out += 16;
-		out_size -= 16;
-	}
-
-	return  TRUE;
-}
-
 
 /* Decode exactly 4 bytes of hex from a longer string, and return the result
    as an unsigned 32-bit value */
@@ -2576,15 +2466,42 @@ int handle_rcmd_command(char *in_buf, out_func of, data_func df, gdb_target *t)
 
 void gdb_interface_cleanup()
 {
-	target_cleanup();
-	gdb_interface_target = NULL;
+  target_cleanup();
+  gdb_interface_target = NULL;
+  if (NULL != in_buf) {
+    free(in_buf);
+    in_buf = NULL;
+  }
+  if (NULL != out_buf) {
+    free(out_buf);
+    out_buf = NULL;
+  }
+  if (NULL != in_buf_quick) {
+    free(in_buf_quick);
+    in_buf_quick = NULL;
+  }
 }
 void gdb_interface_init()
 {
-	/* Set to debug level of choice */
-	gdb_interface_debug_level = -1;
-	target_init(&gdb_interface_target);
-	gdb_interface_log = &gdb_interface_log_local;
+  in_buf = (char *) malloc(INOUTBUF_SIZE);
+  if (in_buf == NULL) {
+    fprintf(stderr, "Error allocting input buffer");
+    exit (1);
+  }
+  out_buf = (char *) malloc(INOUTBUF_SIZE);
+  if (out_buf == NULL) {
+    fprintf(stderr, "Error allocting output buffer");
+    exit (1);
+  }
+  in_buf_quick = (char *) malloc(INOUTBUF_SIZE);
+  if (in_buf_quick == NULL) {
+    fprintf(stderr, "Error allocting input buffer");
+    exit (1);
+  }
+  /* Set to debug level of choice */
+  gdb_interface_debug_level = -1;
+  target_init(&gdb_interface_target);
+  gdb_interface_log = &gdb_interface_log_local;
 }
 
 int gdb_interface_quick_packet()
@@ -2593,14 +2510,11 @@ int gdb_interface_quick_packet()
 	size_t in_len = 0;
 	int s;
 
-	/* Various buffers used by the system */
-	static char in_buf[INOUTBUF_SIZE];
 	/*
 	 * Because no implicit ack's while reading the
 	 * ack's must be explicitly done for each handled packet.
 	 */
-	s = gdb_interface_getpacket(in_buf, sizeof(in_buf),
-				    &in_len, false /* no acks */);
+	s = gdb_interface_getpacket(in_buf_quick, &in_len, false /* no acks */);
 	if (s == '\3') {
 		if (gdb_interface_target->stop) {
 			dbg_ack_packet_received(false, NULL);
@@ -2610,7 +2524,7 @@ int gdb_interface_quick_packet()
 		}
 	} else {
 
-		switch (in_buf[0]) {
+		switch (in_buf_quick[0]) {
 		case 'k':
 			if (gdb_interface_target->quick_kill) {
 				dbg_ack_packet_received(false, NULL);
@@ -2623,7 +2537,7 @@ int gdb_interface_quick_packet()
 			if (gdb_interface_target->quick_signal) {
 				uint32_t sig;
 				char *in;
-				in = &in_buf[1];
+				in = &in_buf_quick[1];
 				if (util_decode_uint32(&in, &sig, '\0')) {
 					dbg_ack_packet_received(false, NULL);
 					gdb_interface_target->quick_signal(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, sig);
@@ -2641,18 +2555,18 @@ int gdb_interface_quick_packet()
 			break;
 
 		case 'v':
-		    if (0 == strncmp(in_buf, "vCont;c", 7)) {
+		    if (0 == strncmp(in_buf_quick, "vCont;c", 7)) {
 			dbg_ack_packet_received(false, NULL);
 			ret = 0;
 		    } else {
 			/* Ignore */
-			DBG_PRINT("quick packet : ignoring %s ", in_buf);
+			DBG_PRINT("quick packet : ignoring %s ", in_buf_quick);
 		    }
 		    break;
 
 		default:
 			/* Ignore */
-			DBG_PRINT("quick packet : ignoring %s ", in_buf);
+			DBG_PRINT("quick packet : ignoring %s ", in_buf_quick);
 			break;
 		}
 	}
@@ -2667,12 +2581,7 @@ int gdb_interface_packet()
 	int s;
 	bool binary_cmd = false;
 
-	/* Various buffers used by the system */
-	static char in_buf[INOUTBUF_SIZE];
-	static char out_buf[INOUTBUF_SIZE];
-
-	s = gdb_interface_getpacket(in_buf, sizeof(in_buf),
-				    &in_len, true /* do acks */);
+	s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
 
 	if (s >= 0) {
 		if (s == NAK) {
@@ -2700,7 +2609,7 @@ int gdb_interface_packet()
 				break;
 
 			case '?':
-			  gdb_stop_string(out_buf, sizeof(out_buf), CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0);
+			  gdb_stop_string(out_buf, CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0);
 			  break;
 
 			case 'A':
@@ -2715,9 +2624,7 @@ int gdb_interface_packet()
 			case 's':
 			case 'w':
 				handle_running_commands(in_buf,
-							in_len,
 							out_buf,
-							sizeof(out_buf),
 							gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2725,9 +2632,7 @@ int gdb_interface_packet()
 
 			case 'D':
 				handle_detach_command(in_buf,
-						      in_len,
 						      out_buf,
-						      sizeof(out_buf),
 						      gdb_interface_target);
 				/* Semi Supported */
 				ret = 0;
@@ -2735,9 +2640,7 @@ int gdb_interface_packet()
 
 			case 'g':
 				handle_read_registers_command(in_buf,
-							      in_len,
 							      out_buf,
-							      sizeof(out_buf),
 							      gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2745,9 +2648,7 @@ int gdb_interface_packet()
 
 			case 'G':
 				handle_write_registers_command(in_buf,
-							       in_len,
 							       out_buf,
-							       sizeof(out_buf),
 							       gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2755,15 +2656,13 @@ int gdb_interface_packet()
 
 			case 'H':
 				handle_thread_commands(in_buf,
-						       in_len,
 						       out_buf,
-						       sizeof(out_buf),
 						       gdb_interface_target);
 				/* Supported */
 				ret = 0;
 				break;
 			case 'j':
-			  if (! lldb_handle_json_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			  if (! lldb_handle_json_command(in_buf, out_buf, gdb_interface_target)) {
 			    /* Not supported */
 			  } else {
 			    ret = 0;
@@ -2771,9 +2670,7 @@ int gdb_interface_packet()
 			  break;
 			case 'k':
 				handle_kill_command(in_buf,
-						    in_len,
 						    out_buf,
-						    sizeof(out_buf),
 						    gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2781,9 +2678,7 @@ int gdb_interface_packet()
 
 			case 'm':
 				handle_read_memory_command(in_buf,
-							   in_len,
 							   out_buf,
-							   sizeof(out_buf),
 							   gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2791,9 +2686,7 @@ int gdb_interface_packet()
 
 			case 'M':
 				handle_write_memory_command(in_buf,
-							    in_len,
 							    out_buf,
-							    sizeof(out_buf),
 							    gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2801,9 +2694,7 @@ int gdb_interface_packet()
 
 			case 'p':
 				handle_read_single_register_command(in_buf,
-								    in_len,
 								    out_buf,
-								    sizeof(out_buf),
 								    gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2811,9 +2702,7 @@ int gdb_interface_packet()
 
 			case 'P':
 				handle_write_single_register_command(in_buf,
-								     in_len,
 								     out_buf,
-								     sizeof(out_buf),
 								     gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2821,11 +2710,11 @@ int gdb_interface_packet()
 			case 'q':
 			  /* qXfer */
 			  if (strncmp(in_buf, "qXfer", 5) == 0) {
-			    if (gdb_handle_qxfer_command(in_buf, in_len, out_buf, sizeof(out_buf), &binary_cmd, gdb_interface_target))
+			    if (gdb_handle_qxfer_command(in_buf, out_buf, &binary_cmd, gdb_interface_target))
 			      ret = 0;
 			  } else {
-			    if (! lldb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target) &&
-				! gdb_handle_query_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			    if (! lldb_handle_query_command(in_buf, out_buf, gdb_interface_target) &&
+				! gdb_handle_query_command(in_buf, out_buf, gdb_interface_target)) {
 			      /* Not supported */
 			    } else {
 			      /* Supported */
@@ -2834,53 +2723,44 @@ int gdb_interface_packet()
 			  }
 			  break;
 			case 'Q':
-			  if (! lldb_handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
-			    gdb_handle_general_set_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target);
+			  if (! lldb_handle_general_set_command(in_buf, out_buf, gdb_interface_target)) {
+			    gdb_handle_general_set_command(in_buf, out_buf, gdb_interface_target);
 			  } 
 			  /* Supported */
 			  ret = 0;
 			  break;
 			case 'R':
 				handle_restart_target_command(in_buf,
-							      in_len,
 							      out_buf,
-							      sizeof(out_buf),
 							      gdb_interface_target);
 				/* Supported */
 				ret = 0;
 				break;
 			case 't':
 				handle_search_memory_command(in_buf,
-							     in_len,
 							     out_buf,
-							     sizeof(out_buf),
 							     gdb_interface_target);
 				/* Supported */
 				ret = 0;
 				break;
 			case 'T':
 				handle_thread_alive_command(in_buf,
-							    in_len,
 							    out_buf,
-							    sizeof(out_buf),
 							    gdb_interface_target);
 				/* Supported */
 				ret = 0;
 				break;
 			case 'x':
-			  if (!lldb_handle_binary_read_command(in_buf, in_len, out_buf, sizeof(out_buf), gdb_interface_target)) {
+			  if (!lldb_handle_binary_read_command(in_buf, out_buf, &binary_cmd, gdb_interface_target)) {
 			    /* Not handled */
 			  } else {
-			    binary_cmd = true;
 			    ret = 0;
 			  }
 			  break;
 			case 'Z':
 			case 'z':
 				handle_breakpoint_command(in_buf,
-							  in_len,
 							  out_buf,
-							  sizeof(out_buf),
 							  gdb_interface_target);
 				/* Supported */
 				ret = 0;
@@ -2900,9 +2780,7 @@ int gdb_interface_packet()
 				switch (in_buf[0]) {
 				case 'v':
 					handle_v_command(in_buf,
-							 in_len,
 							 out_buf,
-							 sizeof(out_buf),
 							 gdb_interface_target);
 					break;
 				default:
@@ -2933,12 +2811,13 @@ void gdb_interface_put_console(char *b)
  * Generate the gdb 'thread:xxxxxxx' string used by the stop events
  * When there is a single thread, return an empty string.
  */
-void gdb_stop_string(char *str, size_t len, int sig,
+void gdb_stop_string(char *str, int sig,
 		     pid_t tid, unsigned long watch_addr)
 {
   int index;
   char tstr[32] = "";
   char wstr[32] = "";
+  size_t len = INOUTBUF_SIZE;
   if (target_number_threads() > 0)
     snprintf(&tstr[0], 32, "thread:%x;", tid);
   if (watch_addr)
@@ -2985,7 +2864,7 @@ void gdb_stop_string(char *str, size_t len, int sig,
       if (RET_OK == gdb_interface_target->read_single_register(tid, i, data_buf, avail_buf, sizeof(data_buf), &read_size)) {
 	char reg_str[132];
 	snprintf(&reg_str[0], 132, "%2.2x:", i);
-	gdb_encode_regs(data_buf, avail_buf, read_size, &reg_str[3], 128);
+	gdb_encode_regs(data_buf, avail_buf, read_size, &reg_str[3]);
 	strncat(&reg_str[0], ";", 132);
 	strncat(str, &reg_str[0], len);
       } else {

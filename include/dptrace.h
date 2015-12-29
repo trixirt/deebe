@@ -146,10 +146,9 @@ extern int ptrace_resume_from_current(pid_t pid, pid_t tid, int step, int gdb_si
 extern int ptrace_resume_with_syscall(pid_t tid);
 extern int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len);
 extern void ptrace_stop(pid_t pid, pid_t tid);
-extern void ptrace_supported_features_query(char *out_buf, size_t out_buf_size);
-extern void ptrace_threadinfo_query(int first, char *out_buf,
-				   size_t out_buf_size);
-extern int ptrace_wait(char *status_string, size_t status_string_len, int step, bool skip_continue_others);
+extern void ptrace_supported_features_query(char *out_buf);
+extern void ptrace_threadinfo_query(int first, char *out_buf);
+extern int ptrace_wait(char *status_string, int step, bool skip_continue_others);
 extern void ptrace_quick_signal(pid_t pid, pid_t tid, int sig);
 extern int ptrace_write_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
 extern int ptrace_write_registers(pid_t tid, uint8_t *data, size_t size);
@@ -163,5 +162,7 @@ extern void ptrace_set_xml_register_reporting();
 extern bool ptrace_register_info(uint32_t reg, char *out_buff, size_t out_buf_size);
 extern bool ptrace_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size);
 extern bool ptrace_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t size);
+extern int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id);
+extern int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id);
 
 #endif

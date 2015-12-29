@@ -1329,13 +1329,12 @@ void ptrace_kill(pid_t pid, pid_t tid)
 		 */
 		int wait_ret;
 		char str[128];
-		size_t len = 128;
 		int tries = 0;
 		int max_tries = 20;
 		int g = ptrace_arch_signal_to_gdb(SIGKILL);
 		do {
 			usleep(1000);
-			wait_ret = ptrace_wait(str, len, 0, true);
+			wait_ret = ptrace_wait(str, 0, true);
 			if (!gDebugeeRunning) {
 				DBG_PRINT("Success in kill the debugee\n");
 				break;
@@ -1642,7 +1641,7 @@ void _wait_single()
     ptrace_os_wait(CURRENT_PROCESS_TID);
 }
 
-bool __exited(char *str, size_t len, int index, int wait_status)
+bool __exited(char *str, int index, int wait_status)
 {
 	bool ret = false;
 	if (WIFEXITED(wait_status) ||
@@ -1662,12 +1661,12 @@ bool __exited(char *str, size_t len, int index, int wait_status)
 				 * be employed if WIFEXITED returned true.
 				 */
 				/* Fill out the status string */
-				snprintf(str, len, "W%02x", exit_status);
+				sprintf(str, "W%02x", exit_status);
 			} else {
 				/* Signaled */
 				int s = WTERMSIG(wait_status);
 				int g = ptrace_arch_signal_to_gdb(s);
-				snprintf(str, len, "X%02x", g);
+				sprintf(str, "X%02x", g);
 			}
 			PROCESS_STATE(index) = PS_EXIT;
 			/* Set the main thread to the current so this event is reported */
@@ -1689,22 +1688,22 @@ bool __exited(char *str, size_t len, int index, int wait_status)
 	}
 	return ret;
 }
-static bool _exited_single(char *str, size_t len)
+static bool _exited_single(char *str)
 {
 	bool ret = false;
 	if (CURRENT_PROCESS_WAIT)
-		ret = __exited(str, len, target_current_index(), CURRENT_PROCESS_WAIT_STATUS);
+		ret = __exited(str, target_current_index(), CURRENT_PROCESS_WAIT_STATUS);
 	return ret;
 }
 
-static bool _exited_all(char *str, size_t len)
+static bool _exited_all(char *str)
 {
 	bool ret = false;
 	int index;
 	for (index = 0; index < _target.number_processes; index++) {
 		if (PROCESS_WAIT(index)) {
 			int wait_status = PROCESS_WAIT_STATUS(index);
-			ret = __exited(str, len, index, wait_status);
+			ret = __exited(str, index, wait_status);
 			/*
 			 * When __exited returns true the debuggee exited
 			 * There is no point continuing, bail
@@ -1742,7 +1741,7 @@ static void _continued_all()
 	}
 }
 
-static void _stopped_all(char *str, size_t len)
+static void _stopped_all(char *str)
 {
 	int index;
 	bool no_event = true; /* Nothing to report to gdb */
@@ -1762,12 +1761,12 @@ static void _stopped_all(char *str, size_t len)
 					ptrace_arch_get_pc(tid, &pc);
 					/* Fill out the status string */
 					if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-						gdb_stop_string(str, len, g, tid, 0);
+						gdb_stop_string(str, g, tid, 0);
 						target_thread_make_current(tid);
 						valid = true;
 						no_event = false;
 					} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
-						gdb_stop_string(str, len, g, tid, watch_addr);
+						gdb_stop_string(str, g, tid, watch_addr);
 						target_thread_make_current(tid);
 						valid = true;
 						no_event = false;
@@ -1785,7 +1784,7 @@ static void _stopped_all(char *str, size_t len)
 						 */
 					         if (!ptrace_os_new_thread(tid, wait_status)) {
 							/* A normal breakpoint was hit, or a trap instruction */
-							gdb_stop_string(str, len, g, tid, 0);
+							gdb_stop_string(str, g, tid, 0);
 							target_thread_make_current(tid);
 							valid = true;
 							no_event = false;
@@ -1829,7 +1828,7 @@ static void _stopped_all(char *str, size_t len)
 							/* Need to report to gdb */
 							if (target_thread_make_current(tid)) {
 								/* A non trap signal */
-								gdb_stop_string(str, len, g, tid, 0);
+								gdb_stop_string(str, g, tid, 0);
 								no_event = false;
 							}
 						} else {
@@ -1843,7 +1842,7 @@ static void _stopped_all(char *str, size_t len)
 						 */
 						if (target_thread_make_current(tid)) {
 							/* A non trap signal */
-							gdb_stop_string(str, len, g, tid, 0);
+							gdb_stop_string(str, g, tid, 0);
 							no_event = false;
 						}
 					}
@@ -1859,32 +1858,32 @@ static void _stopped_all(char *str, size_t len)
 	} /* process loop */
 }
 
-int ptrace_wait(char *str, size_t len, int step, bool skip_continue_others)
+int ptrace_wait(char *str, int step, bool skip_continue_others)
 {
 	/* Could be waiting awhile, turn on sigio */
 	signal_sigio_on();
 	if (step) {
 		_wait_single();
-		if (!_exited_single(str, len)) {
+		if (!_exited_single(str)) {
 			/*
 			 * The current thread could have exited
 			 * This will change the currnet thread to
 			 * the parent thread
 			 */
-			ptrace_os_stopped_single(str, len, _wait_verbose);
+			ptrace_os_stopped_single(str, _wait_verbose);
 			_continued_single();
 			/* _newthread_single(); */
 		}
 	} else {
 		_deliver_sig();
 		_wait_all();
-		if (!_exited_all(str, len)) {
+		if (!_exited_all(str)) {
 			/*
 			 * The current thread could have exited
 			 * This will change the currnet thread to
 			 * the parent thread
 			 */
-			_stopped_all(str, len);
+			_stopped_all(str);
 			/*
 			 * Some random thread could have trapped/signaled
 			 * This will change the current thread to the
@@ -1926,7 +1925,7 @@ int ptrace_wait(char *str, size_t len, int step, bool skip_continue_others)
 	}
 }
 
-void ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
+void ptrace_threadinfo_query(int first, char *out_buf)
 {
   static int n;
   pid_t t;
@@ -1963,34 +1962,24 @@ void ptrace_threadinfo_query(int first, char *out_buf, size_t out_buf_size)
   }
 }
 
-void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
+void ptrace_supported_features_query(char *out_buf)
 {
 	char str[128];
-	size_t c = 1;
 	sprintf(str, "PacketSize=%x;", GDB_INTERFACE_PARAM_DATABYTES_MAX);
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
 	if (_target.multiprocess) {
 		/* Support multi process extensions */
 		sprintf(str, "multiprocess+;");
-		if (((strlen(str)) + c) < out_buf_size) {
-			strcat(out_buf, str);
-			c += strlen(str);
-		}
+		strcat(out_buf, str);
 	}
 #if 0
 	sprintf(str, "QPassSignals+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
 	sprintf(str, "QProgramSignals+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
 #endif
 	/* 
 	 * gdb 
@@ -2000,10 +1989,8 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 	 * lldb assumes it is supported, it's first packet is QStartNoAckMode
 	 */
 	sprintf(str, "QStartNoAckMode+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
 #if 0
 	/*
 	 * NonStop means threads can run conncurrently
@@ -2011,40 +1998,27 @@ void ptrace_supported_features_query(char *out_buf, size_t out_buf_size)
 	 * need to be written too.
 	 */
 	sprintf(str, "QNonStop+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
 #endif
 	/*
 	 * On lldb
 	 * Support thread suffix support for 'g', 'G', 'p' and 'P'
 	 */
 	sprintf(str, "QThreadSuffixSupported+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
 	/*
 	 * On lldb
 	 * To list threads in stop reply
 	 */
 	sprintf(str, "QListThreadsInStopReply+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
 
 	sprintf(str, "qEcho+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
-	sprintf(str, "qXfer:auxv:read+;");
-	if (((strlen(str)) + c) < out_buf_size) {
-		strcat(out_buf, str);
-		c += strlen(str);
-	}
+	strcat(out_buf, str);
+
+	sprintf(str, "qXfer:auxv:read+");
+	strcat(out_buf, str);
 }
 
 int ptrace_get_signal(void)

@@ -47,6 +47,7 @@
 #include "network.h"
 #include "target.h"
 #include "util.h"
+#include "macros.h"
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 static char *endian_str = "little";
@@ -151,7 +152,7 @@ static bool get_hostname(char **ptr) {
   return ret;
 }
 
-bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *target)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
@@ -159,6 +160,7 @@ bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, i
   char *ostype_str = NULL;
   char *osversion_str = NULL;
   char *hostname_str = NULL;
+  size_t out_buf_len = INOUTBUF_SIZE;
 
   switch (*n) {
   case 'E':
@@ -296,7 +298,7 @@ end:
   return req_handled;
 }
 
-bool lldb_handle_json_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target) {
+bool lldb_handle_json_command(char * const in_buf, char *out_buf, gdb_target *target) {
 
   char *n = in_buf + 1;
   bool req_handled = false;
@@ -335,10 +337,12 @@ end:
   return req_handled;
 }
 
-bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+bool lldb_handle_binary_read_command(char * const in_buf, char *out_buf, bool *binary_cmd, gdb_target *target)
 {
   char *n = in_buf + 1;
   bool req_handled = false;
+  size_t out_buf_len = INOUTBUF_SIZE;
+  *binary_cmd = false;
 
   /* Look for special $x0,0 packet */
   if (strncmp(n, "0,0", 3) == 0) {
@@ -361,7 +365,7 @@ bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_
      */
     addr = strtoull(n, &endptr, 16);
     /* 1 for inc past 'x', 1 for ',' */
-    if ((n != endptr) && ((endptr - n + 2 ) < in_len)) {
+    if ((n != endptr) && ((endptr - n + 2 ) < INOUTBUF_SIZE)) {
       /* assume ',' */
       n = endptr + 1;
       size = strtoull(n, &endptr, 16);
@@ -393,6 +397,7 @@ bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_
 	/* ignore len, ignore ret, go ahead and escap */
 	len = util_escape_binary((uint8_t *)out_buf, (uint8_t *)scratch_buf, size);
 	network_put_dbg_packet(out_buf, len);
+	*binary_cmd = true;
       }
     }
   }
@@ -404,7 +409,7 @@ bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_
   return req_handled;
 }
 
-bool lldb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *target)
+bool lldb_handle_general_set_command(char * const in_buf, char *out_buf, gdb_target *target)
 {
   char *n = in_buf + 1;
   bool req_handled = false;

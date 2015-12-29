@@ -32,7 +32,23 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "target_ptrace.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <stddef.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+#include <sys/user.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <inttypes.h>
+#include "gdb_interface.h"
+#include "dptrace.h"
 #include "global.h"
 #include "os.h"
 #include "gdb-x86_64.h"

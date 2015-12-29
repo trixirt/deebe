@@ -390,7 +390,6 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 	{
 	    int wait_ret;
 	    char str[128];
-	    size_t len = 128;
 	    int tries = 0;
 	    int max_tries = 20;
 	    do {
@@ -409,7 +408,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 		/* Sleep for a a msec */
 		usleep(1000);
 		
-		wait_ret = ptrace_wait(str, len, 0, true);
+		wait_ret = ptrace_wait(str, 0, true);
 		if (wait_ret == RET_OK) {
 		    DBG_PRINT("%s hard case %s\n", __func__, str);
 		    
@@ -441,7 +440,7 @@ end:
     return ret;
 }
 
-void ptrace_os_stopped_single(char *str, size_t len, bool debug)
+void ptrace_os_stopped_single(char *str, bool debug)
 {
     int index;
     for (index = 0; index < _target.number_processes; index++) {
@@ -467,13 +466,13 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				ptrace_arch_get_pc(tid, &pc);
 				/* Fill out the status string */
 				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-				  gdb_stop_string(str, len, g, tid, 0);
+				  gdb_stop_string(str, g, tid, 0);
 				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
-				    gdb_stop_string(str, len, g, tid, watch_addr);
+				    gdb_stop_string(str, g, tid, watch_addr);
 				} else {
 					/* Either a normal breakpoint or a step, it doesn't matter */
-				    gdb_stop_string(str, len, g, tid, 0);
+				    gdb_stop_string(str, g, tid, 0);
 				}
 
 				if (debug) {
@@ -488,7 +487,7 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				}
 			} else {
 			    /* A non trap signal */
-			    gdb_stop_string(str, len, g, tid, 0);
+			    gdb_stop_string(str, g, tid, 0);
 			}
 		}
 	}

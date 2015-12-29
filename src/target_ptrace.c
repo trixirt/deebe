@@ -39,14 +39,13 @@
 #include "dptrace.h"
 #include "gdb_interface.h"
 #include "target.h"
-#include "target_ptrace.h"
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {
 	{0, 0, 0}     /* sentinel, end of table marker */
 };
 
-int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
+int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf)
 {
     int ret = RET_ERR;
     int index;

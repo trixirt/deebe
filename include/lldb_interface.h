@@ -35,9 +35,9 @@
 #ifndef DEEBE_LLDB_INTERFACE_H
 #define DEEBE_LLDB_INTERFACE_H
 
-bool lldb_handle_query_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
-bool lldb_handle_json_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
-bool lldb_handle_binary_read_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
-bool lldb_handle_general_set_command(char * const in_buf, int in_len, char *out_buf, int out_buf_len, gdb_target *t);
+bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *t);
+bool lldb_handle_json_command(char * const in_buf, char *out_buf, gdb_target *t);
+bool lldb_handle_binary_read_command(char * const in_buf, char *out_buf, bool *binary_cmd, gdb_target *t);
+bool lldb_handle_general_set_command(char * const in_buf, char *out_buf, gdb_target *t);
 
 #endif
