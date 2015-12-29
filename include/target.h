@@ -150,6 +150,7 @@ struct reg_location_list {
   int gcc;
   int dwarf;
   char *generic;
+  char *altname;
 };
 
 /* The register lookup lists */

@@ -81,7 +81,7 @@ static bool _detach_verbose = false;
 
 #define GUARD_RLL(r) (((r).off == 0) && ((r).size == 0) && ((r).gdb == 0))
 
-bool is_reg(int gdb, int *g_index, struct reg_location_list *rl)
+static bool is_gdb_reg(int gdb, int *g_index, struct reg_location_list *rl)
 {
 	bool ret = false;
 	int c = 0;
@@ -173,7 +173,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 	rmax = ptrace_arch_gdb_greg_max();
 	for (r = 0; r < rmax; r++) {
 		int i;
-		if (is_reg(r, &i, grll)) {
+		if (is_gdb_reg(r, &i, grll)) {
 			memcpy(gdb, _target.reg + grll[i].off, grll[i].size);
 			memset(avail, 0xff, grll[i].size);
 			gdb += grll[i].size;
@@ -187,7 +187,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 				avail += diff;
 				ret   += diff;
 			}
-		} else if (is_reg(r, &i, frll)) {
+		} else if (is_gdb_reg(r, &i, frll)) {
 			memcpy(gdb, _target.freg + frll[i].off, frll[i].size);
 			memset(avail, 0xff, frll[i].size);
 			gdb += frll[i].size;
@@ -201,7 +201,7 @@ static size_t _copy_greg_to_gdb(void *gdb, void *avail)
 				avail += diff;
 				ret   += diff;
 			}
-		} else if (is_reg(r, &i, fxrll)) {
+		} else if (is_gdb_reg(r, &i, fxrll)) {
 			if ((fxrll[i].off + fxrll[i].size) <=
 			    _target.fxreg_size) {
 				memcpy(gdb, _target.fxreg + fxrll[i].off,
@@ -783,7 +783,7 @@ int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 		DBG_PRINT("%s %d\n", __func__, gdb);
 	}
 	int c = 0;
-	if (is_reg(gdb, &c, &grll[0])) {
+	if (is_gdb_reg(gdb, &c, &grll[0])) {
 		_read_greg(tid);
 		if (grll[c].off < _target.reg_size) {
 			size_t s = 0;
@@ -807,7 +807,7 @@ int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 				DBG_PRINT("INTERNAL ERROR Problem in g read of reg %d\n", gdb);
 			}
 		}
-	} else if (is_reg(gdb, &c, &frll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &frll[0])) {
 		_read_freg(tid);
 		if (frll[c].off < _target.freg_size) {
 			if (frll[c].size > 0) {
@@ -833,7 +833,7 @@ int ptrace_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 			DBG_PRINT("Problem in fp read of reg %d offset %zu size %zu freg size %zu\n",
 				  gdb, frll[c].off, frll[c].size, _target.freg_size);
 		}
-	} else if (is_reg(gdb, &c, &fxrll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &fxrll[0])) {
 		ptrace_arch_read_fxreg(tid);
 		if (fxrll[c].off < _target.fxreg_size) {
 			/* Success */
@@ -876,15 +876,15 @@ static bool _gdb_register_size(unsigned int gdb, size_t *gdb_size, size_t *size)
 	bool ret = false;
 	*gdb_size = *size = 0;
 	int c = 0;
-	if (is_reg(gdb, &c, &grll[0])) {
+	if (is_gdb_reg(gdb, &c, &grll[0])) {
 		*size = grll[c].size;
 		*gdb_size = grll[c].gdb_size;
 		ret = true;
-	} else if (is_reg(gdb, &c, &frll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &frll[0])) {
 		*size = frll[c].size;
 		*gdb_size = frll[c].gdb_size;
 		ret = true;
-	} else if (is_reg(gdb, &c, &fxrll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &fxrll[0])) {
 		*size = fxrll[c].size;
 		*gdb_size = fxrll[c].gdb_size;
 		ret = true;
@@ -900,7 +900,7 @@ int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, siz
 		util_print_buffer(fp_log, 0, size, data);
 	}
 	int c = 0;
-	if (is_reg(gdb, &c, &grll[0])) {
+	if (is_gdb_reg(gdb, &c, &grll[0])) {
 		_read_greg(tid);
 		if (grll[c].off < _target.reg_size) {
 			/* Success */
@@ -920,7 +920,7 @@ int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, siz
 			/* Failure */
 			DBG_PRINT("Problem in g read of reg %d\n", gdb);
 		}
-	} else if (is_reg(gdb, &c, &frll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &frll[0])) {
 		_read_freg(tid);
 		if (frll[c].off < _target.freg_size) {
 			/* Success */
@@ -931,7 +931,7 @@ int ptrace_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, siz
 			/* Failure */
 			DBG_PRINT("Problem in fp read of reg %d\n", gdb);
 		}
-	} else if (is_reg(gdb, &c, &fxrll[0])) {
+	} else if (is_gdb_reg(gdb, &c, &fxrll[0])) {
 		ptrace_arch_read_fxreg(tid);
 		/*
 		 * It is possible for the fx reg read to fail
@@ -2082,109 +2082,56 @@ void ptrace_set_xml_register_reporting()
   _target.xml_register_reporting = true;
 }
 
-bool ptrace_register_info(uint32_t reg, char *buf, size_t len)
+bool ptrace_register_info(uint32_t reg, char *buf)
 {
   bool ret = false;
   int i = 0;
-
-  if (is_reg(reg, &i, grll)) {
-    /* General Purpose Reg */
-    int chars_written;
-    chars_written = snprintf(buf, len, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:General Purpose Registers;",
-			     grll[i].name, 
-			     grll[i].size * 8, 
-			     grll[i].off, grll[i].encoding, grll[i].format);
-    if (chars_written > 0 && chars_written < len) {
-      ret = true;
-      len -= chars_written; 
-      buf += chars_written;
-      char *buf_save = buf;
-      if (grll[i].gcc >= 0){
-	chars_written = snprintf(buf, len, "gcc:%d;", grll[i].gcc);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
+  char str[128];
+  struct reg_location_list *rlll[2] = { grll, frll };
+  char *descriptions[2] = {"General Purpose Registers", "Floating Point Registers"};
+  int reg_class;
+  
+  for (reg_class = 0; reg_class < 2; reg_class++) {
+    struct reg_location_list *rll = rlll[reg_class];
+    char *description = descriptions[reg_class];
+    if (is_gdb_reg(reg, &i, rll)) {
+      /* General Purpose Reg */
+      sprintf(str, "name:%s;", rll[i].name);
+      strcat(buf, str);
+      /* XXX Magic 'X' means this is a non value */
+      if (rll[i].altname[0] != 'X') {
+	sprintf(str, "alt-name:%s;", rll[i].altname);
+	strcat(buf, str);
       }
-      if (grll[i].dwarf >= 0){
-	chars_written = snprintf(buf, len, "dwarf:%d;", grll[i].dwarf);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
+      sprintf(str, "bitsize:%zu;", rll[i].size * 8);
+      strcat(buf, str);
+      sprintf(str, "offset:%zu;", rll[i].off);
+      strcat(buf, str);
+      sprintf(str, "encoding:%s;", rll[i].encoding);
+      strcat(buf, str);
+      sprintf(str, "format:%s;", rll[i].format);
+      strcat(buf, str);
+      sprintf(str, "set:%s;", description);
+      strcat(buf, str);
+      if (rll[i].gcc >= 0) {
+	sprintf(str, "gcc:%d;", rll[i].gcc);
+	strcat(buf, str);
+      }
+      if (rll[i].dwarf >= 0) {
+	sprintf(str, "dwarf:%d;", rll[i].dwarf);
+	strcat(buf, str);
       }
       /* XXX Magic 'X' means this is a non value */
-      if (strlen(grll[i].generic) && grll[i].generic[0] != 'X'){
-	chars_written = snprintf(buf, len, "generic:%s;", grll[i].generic);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
+      if (rll[i].generic[0] != 'X') {
+	sprintf(str, "generic:%s;", rll[i].generic);
+	strcat(buf, str);
       }
-    }
-  } else if (is_reg(reg, &i, frll)) {
-    /* Floating Point Reg */
-    /* XXX Combine similar logic from above */
-    /* General Purpose Reg */
-    int chars_written;
-    chars_written = snprintf(buf, len, "name:%s;bitsize:%zu;offset:%zu;encoding:%s;format:%s;set:Floating Point Registers;",
-			     frll[i].name, 
-			     frll[i].size * 8, 
-			     frll[i].off, frll[i].encoding, frll[i].format);
-    if (chars_written > 0 && chars_written < len) {
+    
       ret = true;
-      len -= chars_written; 
-      buf += chars_written;
-      char *buf_save = buf;
-      if (frll[i].gcc >= 0){
-	chars_written = snprintf(buf, len, "gcc:%d;", frll[i].gcc);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
-      }
-      if (frll[i].dwarf >= 0){
-	chars_written = snprintf(buf, len, "dwarf:%d;", frll[i].dwarf);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
-      }
-      /* XXX Magic 'X' means this is a non value */
-      if (strlen(frll[i].generic) && frll[i].generic[0] != 'X'){
-	chars_written = snprintf(buf, len, "generic:%s;", frll[i].generic);
-	if (chars_written > 0 && chars_written < len) {
-	  len -= chars_written; 
-	  buf += chars_written;
-	} else {
-	  /* recover */
-	  buf_save[0] = '\0';
-	  goto end;
-	}
-      }
+      break;
     }
   }
-  end:
+
   return ret;
 }
 
@@ -2193,6 +2140,6 @@ bool ptrace_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_siz
   return ptrace_arch_memory_region_info(addr, out_buff, out_buf_size);
 }
 
-bool ptrace_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t size) {
+bool ptrace_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t *size) {
   return ptrace_arch_read_auxv(out_buf, out_buf_size, offset, size);
 }

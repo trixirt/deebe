@@ -1134,15 +1134,18 @@ static bool gdb_handle_qxfer_command(char * const in_buf, char *out_buf, bool *b
   {
     if (t->read_auxv) {
       bool status = false;
-      uint32_t offset, size;
+      uint32_t offset, usize;
+      size_t size;
       char *in = &n[16];
       if (util_decode_uint32(&in, &offset, ',')) {
-	if (util_decode_uint32(&in, &size, '\0')) {
+	if (util_decode_uint32(&in, &usize, '\0')) {
 	  status = true;
 	}
       }
-      if (status == true)
-	status = t->read_auxv(out_buf, INOUTBUF_SIZE, offset, size);
+      if (status == true) {
+	size = usize;
+	status = t->read_auxv(out_buf, INOUTBUF_SIZE, offset, &size);
+      }
 
       if (status == false) {
 	gdb_interface_write_retval(RET_ERR, out_buf);

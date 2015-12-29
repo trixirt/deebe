@@ -349,7 +349,7 @@ bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *t
       char *in = &n[12];
       if (util_decode_reg(&in, &reg)) {
 	if (target->register_info) {
-	  if (!target->register_info(reg, out_buf, out_buf_len)) {
+	  if (!target->register_info(reg, out_buf)) {
 	    gdb_interface_write_retval(RET_ERR, out_buf);
 	  }
 	} else {

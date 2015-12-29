@@ -37,7 +37,7 @@
 #error "Arch must define DEEBE_REG_STRUCT"
 #endif
 
-#define RLL(N, E, GDB, O, S, GDB_S, ENCODING, FORMAT, GCC, DWARF, GENERIC)	\
+#define RLL(N, E, GDB, O, S, GDB_S, ENCODING, FORMAT, GCC, DWARF, GENERIC, ALTNAME) \
   {									\
       .off = (O) + offsetof(struct DEEBE_REG_STRUCT, E),		\
       .size = (S) ? (S) : msizeof(struct DEEBE_REG_STRUCT, E),		\
@@ -49,4 +49,5 @@
       .gcc = GCC,							\
       .dwarf = DWARF,							\
       .generic = #GENERIC,						\
+      .altname = #ALTNAME,						\
    }

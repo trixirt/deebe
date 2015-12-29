@@ -577,7 +577,7 @@ bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff
   return  ret;
 }
 
-bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t size) {
+bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t *size) {
   bool ret = false;
   FILE *fp = NULL;
   pid_t pid = CURRENT_PROCESS_PID;
@@ -585,15 +585,18 @@ bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size
   snprintf (n, 256, "/proc/%u/auxv", pid);
   fp = fopen (n, "rt");
   if (fp) {
-    if (size < out_buf_size) {
-      memset(out_buf, 0, size);
+    if (*size < out_buf_size) {
       if (0 == fseek(fp, offset, SEEK_SET)) {
 	size_t total_read;
-	total_read = fread(out_buf, 1, size, fp);
-	if (total_read != size) {
-	  if (1 == feof(fp))
+	total_read = fread(&out_buf[1], 1, *size - 1, fp);
+	if (total_read != *size) {
+	  if (1 == feof(fp)) {
+	    out_buf[0] = 'l';
+	    *size = total_read + 1;
 	    ret = true;
+	  }
 	} else {
+	  out_buf[0] = 'm';
 	  ret = true;
 	}
       }
