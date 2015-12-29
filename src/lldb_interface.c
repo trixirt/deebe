@@ -152,6 +152,63 @@ static bool get_hostname(char **ptr) {
   return ret;
 }
 
+static bool get_distribution_id(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+    if (strncmp(&name.sysname[0], "Linux", 5) == 0) {
+      char *str = "ubuntu";
+      char *encoded_str = NULL;
+      size_t encoded_str_size = 0;
+      encoded_str_size = 1 + 2 * strlen(str);
+      encoded_str = (char *) malloc (encoded_str_size);
+      if (encoded_str != NULL) {
+	util_encode_string(str, encoded_str, encoded_str_size);
+	*ptr = encoded_str;
+	ret = true;
+      }
+    }
+  }
+  return ret;
+}
+
+static bool get_osbuild(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+    char *str = &name.release[0];
+    char *encoded_str = NULL;
+    size_t encoded_str_size = 0;
+    encoded_str_size = 1 + 2 * strlen(str);
+    encoded_str = (char *) malloc (encoded_str_size);
+    if (encoded_str != NULL) {
+      util_encode_string(str, encoded_str, encoded_str_size);
+      *ptr = encoded_str;
+      ret = true;
+    }
+  }
+  return ret;
+}
+
+static bool get_oskernel(char **ptr) {
+  bool ret = false;
+  struct utsname name;
+  if (uname(&name) == 0) {
+    char *str = &name.version[0];
+    char *encoded_str = NULL;
+    size_t encoded_str_size = 0;
+    encoded_str_size = 1 + 2 * strlen(str);
+    encoded_str = (char *) malloc (encoded_str_size);
+    if (encoded_str != NULL) {
+      util_encode_string(str, encoded_str, encoded_str_size);
+      *ptr = encoded_str;
+      ret = true;
+    }
+  }
+  return ret;
+}
+
+
 bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *target)
 {
   char *n = in_buf + 1;
@@ -160,6 +217,10 @@ bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *t
   char *ostype_str = NULL;
   char *osversion_str = NULL;
   char *hostname_str = NULL;
+  char *distribution_id_str = NULL;
+  char *osbuild_str = NULL;
+  char *oskernel_str = NULL;
+
   size_t out_buf_len = INOUTBUF_SIZE;
 
   switch (*n) {
@@ -173,13 +234,38 @@ bool lldb_handle_query_command(char * const in_buf, char *out_buf, gdb_target *t
   case 'H':
     if (strncmp(n, "HostInfo", 8) == 0) {
       get_triple(&triple_str);
+      get_distribution_id(&distribution_id_str);
       get_osversion(&osversion_str);
+      get_osbuild(&osbuild_str);
+      get_oskernel(&oskernel_str);
       get_hostname(&hostname_str);
-      if ((triple_str != NULL) &&
-	  (osversion_str != NULL) &&
-	  (hostname_str != NULL)) {
-	snprintf(out_buf, out_buf_len, "triple:%s;ptrsize:%u;endian:%s;os_version:%s;hostname:%s;", 
-		 triple_str, (unsigned) sizeof(void *), endian_str, osversion_str, hostname_str);
+
+      if (triple_str != NULL) {
+	sprintf(out_buf, "triple:%s;ptrsize:%u", triple_str, (unsigned) sizeof(void *));
+	if (distribution_id_str != NULL) {
+	  strcat(out_buf, ";distribution_id:");
+	  strcat(out_buf, distribution_id_str);
+	}
+	strcat(out_buf, ";watchpoint_exceptions_received:after"); /* XXX */
+	strcat(out_buf, ";endian:");
+	strcat(out_buf, endian_str);
+	if (osversion_str != NULL) {
+	  strcat(out_buf, ";os_version:");
+	  strcat(out_buf, osversion_str);
+	}
+	if (osbuild_str != NULL) {
+	  strcat(out_buf, ";os_build:");
+	  strcat(out_buf, osbuild_str);
+	}
+	if (oskernel_str != NULL) {
+	  strcat(out_buf, ";os_kernel:");
+	  strcat(out_buf, oskernel_str);
+	}
+	if (hostname_str != NULL) {
+	  strcat(out_buf, ";hostname:");
+	  strcat(out_buf, hostname_str);
+	}
+	strcat(out_buf, ";"); /* Because lldb has a trailing ';' */
       } else {
 	gdb_interface_write_retval(RET_ERR, out_buf);
       }
@@ -291,6 +377,12 @@ end:
     free(osversion_str);
   if (hostname_str != NULL)
     free(hostname_str);
+  if (distribution_id_str != NULL)
+    free(distribution_id_str);
+  if (osbuild_str != NULL)
+    free(osbuild_str);
+  if (oskernel_str != NULL)
+    free(oskernel_str);
 
   if (req_handled)
     _target.lldb = true;
