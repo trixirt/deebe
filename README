@@ -1,6 +1,6 @@
 DEEBE : Pronounced 'Debbie'
 
-Deebe is a drop in replacement for gdbserver.
+Deebe is a drop in replacement for gdbserver and lldb-server.
 
 -----------------------------------------------------------------------------
 
@@ -34,10 +34,16 @@ The reference make version is
 make-3.81
 
 The reference gcc version is
-gcc-4.1.2
+gcc-4.9.3
 
 The reference gdb version is
-gdb-6.5a
+gdb-7.7
+
+The reference clang version is
+clang-3.7.1
+
+The reference lldb version is
+lldb-3.7.1
 
 ----------------------------------------------------------------------------
 
@@ -186,22 +192,3 @@ Each patch should contain a single logical change and a commit log
 explaining the change.
 
 -----------------------------------------------------------------------
-
-Coding Style
-
-The coding style, with a few exceptions is the linux kernel's coding style.
-
-http://www.kernel.org/doc/Documentation/CodingStyle
-
-Your work can be checked with the linux kernel's style checking script
-checkpatch.pl.  
-
-The exceptions are:
-Line length > 80.
-Initializing static or global variable to 0.
-Use of typedef.
-
------------------------------------------------------------------------
-
-
-
