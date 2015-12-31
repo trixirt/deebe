@@ -69,8 +69,7 @@ static bool _resume_syscall_verbose = false;
 #endif
 static bool _write_mem_verbose = false;
 static bool _write_reg_verbose = false;
-static bool _wait_partial_verbose = false;
-static bool _wait_verbose = false;
+static bool _wait_verbose = true;
 static bool _add_break_verbose = false;
 static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
@@ -501,12 +500,6 @@ void _write_dbreg(pid_t tid)
 void ptrace_help(/*@unused@*/char *prog_name)
 {
 }
-
-#define PTRACE_ERROR_TRACEME       125
-#define PTRACE_ERROR_RAISE_SIGSTOP 124
-#define PTRACE_ERROR_EXECV         123
-#define PTRACE_ERROR_ATTACH        122
-#define PTRACE_ERROR_INTERNAL      121
 
 static int _yamma_check()
 {
@@ -1362,26 +1355,6 @@ int ptrace_go_waiting(int gdb_sig)
 	return RET_NOSUPP;
 }
 
-int ptrace_wait_partial(int first, char *status_string,
-			size_t status_string_len,
-			int *implemented, int *more)
-{
-	int ret = RET_ERR;
-	if (_wait_partial_verbose) {
-		DBG_PRINT("%s %d %s %zu %p %p\n",
-			  __func__, first, status_string, status_string_len,
-			  implemented, more);
-	}
-	/*
-	 * Defer to wait routine
-	 * This depends strongly on the logic in the calling function
-	 */
-	ret = RET_OK;
-	*implemented = 0;
-	*more = 0;
-	return ret;
-}
-
 int ptrace_offsets_query(uint64_t *text, uint64_t *data, uint64_t *bss)
 {
 	*text = 0;
@@ -1761,13 +1734,15 @@ static void _stopped_all(char *str)
 					ptrace_arch_get_pc(tid, &pc);
 					/* Fill out the status string */
 					if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-						gdb_stop_string(str, g, tid, 0);
+					  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
 						target_thread_make_current(tid);
+						CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
 						valid = true;
 						no_event = false;
 					} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
-						gdb_stop_string(str, g, tid, watch_addr);
+					  gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
 						target_thread_make_current(tid);
+						CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
 						valid = true;
 						no_event = false;
 					} else {
@@ -1784,11 +1759,31 @@ static void _stopped_all(char *str)
 						 */
 					         if (!ptrace_os_new_thread(tid, wait_status)) {
 							/* A normal breakpoint was hit, or a trap instruction */
-							gdb_stop_string(str, g, tid, 0);
-							target_thread_make_current(tid);
-							valid = true;
-							no_event = false;
-						}
+						   int reason;
+						   if (_target.step) {
+						     /* stepping can run over a normal breakpoint so precidence is for stepping */
+						     reason = LLDB_STOP_REASON_TRACE;
+						   } else {
+						     /*
+						      * XXX A real trap and a breakpoint could be at the same location
+						      *
+						      * lldb checks if the pc matches what was used to set the breakpoint.
+						      * At this point the pc can advanced (at least on x86).
+						      * If the pc and the breakpoint don't match, lldb puts itself in a bad
+						      * state.  So check if we are on lldb and roll back the pc one sw break's
+						      * worth.
+						      */
+						     if (_target.lldb)
+						       ptrace_arch_set_pc(tid, pc - ptrace_arch_swbreak_size());
+
+						     reason = LLDB_STOP_REASON_BREAKPOINT;
+						   }
+						   gdb_stop_string(str, g, tid, 0, reason);
+						   target_thread_make_current(tid);
+						   CURRENT_PROCESS_STOP = reason;
+						   valid = true;
+						   no_event = false;
+						 }
 					}
 					if (valid && _wait_verbose) {
 						DBG_PRINT("stopped at pc 0x%lx %d\n", pc, index);
@@ -1828,7 +1823,8 @@ static void _stopped_all(char *str)
 							/* Need to report to gdb */
 							if (target_thread_make_current(tid)) {
 								/* A non trap signal */
-								gdb_stop_string(str, g, tid, 0);
+							  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+							  CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
 								no_event = false;
 							}
 						} else {
@@ -1841,8 +1837,9 @@ static void _stopped_all(char *str)
 						 * Report all
 						 */
 						if (target_thread_make_current(tid)) {
-							/* A non trap signal */
-							gdb_stop_string(str, g, tid, 0);
+						  /* A non trap signal */
+						  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+						  CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
 							no_event = false;
 						}
 					}

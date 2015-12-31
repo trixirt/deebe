@@ -37,6 +37,7 @@
 #include <linux/ptrace.h>
 #include "global.h"
 #include "dptrace.h"
+#include "breakpoint.h"
 #include "../os/linux.h"
 
 void ptrace_os_read_fxreg(pid_t tid)
@@ -466,13 +467,34 @@ void ptrace_os_stopped_single(char *str, bool debug)
 				ptrace_arch_get_pc(tid, &pc);
 				/* Fill out the status string */
 				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-				  gdb_stop_string(str, g, tid, 0);
+				  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
+				  CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
 				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
-				    gdb_stop_string(str, g, tid, watch_addr);
+				  gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
+				  CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
 				} else {
-					/* Either a normal breakpoint or a step, it doesn't matter */
-				    gdb_stop_string(str, g, tid, 0);
+				  int reason;
+				  if (_target.step) {
+				    /* stepping can run over a normal breakpoint so precidence is for stepping */
+				    reason = LLDB_STOP_REASON_TRACE;
+				  } else {
+				    /*
+				     * XXX A real trap and a breakpoint could be at the same location
+				     *
+				     * lldb checks if the pc matches what was used to set the breakpoint.
+				     * At this point the pc can advanced (at least on x86).
+				     * If the pc and the breakpoint don't match, lldb puts itself in a bad
+				     * state.  So check if we are on lldb and roll back the pc one sw break's
+				     * worth.
+				     */
+				    if (_target.lldb)
+				      ptrace_arch_set_pc(tid, pc - ptrace_arch_swbreak_size());
+
+				    reason = LLDB_STOP_REASON_BREAKPOINT;
+				  }
+				  gdb_stop_string(str, g, tid, 0, reason);
+				  CURRENT_PROCESS_STOP = reason;
 				}
 
 				if (debug) {
@@ -486,8 +508,9 @@ void ptrace_os_stopped_single(char *str, bool debug)
 					}
 				}
 			} else {
-			    /* A non trap signal */
-			    gdb_stop_string(str, g, tid, 0);
+			  /* A non trap signal */
+			  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+			  CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
 			}
 		}
 	}

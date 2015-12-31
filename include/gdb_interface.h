@@ -37,8 +37,8 @@
   Remote proxy definitions.
 */
 
-#ifndef DEEBE_PROXY_H_
-#define DEEBE_PROXY_H_
+#ifndef DEEBE_GDB_INTERFACE_H_
+#define DEEBE_GDB_INTERFACE_H_
 
 #include <sys/types.h>
 
@@ -396,11 +396,11 @@ void gdb_interface_init();
 int gdb_interface_packet();
 int gdb_interface_quick_packet();
 void gdb_interface_put_console(char *b);
-void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr);
+void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr, int lldb_reason);
 void gdb_interface_write_retval(int ret, char *buf);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);
 void target_cleanup();
 
-#endif /* DEEBE_PROXY_H_ */
+#endif /* DEEBE_GDB_INTERFACE_H_ */

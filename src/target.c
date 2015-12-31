@@ -105,6 +105,7 @@ bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting, int 
     PROCESS_WAIT_STATUS(index) = wait_status;
     PROCESS_WAIT(index) = waiting;
     PROCESS_SIG(index) = sig;
+    PROCESS_STOP(index) = LLDB_STOP_REASON_SIGNAL;
     ret = true;
 
 end:

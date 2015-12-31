@@ -2612,7 +2612,7 @@ int gdb_interface_packet()
 				break;
 
 			case '?':
-			  gdb_stop_string(out_buf, CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0);
+			  gdb_stop_string(out_buf, CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0, CURRENT_PROCESS_STOP);
 			  break;
 
 			case 'A':
@@ -2815,7 +2815,7 @@ void gdb_interface_put_console(char *b)
  * When there is a single thread, return an empty string.
  */
 void gdb_stop_string(char *str, int sig,
-		     pid_t tid, unsigned long watch_addr)
+		     pid_t tid, unsigned long watch_addr, int reason)
 {
   int index;
   char tstr[32] = "";
@@ -2857,7 +2857,9 @@ void gdb_stop_string(char *str, int sig,
     }
     strncat(str, ";", len);
   }
- 
+
+#if 0
+  /* Not needed, gdb/lldb read 2 or 3 registers, so listing them all is wasteful */
   if (gdb_interface_target->read_single_register != NULL) {
     int i;
     alignas (4) unsigned char data_buf[64];
@@ -2876,17 +2878,18 @@ void gdb_stop_string(char *str, int sig,
       }
     }
   }
+#endif
   if (_target.lldb) {
-    if (watch_addr) {
-      strncat(str, "reason:watchpoint;", len);
-    } else if (sig == SIGTRAP) {
-      if (_target.step) {
-	strncat(str, "reason:trace;", len);
-      } else {
-	strncat(str, "reason:trap;", len);
-      }
-    } else if (sig) {
-      strncat(str, "reason:signal;", len);
+    const char *reasons[LLDB_STOP_REASON_MAX] = {
+      "reason:trace;",
+      "reason:breakpoint;",
+      "reason:trap;",
+      "reason:watchpoint;",
+      "reason:signal;"
+    };
+    _Static_assert(LLDB_STOP_REASON_MAX == 5, "Expecting LLDB_STOP_REASON_MAX to be 5");
+    if (reason > 0 && reason < LLDB_STOP_REASON_MAX) {
+      strncat(str, reasons[reason], len);
     }
   }
 }

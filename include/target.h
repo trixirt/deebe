@@ -70,6 +70,7 @@ typedef struct target_process_rec {
 	bool w; /* waiting ? */
 	int sig; /* signal */
 	long syscall; /* the most recent syscall */
+  int stop; /* why did we stop */
 } target_process;
 
 typedef struct target_state_rec {
@@ -107,6 +108,7 @@ typedef struct target_state_rec {
 #define PROCESS_WAIT(n)        _target.process[n].w
 #define PROCESS_SIG(n)         _target.process[n].sig
 #define PROCESS_SYSCALL(n)     _target.process[n].syscall
+#define PROCESS_STOP(n)        _target.process[n].stop
 
 #define CURRENT_PROCESS_PID         PROCESS_PID(_target.current_process)
 #define CURRENT_PROCESS_TID         PROCESS_TID(_target.current_process)
@@ -114,7 +116,8 @@ typedef struct target_state_rec {
 #define CURRENT_PROCESS_WAIT_STATUS PROCESS_WAIT_STATUS(_target.current_process)
 #define CURRENT_PROCESS_WAIT        PROCESS_WAIT(_target.current_process)
 #define CURRENT_PROCESS_SIG         PROCESS_SIG(_target.current_process)
-#define CURRENT_PROCESS_SYSCALL     PROCESS_SIG(_target.current_process)
+#define CURRENT_PROCESS_SYSCALL     PROCESS_SYSCALL(_target.current_process)
+#define CURRENT_PROCESS_STOP        PROCESS_STOP(_target.current_process)
 
 #define PROCESS_WAIT_STATUS_DEFAULT -1
 

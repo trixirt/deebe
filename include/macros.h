@@ -59,4 +59,19 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 /* Size of input and out buffers */
 #define INOUTBUF_SIZE (2*GDB_INTERFACE_PARAM_DATABYTES_MAX+32)
 
+/* These must match the table of reasons the gdb_stop_string function */
+#define LLDB_STOP_REASON_TRACE 0
+#define LLDB_STOP_REASON_BREAKPOINT 1
+#define LLDB_STOP_REASON_TRAP 2
+#define LLDB_STOP_REASON_WATCHPOINT 3
+#define LLDB_STOP_REASON_SIGNAL 4
+#define LLDB_STOP_REASON_EXCEPTION 5 /* Not supported */
+#define LLDB_STOP_REASON_MAX (LLDB_STOP_REASON_SIGNAL+1)
+
+#define PTRACE_ERROR_TRACEME       125
+#define PTRACE_ERROR_RAISE_SIGSTOP 124
+#define PTRACE_ERROR_EXECV         123
+#define PTRACE_ERROR_ATTACH        122
+#define PTRACE_ERROR_INTERNAL      121
+
 #endif
