@@ -72,6 +72,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#if HAVE_LIBGEN_H
+/* for freebsd basename() */
+#include <libgen.h>
+#endif
 #include "gdb_interface.h"
 #include "global.h"
 #include "lldb_interface.h"
