@@ -500,7 +500,6 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 		{
 			int wait_ret;
 			char str[128];
-			size_t len = 128;
 			int tries = 0;
 			int max_tries = 20;
 			do {
@@ -516,7 +515,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid)
 				}
 				/* Sleep for a a msec */
 				usleep(1000);
-				wait_ret = ptrace_wait(str, len, 0, true);
+				wait_ret = ptrace_wait(str, 0, true);
 				if (wait_ret == RET_OK) {
 					DBG_PRINT("%s hard case %s\n", __func__, str);
 					/*
@@ -566,7 +565,7 @@ end:
  * However any other signal's need to be handled normally, the
  * current thread is set to signalling thread.
  */
-void ptrace_os_stopped_single(char *str, size_t len, bool debug)
+void ptrace_os_stopped_single(char *str, bool debug)
 {
 	int index;
 	for (index = 0; index < _target.number_processes; index++) {
@@ -585,7 +584,8 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				ptrace_arch_get_pc(tid, &pc);
 				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
 					target_thread_make_current(tid);
-					gdb_stop_string(str, len, g, tid, 0);
+					gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
+					CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
 					/*
 					 * process stat points to the true thread to continue
 					 * Not that it matter on FreeBSD as they all go at once
@@ -594,31 +594,54 @@ void ptrace_os_stopped_single(char *str, size_t len, bool debug)
 				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
 					/* A watchpoint was hit */
 					target_thread_make_current(tid);
-					gdb_stop_string(str, len, g, tid, watch_addr);
+					gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
+					CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
 					/*
 					 * process stat points to the true thread to continue
-					 * Not that it matter on FreeBSD as they all go at once
+					 * Not that it matters on FreeBSD as they all go at once
 					 */
 					PROCESS_STATE(index) = PS_CONT;
 				} else {
+				    int reason;
+				    /*
+				     * Map all tid's to the current tid
+				     *
+				     * Either a normal breakpoint or a step, it doesn't matter
+				     */
+				    target_thread_make_current(tid);
+
+				    if (_target.step) {
+					/* stepping can run over a normal breakpoint so precidence is for stepping */
+					reason = LLDB_STOP_REASON_TRACE;
+				    } else {
 					/*
-					 * Map all tid's to the current tid
+					 * XXX A real trap and a breakpoint could be at the same location
 					 *
-					 * Either a normal breakpoint or a step, it doesn't matter
+					 * lldb checks if the pc matches what was used to set the breakpoint.
+					 * At this point the pc can advanced (at least on x86).
+					 * If the pc and the breakpoint don't match, lldb puts itself in a bad
+					 * state.  So check if we are on lldb and roll back the pc one sw break's
+					 * worth.
 					 */
-					target_thread_make_current(tid);
-					gdb_stop_string(str, len, g, tid, 0);
-					/*
-					 * process stat points to the true thread to continue
-					 * Not that it matter on FreeBSD as they all go at once
-					 */
-					PROCESS_STATE(index) = PS_CONT;
+					if (_target.lldb)
+					    ptrace_arch_set_pc(tid, pc - ptrace_arch_swbreak_size());
+					
+					reason = LLDB_STOP_REASON_BREAKPOINT;
+				    }
+				    gdb_stop_string(str, g, tid, 0, reason);
+				    CURRENT_PROCESS_STOP = reason;
+
+				    /*
+				     * process stat points to the true thread to continue
+				     * Not that it matter on FreeBSD as they all go at once
+				     */
+				    PROCESS_STATE(index) = PS_CONT;
 				}
 			} else {
 				/* A non trap signal, report the true thread */
 				target_thread_make_current(tid);
-				gdb_stop_string(str, len, g, tid, 0);
-				PROCESS_STATE(index) = PS_CONT;
+				gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+				CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
 			}
 		}
 	}
@@ -660,4 +683,11 @@ bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff
       free(ptr);
   }
   return  ret;
+}
+
+bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size)
+{
+    bool ret = false;
+    /* XXX stub */
+    return ret;
 }
