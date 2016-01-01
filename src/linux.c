@@ -457,14 +457,23 @@ void ptrace_os_stopped_single(char *str, bool debug)
 		int wait_status = CURRENT_PROCESS_WAIT_STATUS;
 
 		if (WIFSTOPPED(wait_status)) {
+		  unsigned long pc = 0;
+		  int s = WSTOPSIG(wait_status);
+		  int g = ptrace_arch_signal_to_gdb(s);
+		  ptrace_arch_get_pc(tid, &pc);
 
-			int s = WSTOPSIG(wait_status);
-			int g = ptrace_arch_signal_to_gdb(s);
-
+		  if (debug) {
+		    DBG_PRINT("stopped at pc 0x%lx\n", pc);
+		    if (pc) {
+		      uint8_t b[32] = { 0 };
+		      size_t read_size = 0;
+		      ptrace_read_mem(tid, pc, &b[0], 32,
+				      &read_size);
+		      util_print_buffer(fp_log, 0, 32, &b[0]);
+		    }
+		  }
 			if (s == SIGTRAP) {
-				unsigned long pc = 0;
 				unsigned long watch_addr = 0;
-				ptrace_arch_get_pc(tid, &pc);
 				/* Fill out the status string */
 				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
 				  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
@@ -487,9 +496,12 @@ void ptrace_os_stopped_single(char *str, bool debug)
 				     * If the pc and the breakpoint don't match, lldb puts itself in a bad
 				     * state.  So check if we are on lldb and roll back the pc one sw break's
 				     * worth.
+				     * 
+				     * On freebsd arm, the pc isn't advanced so use the arch dependent function
+				     * ptrace_arch_swbreak_rollback
 				     */
 				    if (_target.lldb)
-				      ptrace_arch_set_pc(tid, pc - ptrace_arch_swbreak_size());
+				      ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
 
 				    reason = LLDB_STOP_REASON_BREAKPOINT;
 				  }
@@ -497,16 +509,7 @@ void ptrace_os_stopped_single(char *str, bool debug)
 				  CURRENT_PROCESS_STOP = reason;
 				}
 
-				if (debug) {
-					DBG_PRINT("stopped at pc 0x%lx\n", pc);
-					if (pc) {
-						uint8_t b[32] = { 0 };
-						size_t read_size = 0;
-						ptrace_read_mem(tid, pc, &b[0], 32,
-								&read_size);
-						util_print_buffer(fp_log, 0, 32, &b[0]);
-					}
-				}
+
 			} else {
 			  /* A non trap signal */
 			  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);

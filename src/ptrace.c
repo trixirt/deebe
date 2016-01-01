@@ -69,7 +69,7 @@ static bool _resume_syscall_verbose = false;
 #endif
 static bool _write_mem_verbose = false;
 static bool _write_reg_verbose = false;
-static bool _wait_verbose = true;
+static bool _wait_verbose = false;
 static bool _add_break_verbose = false;
 static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
@@ -1725,89 +1725,75 @@ static void _stopped_all(char *str)
 			pid_t tid = PROCESS_TID(index);
 			int wait_status = PROCESS_WAIT_STATUS(index);
 			if (WIFSTOPPED(wait_status)) {
-				int s = WSTOPSIG(wait_status);
-				int g = ptrace_arch_signal_to_gdb(s);
-				if (s == SIGTRAP) {
-					unsigned long pc = 0;
-					unsigned long watch_addr = 0;
-					bool valid = false;
-					ptrace_arch_get_pc(tid, &pc);
-					/* Fill out the status string */
-					if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-					  gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
-						target_thread_make_current(tid);
-						CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
-						valid = true;
-						no_event = false;
-					} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
-					  gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
-						target_thread_make_current(tid);
-						CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
-						valid = true;
-						no_event = false;
-					} else {
-						/*
-						 * On Linux, when a new thread is created, the parent receives
-						 * a SIGTRAP with the addition information of PTRACE_EVENT_CLONE
-						 * embedded in the wait status status.  Check for this before
-						 * returning an SIGTRAP to gdb.  Gdb will receive the the notification
-						 * of a new thread from the the new thread, not the parent
-						 *
-						 * On FreeBSD, a new thread is inferred by polling the syscalls
-						 * Looking for a thread create or an increase in the threads
-						 * reported by the kernel.
-						 */
-					         if (!ptrace_os_new_thread(tid, wait_status)) {
-							/* A normal breakpoint was hit, or a trap instruction */
-						   int reason;
-						   if (_target.step) {
-						     /* stepping can run over a normal breakpoint so precidence is for stepping */
-						     reason = LLDB_STOP_REASON_TRACE;
-						   } else {
-						     /*
-						      * XXX A real trap and a breakpoint could be at the same location
-						      *
-						      * lldb checks if the pc matches what was used to set the breakpoint.
-						      * At this point the pc can advanced (at least on x86).
-						      * If the pc and the breakpoint don't match, lldb puts itself in a bad
-						      * state.  So check if we are on lldb and roll back the pc one sw break's
-						      * worth.
-						      * 
-						      * On freebsd arm, the pc isn't advanced so use the arch dependent function
-						      * ptrace_arch_swbreak_rollback
-						      */
-						     if (_target.lldb)
-						       ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
-
-						     reason = LLDB_STOP_REASON_BREAKPOINT;
-						   }
-						   gdb_stop_string(str, g, tid, 0, reason);
-						   target_thread_make_current(tid);
-						   CURRENT_PROCESS_STOP = reason;
-						   valid = true;
-						   no_event = false;
-						 }
-					}
-					if (valid && _wait_verbose) {
-						DBG_PRINT("stopped at pc 0x%lx %d\n", pc, index);
-						if (pc) {
-							uint8_t b[32] = { 0 };
-							size_t read_size = 0;
-							ptrace_read_mem(tid, pc, &b[0], 32,
-									&read_size);
-							util_print_buffer(fp_log, 0, 32, &b[0]);
-						}
-					} else {
-						/*
-						 * DEBUGGING CODE
-						 * This causes a lot of noise on FreeBSD
-						 * So disable..
-						 *
-						 * DBG_PRINT("stopped at pc 0x%lx %d\n", pc, index);
-						 *
-						 */
-					}
+			  unsigned long pc = 0;
+			  int s = WSTOPSIG(wait_status);
+			  int g = ptrace_arch_signal_to_gdb(s);
+			  ptrace_arch_get_pc(tid, &pc);
+			  if (_wait_verbose) {
+			    DBG_PRINT("stopped at pc 0x%lx %d\n", pc, index);
+			    if (pc) {
+			      uint8_t b[32] = { 0 };
+			      size_t read_size = 0;
+			      ptrace_read_mem(tid, pc, &b[0], 32, &read_size);
+			      util_print_buffer(fp_log, 0, 32, &b[0]);
+			    }
+			  }
+			  if (s == SIGTRAP) {
+			    unsigned long watch_addr = 0;
+			    /* Fill out the status string */
+			    if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+			      gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
+			      target_thread_make_current(tid);
+			      CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
+			      no_event = false;
+			    } else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+			      gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
+			      target_thread_make_current(tid);
+			      CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
+			      no_event = false;
+			    } else {
+			      /*
+			       * On Linux, when a new thread is created, the parent receives
+			       * a SIGTRAP with the addition information of PTRACE_EVENT_CLONE
+			       * embedded in the wait status status.  Check for this before
+			       * returning an SIGTRAP to gdb.  Gdb will receive the the notification
+			       * of a new thread from the the new thread, not the parent
+			       *
+			       * On FreeBSD, a new thread is inferred by polling the syscalls
+			       * Looking for a thread create or an increase in the threads
+			       * reported by the kernel.
+			       */
+			      if (!ptrace_os_new_thread(tid, wait_status)) {
+				/* A normal breakpoint was hit, or a trap instruction */
+				int reason;
+				if (_target.step) {
+				  /* stepping can run over a normal breakpoint so precidence is for stepping */
+				  reason = LLDB_STOP_REASON_TRACE;
 				} else {
+				  /*
+				   * XXX A real trap and a breakpoint could be at the same location
+				   *
+				   * lldb checks if the pc matches what was used to set the breakpoint.
+				   * At this point the pc can advanced (at least on x86).
+				   * If the pc and the breakpoint don't match, lldb puts itself in a bad
+				   * state.  So check if we are on lldb and roll back the pc one sw break's
+				   * worth.
+				   * 
+				   * On freebsd arm, the pc isn't advanced so use the arch dependent function
+				   * ptrace_arch_swbreak_rollback
+				   */
+				  if (_target.lldb)
+				    ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
+				  
+				  reason = LLDB_STOP_REASON_BREAKPOINT;
+				}
+				gdb_stop_string(str, g, tid, 0, reason);
+				target_thread_make_current(tid);
+				CURRENT_PROCESS_STOP = reason;
+				no_event = false;
+			      }
+			    }
+			  } else {
 					/*
 					 * On linux, thread indicates it has been started
 					 * by starting with a STOP signal.  When this is

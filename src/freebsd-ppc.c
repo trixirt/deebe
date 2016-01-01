@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -351,4 +351,9 @@ const char *ptrace_arch_get_xml_register_string()
 {
   static char *str = "powerpc";
   return str;
+}
+
+size_t ptrace_arch_swbrk_rollback()
+{
+  return 0;
 }
