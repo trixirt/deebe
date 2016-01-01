@@ -55,7 +55,7 @@ struct reg_location_list grll[] = {
 	RLL(esi,      regs.esi,      GDB_ESI,      0, 0, 0, uint, hex,  6,  6,     X,     X),
 	RLL(edi,      regs.edi,      GDB_EDI,      0, 0, 0, uint, hex,  7,  7,     X,     X),
 	RLL(ebp,      regs.ebp,      GDB_EBP,      0, 0, 0, uint, hex,  5,  5,    fp,    fp),
-	RLL(eax,      regs.eax,      GDB_EAX,      0, 0, 0, uint, hex, -1, -1,     X,     X),
+	RLL(eax,      regs.eax,      GDB_EAX,      0, 0, 0, uint, hex,  0,  0,     X,     X),
 	RLL(ds,       regs.xds,      GDB_DS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
 	RLL(es,       regs.xes,      GDB_ES,       0, 2, 4, uint, hex, -1, -1,     X,     X),
 	RLL(fs,       regs.xfs,      GDB_FS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
