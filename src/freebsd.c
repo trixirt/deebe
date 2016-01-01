@@ -35,10 +35,12 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/thr.h>
 #include <sys/user.h>
 #include <stdint.h>
 #include <libutil.h>
+#include <libprocstat.h>
 #include "target_ptrace.h"
 #include <machine/reg.h>
 #include "global.h"
@@ -685,9 +687,61 @@ bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff
   return  ret;
 }
 
-bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size)
+bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t *size)
 {
     bool ret = false;
-    /* XXX stub */
+    /*
+     * An offset != 0 doesn't fit how auxv is retrieved in FreeBSD
+     * So bail..
+     * XXX also assume it will all fit in the return buffer
+     */
+    if (offset == 0) {
+	struct procstat *prstat;
+	/* See FreeBSD usr.bin/procstat/ */
+	prstat = procstat_open_sysctl();
+	if (prstat != NULL) {
+	    pid_t pid = CURRENT_PROCESS_PID;
+	    struct kinfo_proc *kp;
+	    unsigned int cntp = 0;
+	    kp = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cntp);
+	    if (kp != NULL) {
+		/* Assume 1 */
+		Elf_Auxinfo *auxv;
+		cntp = 0; /* reset */
+		auxv = procstat_getauxv(prstat, kp, &cntp);
+		if (auxv != NULL && cntp > 0) {
+		    size_t space_left = *size;
+		    size_t el_size = sizeof(Elf_Auxinfo);
+		    /* Need to know at least 1 will fit */
+		    if (space_left > el_size) {
+			unsigned int i;
+			/* 
+			 * The > takes care of the prefix 'l'
+			 * Because we can not tolerate an offset, there will be no 'm'
+			 */
+			out_buf[0] = 'l';
+			space_left--;
+			for (i = 0; i < cntp; i++) {
+			    if (space_left >= el_size) {
+				memcpy(&out_buf[i * el_size + 1], &auxv[i], el_size);
+				space_left -= el_size;
+			    } else {
+				break;
+			    }
+			}
+			/* Return what we filled */
+			*size = *size - space_left;
+			ret = true;
+		    }
+		    procstat_freeauxv(prstat, auxv);
+		    auxv = NULL;
+		}
+		procstat_freeprocs(prstat, kp);
+		kp = NULL;
+	    }
+	    procstat_close(prstat);
+	    prstat = NULL;
+	}
+    }
     return ret;
 }
