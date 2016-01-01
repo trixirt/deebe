@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, Juniper Networks, Inc.
+ * Copyright (c) 2012-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -35,6 +35,7 @@
 #include "target_ptrace.h"
 #include "global.h"
 #include "os.h"
+#include "gdb-x86.h"
 
 union reg_dirty {
 	struct {
@@ -45,44 +46,49 @@ union reg_dirty {
 	unsigned int u;
 } dirt;
 
+#define DEEBE_REG_STRUCT user
+#include "regmacros.h"
 struct reg_location_list grll[] = {
-	GRLL(ebx,      regs.ebx,      GDB_EBX,      0, 0, 0),
-	GRLL(ecx,      regs.ecx,      GDB_ECX,      0, 0, 0),
-	GRLL(edx,      regs.edx,      GDB_EDX,      0, 0, 0),
-	GRLL(esi,      regs.esi,      GDB_ESI,      0, 0, 0),
-	GRLL(edi,      regs.edi,      GDB_EDI,      0, 0, 0),
-	GRLL(ebp,      regs.ebp,      GDB_EBP,      0, 0, 0),
-	GRLL(eax,      regs.eax,      GDB_EAX,      0, 0, 0),
-	GRLL(ds,       regs.xds,      GDB_DS,       0, 2, 4),
-	GRLL(es,       regs.xes,      GDB_ES,       0, 2, 4),
-	GRLL(fs,       regs.xfs,      GDB_FS,       0, 2, 4),
-	GRLL(gs,       regs.xgs,      GDB_GS,       0, 2, 4),
-	GRLL(orig_eax, regs.orig_eax, GDB_ORIG_EAX, 0, 0, 0),
-	GRLL(eip,      regs.eip,      GDB_EIP,      0, 0, 0),
-	GRLL(cs,       regs.xcs,      GDB_CS,       0, 2, 4),
-	GRLL(eflags,   regs.eflags,   GDB_EFLAGS,   0, 0, 0),
-	GRLL(esp,      regs.esp,      GDB_ESP,      0, 0, 0),
-	GRLL(ss,       regs.xss,      GDB_SS,       0, 2, 4),
+	RLL(ebx,      regs.ebx,      GDB_EBX,      0, 0, 0, uint, hex,  3,  3,     X,     X),
+	RLL(ecx,      regs.ecx,      GDB_ECX,      0, 0, 0, uint, hex,  1,  1,     X,     X),
+	RLL(edx,      regs.edx,      GDB_EDX,      0, 0, 0, uint, hex,  2,  2,     X,     X),
+	RLL(esi,      regs.esi,      GDB_ESI,      0, 0, 0, uint, hex,  6,  6,     X,     X),
+	RLL(edi,      regs.edi,      GDB_EDI,      0, 0, 0, uint, hex,  7,  7,     X,     X),
+	RLL(ebp,      regs.ebp,      GDB_EBP,      0, 0, 0, uint, hex,  5,  5,    fp,    fp),
+	RLL(eax,      regs.eax,      GDB_EAX,      0, 0, 0, uint, hex, -1, -1,     X,     X),
+	RLL(ds,       regs.xds,      GDB_DS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
+	RLL(es,       regs.xes,      GDB_ES,       0, 2, 4, uint, hex, -1, -1,     X,     X),
+	RLL(fs,       regs.xfs,      GDB_FS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
+	RLL(gs,       regs.xgs,      GDB_GS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
+	RLL(orig_eax, regs.orig_eax, GDB_ORIG_EAX, 0, 0, 0, uint, hex, -1, -1,     X,     X),
+	RLL(eip,      regs.eip,      GDB_EIP,      0, 0, 0, uint, hex,  8,  8,    pc,    pc),
+	RLL(cs,       regs.xcs,      GDB_CS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
+	RLL(eflags,   regs.eflags,   GDB_EFLAGS,   0, 0, 0, uint, hex,  9,  9, flags, flags),
+	RLL(esp,      regs.esp,      GDB_ESP,      0, 0, 0, uint, hex,  4,  4,    sp,    sp),
+	RLL(ss,       regs.xss,      GDB_SS,       0, 2, 4, uint, hex, -1, -1,     X,     X),
 	{0},
 };
 
+#undef DEEBE_REG_STRUCT
+#define DEEBE_REG_STRUCT user_fpregs_struct
+#include "regmacros.h"
 struct reg_location_list frll[] = {
-	FRLL(ctrl, cwd,      GDB_FCTRL, 0,  2, 4),
-	FRLL(stat, swd,      GDB_FSTAT, 0,  2, 4),
-	FRLL(tag,  twd,      GDB_FTAG,  0,  2, 4),
-	FRLL(ioff, fip,      GDB_FIOFF, 0,  4, 4),
-	FRLL(iseg, fcs,      GDB_FISEG, 0,  2, 4),
-	FRLL(op,   fcs,      GDB_FOP,   2,  2, 4),
-	FRLL(ooff, foo,      GDB_FOOFF, 0,  4, 4),
-	FRLL(oseg, fos,      GDB_FOSEG, 0,  2, 4),
-	FRLL(st0,  st_space, GDB_FST0,  0, 10, 10),
-	FRLL(st1,  st_space, GDB_FST1, 10, 10, 10),
-	FRLL(st2,  st_space, GDB_FST2, 20, 10, 10),
-	FRLL(st3,  st_space, GDB_FST3, 30, 10, 10),
-	FRLL(st4,  st_space, GDB_FST4, 40, 10, 10),
-	FRLL(st5,  st_space, GDB_FST5, 50, 10, 10),
-	FRLL(st6,  st_space, GDB_FST6, 60, 10, 10),
-	FRLL(st7,  st_space, GDB_FST7, 70, 10, 10),
+	RLL(ctrl, cwd,      GDB_FCTRL, 0,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(stat, swd,      GDB_FSTAT, 0,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(tag,  twd,      GDB_FTAG,  0,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(ioff, fip,      GDB_FIOFF, 0,  4, 4, uint, hex, -1, -1, X, X),
+	RLL(iseg, fcs,      GDB_FISEG, 0,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(op,   fcs,      GDB_FOP,   2,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(ooff, foo,      GDB_FOOFF, 0,  4, 4, uint, hex, -1, -1, X, X),
+	RLL(oseg, fos,      GDB_FOSEG, 0,  2, 4, uint, hex, -1, -1, X, X),
+	RLL(st0,  st_space, GDB_FST0,  0, 10, 10, uint, hex, 11, 11, X, X),
+	RLL(st1,  st_space, GDB_FST1, 10, 10, 10, uint, hex, 12, 12, X, X),
+	RLL(st2,  st_space, GDB_FST2, 20, 10, 10, uint, hex, 13, 13, X, X),
+	RLL(st3,  st_space, GDB_FST3, 30, 10, 10, uint, hex, 14, 14, X, X),
+	RLL(st4,  st_space, GDB_FST4, 40, 10, 10, uint, hex, 15, 15, X, X),
+	RLL(st5,  st_space, GDB_FST5, 50, 10, 10, uint, hex, 16, 16, X, X),
+	RLL(st6,  st_space, GDB_FST6, 60, 10, 10, uint, hex, 17, 17, X, X),
+	RLL(st7,  st_space, GDB_FST7, 70, 10, 10, uint, hex, 18, 18, X, X),
 	{0},
 };
 
@@ -187,4 +193,13 @@ bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
 {
 	return ptrace_os_check_new_thread(pid, status, out_pid);
+}
+
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
+{
+  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
+}
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size)
+{
+  return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
 }
