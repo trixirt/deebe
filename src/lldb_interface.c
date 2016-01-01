@@ -75,7 +75,10 @@ static bool get_triple(char **ptr) {
       if (strncmp(&name.sysname[0], "Linux", 5) == 0)
 	sprintf(str, "%s--linux-gnu", &name.machine[0]);
       else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
-	sprintf(str, "%s-unknown-freebsd", &name.machine[0]);
+	  if (strncmp(&name.machine[0], "amd64", 5) == 0)
+	      sprintf(str, "x86_64-unknown-freebsd");
+	  else
+	      sprintf(str, "%s-unknown-freebsd", &name.machine[0]);
       else
 	sprintf(str, "%s-unknown-%s", &name.machine[0], &name.sysname[0]);
       encoded_str_size = 1 + 2 * strlen(str);
