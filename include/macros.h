@@ -74,4 +74,12 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 #define PTRACE_ERROR_ATTACH        122
 #define PTRACE_ERROR_INTERNAL      121
 
+/*
+ * FreeBSD makes it a point to not define HOST_NAME_MAX
+ * So if it isn't defined, use the linux value.
+ */
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX 64
+#endif
+
 #endif
