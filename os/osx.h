@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -70,7 +70,7 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 void ptrace_os_continue_others();
 int ptrace_os_gen_thread(pid_t pid, pid_t tid);
 bool ptrace_os_new_thread(pid_t tid, int status);
-void ptrace_os_stopped_single(char *str, size_t len, bool debug);
+void ptrace_os_stopped_single(char *str, bool debug);
 void ptrace_os_wait(pid_t tid);
 bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
                                   size_t out_buf_size);

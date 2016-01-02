@@ -142,7 +142,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
 
 void ptrace_os_continue_others() {}
 
-void ptrace_os_stopped_single(char *str, size_t len, bool debug) {}
+void ptrace_os_stopped_single(char *str, bool debug) {}
 
 bool ptrace_os_new_thread(pid_t tid, int status) {
   bool ret = false;
