@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Juniper Networks, Inc.
+ * Copyright (c) 2013-2016 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -36,8 +36,7 @@
 #include "dptrace.h"
 #include "os.h"
 
-int osx_threadextrainfo_query(int64_t thread_id, char *out_buf,
-                              size_t out_buf_size) {
+int osx_threadextrainfo_query(int64_t thread_id, char *out_buf) {
   return RET_NOSUPP;
 }
 

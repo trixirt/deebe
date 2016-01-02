@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -178,3 +178,10 @@ void ptrace_arch_option_set_thread(pid_t pid) {
   ptrace_os_option_set_thread(pid);
 }
 size_t ptrace_arch_swbreak_size() { return 1; }
+
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
+                           size_t *size) {
+	return false;
+}
+
+size_t ptrace_arch_swbrk_rollback() { return ptrace_arch_swbreak_size(); }
