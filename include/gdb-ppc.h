@@ -35,17 +35,16 @@
 #ifndef __DEEBE_GDB_PPC_H
 #define __DEEBE_GDB_PPC_H
 
-
-#define GDB_GPR0  0x00
-#define GDB_GPR1  0x01
-#define GDB_GPR2  0x02
-#define GDB_GPR3  0x03
-#define GDB_GPR4  0x04
-#define GDB_GPR5  0x05
-#define GDB_GPR6  0x06
-#define GDB_GPR7  0x07
-#define GDB_GPR8  0x08
-#define GDB_GPR9  0x09
+#define GDB_GPR0 0x00
+#define GDB_GPR1 0x01
+#define GDB_GPR2 0x02
+#define GDB_GPR3 0x03
+#define GDB_GPR4 0x04
+#define GDB_GPR5 0x05
+#define GDB_GPR6 0x06
+#define GDB_GPR7 0x07
+#define GDB_GPR8 0x08
+#define GDB_GPR9 0x09
 #define GDB_GPR10 0x0A
 #define GDB_GPR11 0x0B
 #define GDB_GPR12 0x0C
@@ -69,16 +68,16 @@
 #define GDB_GPR30 0x1E
 #define GDB_GPR31 0x1F
 
-#define GDB_FPR0  0x20
-#define GDB_FPR1  0x21
-#define GDB_FPR2  0x22
-#define GDB_FPR3  0x23
-#define GDB_FPR4  0x24
-#define GDB_FPR5  0x25
-#define GDB_FPR6  0x26
-#define GDB_FPR7  0x27
-#define GDB_FPR8  0x28
-#define GDB_FPR9  0x29
+#define GDB_FPR0 0x20
+#define GDB_FPR1 0x21
+#define GDB_FPR2 0x22
+#define GDB_FPR3 0x23
+#define GDB_FPR4 0x24
+#define GDB_FPR5 0x25
+#define GDB_FPR6 0x26
+#define GDB_FPR7 0x27
+#define GDB_FPR8 0x28
+#define GDB_FPR9 0x29
 #define GDB_FPR10 0x2A
 #define GDB_FPR11 0x2B
 #define GDB_FPR12 0x2C
@@ -102,13 +101,12 @@
 #define GDB_FPR30 0x3E
 #define GDB_FPR31 0x3F
 
-
-#define GDB_PC    64
-#define GDB_MSR   65
-#define GDB_CND   66
-#define GDB_LR    67
-#define GDB_CNT   68
-#define GDB_XER   69
-#define GDB_MQ    70
+#define GDB_PC 64
+#define GDB_MSR 65
+#define GDB_CND 66
+#define GDB_LR 67
+#define GDB_CNT 68
+#define GDB_XER 69
+#define GDB_MQ 70
 
 #endif

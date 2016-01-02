@@ -37,63 +37,52 @@
 #include "os.h"
 #include "global.h"
 
-void ptrace_arch_set_singlestep(pid_t pid, long *request)
-{
-	ptrace_os_set_singlestep(pid, request);
+void ptrace_arch_set_singlestep(pid_t pid, long *request) {
+  ptrace_os_set_singlestep(pid, request);
 }
 
-void ptrace_arch_clear_singlestep(pid_t pid)
-{
-	ptrace_os_clear_singlestep(pid);
+void ptrace_arch_clear_singlestep(pid_t pid) {
+  ptrace_os_clear_singlestep(pid);
 }
 
-bool ptrace_arch_check_unrecognized_register(/*@unused@*/int reg,
-					     /*@unused@*/size_t *pad_size)
-{
-	bool ret = false;
-	return ret;
+bool ptrace_arch_check_unrecognized_register(/*@unused@*/ int reg,
+                                             /*@unused@*/ size_t *pad_size) {
+  bool ret = false;
+  return ret;
 }
 
-int ptrace_arch_signal_to_gdb(int sig)
-{
-	return host_signal_to_gdb(sig);
-}
+int ptrace_arch_signal_to_gdb(int sig) { return host_signal_to_gdb(sig); }
 
-int ptrace_arch_signal_from_gdb(int gdb)
-{
-	return host_signal_from_gdb(gdb);
-}
+int ptrace_arch_signal_from_gdb(int gdb) { return host_signal_from_gdb(gdb); }
 
-bool x86_read_debug_reg(pid_t tid, size_t reg, void *val)
-{
-	bool ret = false;
-	
+bool x86_read_debug_reg(pid_t tid, size_t reg, void *val) {
+  bool ret = false;
+
 #ifdef PT_GETDBREGS
-	if (reg < 8) {
-		_read_dbreg(tid);
-		size_t addr = reg * sizeof(unsigned long);
-		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(val, _target.dbreg + addr, sizeof(unsigned long));
-			ret = true;
-		}
-	}
+  if (reg < 8) {
+    _read_dbreg(tid);
+    size_t addr = reg * sizeof(unsigned long);
+    if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
+      memcpy(val, _target.dbreg + addr, sizeof(unsigned long));
+      ret = true;
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }
 
-bool x86_write_debug_reg(pid_t tid, size_t reg, void *val)
-{
-	bool ret = false;
+bool x86_write_debug_reg(pid_t tid, size_t reg, void *val) {
+  bool ret = false;
 #ifdef PT_GETDBREGS
-	if (reg < 8) {
-		_read_dbreg(tid);
-		unsigned long addr = reg * sizeof(unsigned long);
-		if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
-			memcpy(_target.dbreg + addr, val, sizeof(unsigned long));
-			_write_dbreg(tid);
-			ret = true;
-		}
-	}
+  if (reg < 8) {
+    _read_dbreg(tid);
+    unsigned long addr = reg * sizeof(unsigned long);
+    if (addr + sizeof(unsigned int) <= _target.dbreg_size) {
+      memcpy(_target.dbreg + addr, val, sizeof(unsigned long));
+      _write_dbreg(tid);
+      ret = true;
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }

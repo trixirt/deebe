@@ -49,254 +49,248 @@
 
 static bool _lwpinfo_verbose = true;
 
-void ptrace_os_set_singlestep(pid_t pid, long *request)
-{
-	/*
-	 * Needs to do a PT_SETSTEP and a PT_CONTINUE
-	 * Do the PT_SETSTEP here and do the PT_CONTINUE in the callee
-	 */
-	ptrace(PT_SETSTEP, pid, 0, 0);
+void ptrace_os_set_singlestep(pid_t pid, long *request) {
+  /*
+   * Needs to do a PT_SETSTEP and a PT_CONTINUE
+   * Do the PT_SETSTEP here and do the PT_CONTINUE in the callee
+   */
+  ptrace(PT_SETSTEP, pid, 0, 0);
 }
 
-void ptrace_os_clear_singlestep(pid_t pid)
-{
-	ptrace(PT_CLEARSTEP, pid, 0, 0);
-}
+void ptrace_os_clear_singlestep(pid_t pid) { ptrace(PT_CLEARSTEP, pid, 0, 0); }
 
-void ptrace_os_option_set_syscall(pid_t pid)
-{
-}
+void ptrace_os_option_set_syscall(pid_t pid) {}
 
-bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid)
-{
-	/* deault to 'not handled' */
-	bool ret = false;
-	/*
-	 * Set to an invalid pid
-	 * This sets up the default 'handled' behaviour to
-	 * ignore the event and try again
-	 */
-	if (out_pid)
-		*out_pid = -1;
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
+  /* deault to 'not handled' */
+  bool ret = false;
+  /*
+   * Set to an invalid pid
+   * This sets up the default 'handled' behaviour to
+   * ignore the event and try again
+   */
+  if (out_pid)
+    *out_pid = -1;
 
 #ifdef PT_LWPINFO
-	struct ptrace_lwpinfo lwpinfo = { 0 };
-	if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
-		if (_lwpinfo_verbose) {
-			DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
-			DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
-			DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
-			DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
-			DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
-			if (lwpinfo.pl_flags & PL_FLAG_SI) {
-				DBG_PRINT("lwpinfo.pl_siginfo\n");
-				DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
-				DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
-				DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
-				DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
-				DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
-			}
-			if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-				unsigned long id, arg1, arg2, arg3, arg4, r;
-				id = -1; /* only initiaze id, because it is the only used variable */
-				ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-				DBG_PRINT("syscall enter %d\n", id);
-			}
-		}
-		if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-			/*
-			 * Entering a system call
-			 * Find which system call it was.
-			 */
-			unsigned long id, arg1, arg2, arg3, arg4, r;
-			id = -1; /* only initiaze id, because it is the only used variable */
-			ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-			/* handled */
-			ret = true;
-			if (id == SYS_thr_exit) {
-				/*
-				 * On the edge of exiting the thread
-				 * Reset the global current thread to the parent process
-				 * Then manually continue with the dieing thread
-				 */
-				target_dead_thread(pid);
-				_target.current_process = 0; /* parent process index */
-				if (out_pid)
-					*out_pid = CURRENT_PROCESS_TID;
-				DBG_PRINT("Dead %x switch to %x\n", pid, CURRENT_PROCESS_TID);
+  struct ptrace_lwpinfo lwpinfo = {0};
+  if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
+    if (_lwpinfo_verbose) {
+      DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
+      DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
+      DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
+      DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
+      DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
+      if (lwpinfo.pl_flags & PL_FLAG_SI) {
+        DBG_PRINT("lwpinfo.pl_siginfo\n");
+        DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
+        DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
+        DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
+        DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
+        DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
+      }
+      if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+        unsigned long id, arg1, arg2, arg3, arg4, r;
+        id = -1; /* only initiaze id, because it is the only used variable */
+        ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+        DBG_PRINT("syscall enter %d\n", id);
+      }
+    }
+    if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+      /*
+       * Entering a system call
+       * Find which system call it was.
+       */
+      unsigned long id, arg1, arg2, arg3, arg4, r;
+      id = -1; /* only initiaze id, because it is the only used variable */
+      ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+      /* handled */
+      ret = true;
+      if (id == SYS_thr_exit) {
+        /*
+         * On the edge of exiting the thread
+         * Reset the global current thread to the parent process
+         * Then manually continue with the dieing thread
+         */
+        target_dead_thread(pid);
+        _target.current_process = 0; /* parent process index */
+        if (out_pid)
+          *out_pid = CURRENT_PROCESS_TID;
+        DBG_PRINT("Dead %x switch to %x\n", pid, CURRENT_PROCESS_TID);
 
-
-/*
-  PTRACE(PT_CONTINUE, pid, 1, 0);
-  pid = waitpid(-1, &status, 0); */
-			}
-		} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
-			int num_lwps = 0;
-			int num_threads = 0;
-			lwpid_t *lwpid_list = NULL;
-			/* Handled but invalid */
-			ret = true;
-			num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
-			num_threads = target_number_threads();
-			/*
-			 * Look for different in number of threads the system
-			 * has versus what we have.
-			 *
-			 * WARNING : System does not seem to report dead threads
-			 * by removing the number of threads reported by PT_GETNUMLWPS
-			 * This means neither can we.
-			 */
-			if (num_lwps != num_threads) {
-				if (num_lwps) {
-					lwpid_list = (lwpid_t *) calloc(num_lwps, sizeof(lwpid_t));
-					if (lwpid_list) {
-						if (num_lwps == PTRACE(PT_GETLWPLIST, pid, lwpid_list, num_lwps)) {
-							/* More than expected, A new thread is born! */
-							if (num_lwps > num_threads) {
-								pid_t parent = target_get_pid();
-								int i;
-								for (i = 0; i < num_lwps; i++) {
-									/* Find the one that isn't already being tracked */
-									if (! target_is_tid(lwpid_list[i])) {
-									    if (target_new_thread(parent, lwpid_list[i], 0, false, SIGSTOP)) {
-											if (out_pid)
-												*out_pid = lwpid_list[i];
-										}
-										break;
-									}
-								}
-							} else {
-								/*
-								 * A thread has died
-								 *
-								 * In development, this case was never reached.
-								 * Leave it here in case somthing improved
-								 */
-								DBG_PRINT("Unexpected code hit %s %d \n", __func__, __LINE__);
-							}
-						} else {
-							DBG_PRINT("Error with PT_GETLWPLIST\n");
-						}
-					} else {
-						DBG_PRINT("Error allocating lwpid_list\n");
-					}
-				} else {
-					/* Everyone is dead */
-					target_all_dead_thread();
-				}
-			}
-			if (lwpid_list)
-				free(lwpid_list);
-		} else {
-			if (_lwpinfo_verbose) {
-				DBG_PRINT("UNHANDLED lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
-			}
-			/* Stopping for something that isn't a system call, like a breakpoint */
-			if (lwpinfo.pl_flags & PL_FLAG_SI) {
-				ret = false;
-			} else {
-				/* Maybe ? */
-				ret = true;
-			}
-		} /* sycall exit check */
-	} /* pt_lwpinfo */
+        /*
+          PTRACE(PT_CONTINUE, pid, 1, 0);
+          pid = waitpid(-1, &status, 0); */
+      }
+    } else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
+      int num_lwps = 0;
+      int num_threads = 0;
+      lwpid_t *lwpid_list = NULL;
+      /* Handled but invalid */
+      ret = true;
+      num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
+      num_threads = target_number_threads();
+      /*
+       * Look for different in number of threads the system
+       * has versus what we have.
+       *
+       * WARNING : System does not seem to report dead threads
+       * by removing the number of threads reported by PT_GETNUMLWPS
+       * This means neither can we.
+       */
+      if (num_lwps != num_threads) {
+        if (num_lwps) {
+          lwpid_list = (lwpid_t *)calloc(num_lwps, sizeof(lwpid_t));
+          if (lwpid_list) {
+            if (num_lwps == PTRACE(PT_GETLWPLIST, pid, lwpid_list, num_lwps)) {
+              /* More than expected, A new thread is born! */
+              if (num_lwps > num_threads) {
+                pid_t parent = target_get_pid();
+                int i;
+                for (i = 0; i < num_lwps; i++) {
+                  /* Find the one that isn't already being tracked */
+                  if (!target_is_tid(lwpid_list[i])) {
+                    if (target_new_thread(parent, lwpid_list[i], 0, false,
+                                          SIGSTOP)) {
+                      if (out_pid)
+                        *out_pid = lwpid_list[i];
+                    }
+                    break;
+                  }
+                }
+              } else {
+                /*
+                 * A thread has died
+                 *
+                 * In development, this case was never reached.
+                 * Leave it here in case somthing improved
+                 */
+                DBG_PRINT("Unexpected code hit %s %d \n", __func__, __LINE__);
+              }
+            } else {
+              DBG_PRINT("Error with PT_GETLWPLIST\n");
+            }
+          } else {
+            DBG_PRINT("Error allocating lwpid_list\n");
+          }
+        } else {
+          /* Everyone is dead */
+          target_all_dead_thread();
+        }
+      }
+      if (lwpid_list)
+        free(lwpid_list);
+    } else {
+      if (_lwpinfo_verbose) {
+        DBG_PRINT("UNHANDLED lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
+      }
+      /* Stopping for something that isn't a system call, like a breakpoint */
+      if (lwpinfo.pl_flags & PL_FLAG_SI) {
+        ret = false;
+      } else {
+        /* Maybe ? */
+        ret = true;
+      }
+    } /* sycall exit check */
+  }   /* pt_lwpinfo */
 #endif
 
-	return ret;
+  return ret;
 }
 
 int os_thread_kill(int tid, int sig) {
-	int ret = thr_kill((long)tid, sig);
-	return ret;
+  int ret = thr_kill((long)tid, sig);
+  return ret;
 }
 
 bool ptrace_os_new_thread(pid_t tid, int status) {
-	bool ret = false;
-	int index = target_index(tid);
-	if (index >= 0) {
-		if ((PS_SYSCALL_ENTER == PROCESS_STATE(index)) ||
-		    (PS_SYSCALL_EXIT == PROCESS_STATE(index))) {
-			ret = true;
-		}
-	}
-	return ret;
+  bool ret = false;
+  int index = target_index(tid);
+  if (index >= 0) {
+    if ((PS_SYSCALL_ENTER == PROCESS_STATE(index)) ||
+        (PS_SYSCALL_EXIT == PROCESS_STATE(index))) {
+      ret = true;
+    }
+  }
+  return ret;
 }
 
-static void check_lwplist_for_new_threads(pid_t pid)
-{
-	int num_lwps = 0;
-	lwpid_t *lwpid_list = NULL;
+static void check_lwplist_for_new_threads(pid_t pid) {
+  int num_lwps = 0;
+  lwpid_t *lwpid_list = NULL;
 
 #if PT_GETNUMLWPS
-	num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
-	if (_lwpinfo_verbose) {
-	  DBG_PRINT("%s threads %d\n", __func__, num_lwps);
-	}
+  num_lwps = PTRACE(PT_GETNUMLWPS, pid, NULL, 0);
+  if (_lwpinfo_verbose) {
+    DBG_PRINT("%s threads %d\n", __func__, num_lwps);
+  }
 #endif
 
 #ifdef PT_GETLWPLIST
-	/*
-	 * Look for different in number of threads the system
-	 * has versus what we have.
-	 *
-	 * WARNING : System does not seem to report dead threads
-	 * by removing the number of threads reported by PT_GETNUMLWPS
-	 *
-	 */
-	if (num_lwps) {
-		lwpid_list = (lwpid_t *) calloc(num_lwps, sizeof(lwpid_t));
-		if (num_lwps == PTRACE(PT_GETLWPLIST, pid, lwpid_list, num_lwps)) {
-			int i;
-			for (i = 0; i < num_lwps; i++) {
-				/* Find the one that isn't already being tracked */
-				if (! target_is_tid(lwpid_list[i])) {
-					pid_t new_tid = lwpid_list[i];
-					pid_t parent = target_get_pid();
-					/*
-					 * The tread has not quite been born
-					 * Waiting for it now does not work.
-					 * So defer waiting for it by adding the new thread
-					 * but setting it's state to PRE_START
-					 *
-					 * Since the new thread is not in a wait state, set the
-					 * wait flag to false.
-					 */
-					if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT, false, SIGSTOP)) {
-					  DBG_PRINT("%s error allocating new thread\n", __func__);
-					} else {
-					  int index = target_index(new_tid);
-					  PROCESS_STATE(index) = PS_PRE_START;
-					}
-					/*
-					 * If we were adding threads one at a time, it would be safe to break here.
-					 * However, when this function is called via an attach there could be
-					 * multiple new threads.  This will have the side effect of setting the
-					 * last thread in the list to the current thread.
-					 */
-				}
-			} /* lwps loop */
-		}
-	}
+  /*
+   * Look for different in number of threads the system
+   * has versus what we have.
+   *
+   * WARNING : System does not seem to report dead threads
+   * by removing the number of threads reported by PT_GETNUMLWPS
+   *
+   */
+  if (num_lwps) {
+    lwpid_list = (lwpid_t *)calloc(num_lwps, sizeof(lwpid_t));
+    if (num_lwps == PTRACE(PT_GETLWPLIST, pid, lwpid_list, num_lwps)) {
+      int i;
+      for (i = 0; i < num_lwps; i++) {
+        /* Find the one that isn't already being tracked */
+        if (!target_is_tid(lwpid_list[i])) {
+          pid_t new_tid = lwpid_list[i];
+          pid_t parent = target_get_pid();
+          /*
+           * The tread has not quite been born
+           * Waiting for it now does not work.
+           * So defer waiting for it by adding the new thread
+           * but setting it's state to PRE_START
+           *
+           * Since the new thread is not in a wait state, set the
+           * wait flag to false.
+           */
+          if (!target_new_thread(parent, new_tid, PROCESS_WAIT_STATUS_DEFAULT,
+                                 false, SIGSTOP)) {
+            DBG_PRINT("%s error allocating new thread\n", __func__);
+          } else {
+            int index = target_index(new_tid);
+            PROCESS_STATE(index) = PS_PRE_START;
+          }
+          /*
+           * If we were adding threads one at a time, it would be safe to break
+           * here.
+           * However, when this function is called via an attach there could be
+           * multiple new threads.  This will have the side effect of setting
+           * the
+           * last thread in the list to the current thread.
+           */
+        }
+      } /* lwps loop */
+    }
+  }
 
 #endif
-	if (lwpid_list)
-		free(lwpid_list);
+  if (lwpid_list)
+    free(lwpid_list);
 }
 
-void ptrace_os_option_set_thread(pid_t pid)
-{
+void ptrace_os_option_set_thread(pid_t pid) {
   /*
    * Need to query PT_LWPINFO to get the tid of the main process
    */
   if (PROCESS_TID(0) == PROCESS_PID(0)) {
 #ifdef PT_LWPINFO
-	struct ptrace_lwpinfo lwpinfo = { 0 };
-	if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
-	  PROCESS_TID(0) = lwpinfo.pl_lwpid;
-	}
+    struct ptrace_lwpinfo lwpinfo = {0};
+    if (0 == PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo))) {
+      PROCESS_TID(0) = lwpinfo.pl_lwpid;
+    }
 #endif
   }
-  /* 
+  /*
    * This function is called when an attach is made,
    * There may be other threads already started that need to
    * be accounted for so check for them now.
@@ -304,134 +298,131 @@ void ptrace_os_option_set_thread(pid_t pid)
   check_lwplist_for_new_threads(pid);
 }
 
-static int check_lwpinfo(pid_t pid)
-{
-	int ret = 0; /* Index */
+static int check_lwpinfo(pid_t pid) {
+  int ret = 0; /* Index */
 #ifdef PT_LWPINFO
-	int index;
-	pid_t tid;
-	int ptrace_status;
-	/*
-	 * Use PT_LWPINFO to get a fine grained reason for the wait
-	 */
-	struct ptrace_lwpinfo lwpinfo = { 0 };
-	ptrace_status = PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
-	if (0 == ptrace_status) {
+  int index;
+  pid_t tid;
+  int ptrace_status;
+  /*
+   * Use PT_LWPINFO to get a fine grained reason for the wait
+   */
+  struct ptrace_lwpinfo lwpinfo = {0};
+  ptrace_status = PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+  if (0 == ptrace_status) {
 
-		if (_lwpinfo_verbose) {
-			DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
-			DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
-			DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
-			DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
-			DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
-			if (lwpinfo.pl_flags & PL_FLAG_SI) {
-				DBG_PRINT("lwpinfo.pl_siginfo\n");
-				DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
-				DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
-				DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
-				DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
-				DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
-			}
-			if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-				unsigned long id, arg1, arg2, arg3, arg4, r;
-				id = -1; /* only initiaze id, because it is the only used variable */
-				ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-				DBG_PRINT("syscall enter %d\n", id);
-			}
-		}
-		/*
-		 * wait works on the pid
-		 * This does not tell us which lwp caused the event
-		 * To find this, look in the lwpinfo.pl_lwpid
-		 */
-		tid = lwpinfo.pl_lwpid;
-		if (! target_is_tid(tid)) {
-			/*
-			 * The first time this is hit, it is the main thread of
-			 * the parent process.  Set the parent process tid to
-			 * this value so the first and second threads will be
-			 * handled the same.
-			 */
-			if (PROCESS_TID(0) == PROCESS_PID(0)) {
-				PROCESS_TID(0) = tid;
-			} else {
-			    if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT, false, SIGSTOP)) {
-					DBG_PRINT("%s error allocating new thread\n", __func__);
-				}
-			}
-		}
-		index = target_index(tid);
-		if (index >= 0) {
-			if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-				unsigned long id, arg1, arg2, arg3, arg4, r;
-				id = -1; /* only initiaze id, because it is the only used variable */
-				ptrace_arch_get_syscall(tid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-				PROCESS_SYSCALL(index) = id;
-				PROCESS_STATE(index) = PS_SYSCALL_ENTER;
-			} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
-				PROCESS_STATE(index) = PS_SYSCALL_EXIT;
-			}
-			ret = index;
-		}
-	} else {
-		char str[128];
-		DBG_PRINT("Error get lwpinfo, status is %d\n", ptrace_status);
-		if (0 == strerror_r(errno, &str[0], 128)) {
-			DBG_PRINT("Error %d %s\n", errno, str);
-		}
-	}
+    if (_lwpinfo_verbose) {
+      DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
+      DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
+      DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
+      DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
+      DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
+      if (lwpinfo.pl_flags & PL_FLAG_SI) {
+        DBG_PRINT("lwpinfo.pl_siginfo\n");
+        DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
+        DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
+        DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
+        DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
+        DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
+      }
+      if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+        unsigned long id, arg1, arg2, arg3, arg4, r;
+        id = -1; /* only initiaze id, because it is the only used variable */
+        ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+        DBG_PRINT("syscall enter %d\n", id);
+      }
+    }
+    /*
+     * wait works on the pid
+     * This does not tell us which lwp caused the event
+     * To find this, look in the lwpinfo.pl_lwpid
+     */
+    tid = lwpinfo.pl_lwpid;
+    if (!target_is_tid(tid)) {
+      /*
+       * The first time this is hit, it is the main thread of
+       * the parent process.  Set the parent process tid to
+       * this value so the first and second threads will be
+       * handled the same.
+       */
+      if (PROCESS_TID(0) == PROCESS_PID(0)) {
+        PROCESS_TID(0) = tid;
+      } else {
+        if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT,
+                               false, SIGSTOP)) {
+          DBG_PRINT("%s error allocating new thread\n", __func__);
+        }
+      }
+    }
+    index = target_index(tid);
+    if (index >= 0) {
+      if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+        unsigned long id, arg1, arg2, arg3, arg4, r;
+        id = -1; /* only initiaze id, because it is the only used variable */
+        ptrace_arch_get_syscall(tid, &id, &arg1, &arg2, &arg3, &arg4, &r);
+        PROCESS_SYSCALL(index) = id;
+        PROCESS_STATE(index) = PS_SYSCALL_ENTER;
+      } else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
+        PROCESS_STATE(index) = PS_SYSCALL_EXIT;
+      }
+      ret = index;
+    }
+  } else {
+    char str[128];
+    DBG_PRINT("Error get lwpinfo, status is %d\n", ptrace_status);
+    if (0 == strerror_r(errno, &str[0], 128)) {
+      DBG_PRINT("Error %d %s\n", errno, str);
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }
 
-void ptrace_os_wait(pid_t t)
-{
-	/*
-	 * FreeBSD wait only works on the process id
-	 * So no matter what is passed in, use the process id
-	 * of the parent.
-	 */
-	pid_t pid = PROCESS_PID(0);
-	int wait_status = -1;
-	pid_t wait_tid = 0;
-	wait_tid = waitpid(pid, &wait_status, WNOHANG);
-	if ((wait_tid == pid) && (-1 != wait_status)) {
-		int wait_index;
-		int index;
-		/*
-		 * check_lwpinfo returns the index to the tid that
-		 * caused the event.
-		 */
-		wait_index = check_lwpinfo(wait_tid);
-		/* check_lwpinfo can fail */
-		if (wait_index >= 0) {
-			PROCESS_WAIT(wait_index) = true;
-			PROCESS_WAIT_STATUS(wait_index) = wait_status;
-			/* Since we waited on the pid, everyone is stopped */
-			for (index = 0; index < _target.number_processes; index++) {
-				if (PROCESS_STATE(index) != PS_EXIT) {
-					PROCESS_STATE(index) = PS_STOP;
-				}
-			}
-			/*
-			 * Need to keep track of new threads being created
-			 * Without this check only those that hit a breakpoint
-			 * would be reported.
-			 *
-			 * This call can change the number of threads in the thread
-			 * list but it will not change the order.
-			 */
-			check_lwplist_for_new_threads(pid);
-		} else {
-			DBG_PRINT("ERROR %s lwpinfo failed %x %x %x\n", __func__, pid, wait_tid, wait_status);
-		}
-	}
+void ptrace_os_wait(pid_t t) {
+  /*
+   * FreeBSD wait only works on the process id
+   * So no matter what is passed in, use the process id
+   * of the parent.
+   */
+  pid_t pid = PROCESS_PID(0);
+  int wait_status = -1;
+  pid_t wait_tid = 0;
+  wait_tid = waitpid(pid, &wait_status, WNOHANG);
+  if ((wait_tid == pid) && (-1 != wait_status)) {
+    int wait_index;
+    int index;
+    /*
+     * check_lwpinfo returns the index to the tid that
+     * caused the event.
+     */
+    wait_index = check_lwpinfo(wait_tid);
+    /* check_lwpinfo can fail */
+    if (wait_index >= 0) {
+      PROCESS_WAIT(wait_index) = true;
+      PROCESS_WAIT_STATUS(wait_index) = wait_status;
+      /* Since we waited on the pid, everyone is stopped */
+      for (index = 0; index < _target.number_processes; index++) {
+        if (PROCESS_STATE(index) != PS_EXIT) {
+          PROCESS_STATE(index) = PS_STOP;
+        }
+      }
+      /*
+       * Need to keep track of new threads being created
+       * Without this check only those that hit a breakpoint
+       * would be reported.
+       *
+       * This call can change the number of threads in the thread
+       * list but it will not change the order.
+       */
+      check_lwplist_for_new_threads(pid);
+    } else {
+      DBG_PRINT("ERROR %s lwpinfo failed %x %x %x\n", __func__, pid, wait_tid,
+                wait_status);
+    }
+  }
 }
 
-void ptrace_os_continue_others()
-{
-	/* Noop */
-}
+void ptrace_os_continue_others() { /* Noop */ }
 
 /*
  * FreeBSD continues all threads as a group
@@ -439,120 +430,120 @@ void ptrace_os_continue_others()
  * So always use the pid.
  */
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
-	long ret;
-	long request = PT_CONTINUE;
-	int index;
-	/*
-	 * FreeBSD does not notify when a thread exits
-	 * So if we continue a thread continues until it ends, we are stuck.
-	 * So only continue the thread when single stepping.
-	 * Unhandled is single stepping to the end of the thread.
-	 */
-	if (step == 1) {
-		ptrace_arch_set_singlestep(tid, &request);
-	} else {
-		ptrace_arch_clear_singlestep(tid);
-	}
-	/*
-	 * Staring up everyone
-	 * XXX out of order, does not handle the error
-	 */
-	for (index = 0; index < _target.number_processes; index++) {
-		if (PROCESS_STATE(index) != PS_EXIT) {
-			PROCESS_STATE(index) = PS_RUN;
-		}
-	}
-	ret = PTRACE(request, pid, 1, sig);
-	return ret;
+  long ret;
+  long request = PT_CONTINUE;
+  int index;
+  /*
+   * FreeBSD does not notify when a thread exits
+   * So if we continue a thread continues until it ends, we are stuck.
+   * So only continue the thread when single stepping.
+   * Unhandled is single stepping to the end of the thread.
+   */
+  if (step == 1) {
+    ptrace_arch_set_singlestep(tid, &request);
+  } else {
+    ptrace_arch_clear_singlestep(tid);
+  }
+  /*
+   * Staring up everyone
+   * XXX out of order, does not handle the error
+   */
+  for (index = 0; index < _target.number_processes; index++) {
+    if (PROCESS_STATE(index) != PS_EXIT) {
+      PROCESS_STATE(index) = PS_RUN;
+    }
+  }
+  ret = PTRACE(request, pid, 1, sig);
+  return ret;
 }
 
-int ptrace_os_gen_thread(pid_t pid, pid_t tid)
-{
-	int ret = RET_ERR;
-	int index;
-	if ((pid < 0) || (tid < 0))
-		goto end;
-	index = target_index(tid);
-	if (index < 0) {
-		/* Not a valid thread */
-	} else if (!target_is_alive_thread(tid)) {
-		/* dead thread */
-		DBG_PRINT("%s dead %d\n", __func__, index);
-	} else if (_target.current_process == index) {
-		/* The trival case */
-		DBG_PRINT("%s trivial %d\n", __func__, index);
-		ret = RET_OK;
-	} else if (PROCESS_STATE(index) == PS_RUN) {
-		DBG_PRINT("%s hard case %x %d\n", __func__, tid, index);
-		/*
-		 * The current thread is not the one that is being switched to.
-		 * So stop the needed thread, and continue the now old current thread
-		 */
-		ptrace_stop(pid, tid);
-		/*
-		 * ptrace_stop send a SIG_INT to the tid
-		 * To seperate this signal from a normal signal, flag it as 'internal'
-		 */
-		PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
-		/*
-		 * Now wait..
-		 * Ripped off logic from normal wait.
-		 * TBD : Clean up.
-		 */
-		{
-			int wait_ret;
-			char str[128];
-			int tries = 0;
-			int max_tries = 20;
-			do {
-				/*
-				 * Keep track of the number of tries
-				 * Don't get stuck in an infinite loop here.
-				 */
-				tries++;
-				if (tries > max_tries) {
-					DBG_PRINT("Exceeded maximume retries to switch threads\n");
-					/* Some thread is waiting.. so goto end and return an error */
-					goto end;
-				}
-				/* Sleep for a a msec */
-				usleep(1000);
-				wait_ret = ptrace_wait(str, 0, true);
-				if (wait_ret == RET_OK) {
-					DBG_PRINT("%s hard case %s\n", __func__, str);
-					/*
-					 * When an RET_OK was hit, we have something to report
-					 * However the thread handling the event may not be
-					 * the thread we want.
-					 *
-					 * However since everyone is waiting then
-					 * it is ok to switch the current thread
-					 */
-					target_thread_make_current(tid);
-				} else if (wait_ret == RET_IGNORE) {
-					int g = ptrace_arch_signal_to_gdb(SIGINT);
-					ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0, g);
-				}
-			} while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
-			/*
-			 * ptrace_wait could have thrown an error
-			 * use ptrace_wait's return as this functions return
-			 */
-			ret = wait_ret;
-		}
-	} else {
-		/* Assume stopped */
-		/* We got lucky, the process is already in a stopped state */
-		target_thread_make_current(tid);
-		/*
-		 * Continuing the old current will happen automatically
-		 * when the normal continue/wait logic runs
-		 */
-		ret = RET_OK;
-	}
+int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
+  int ret = RET_ERR;
+  int index;
+  if ((pid < 0) || (tid < 0))
+    goto end;
+  index = target_index(tid);
+  if (index < 0) {
+    /* Not a valid thread */
+  } else if (!target_is_alive_thread(tid)) {
+    /* dead thread */
+    DBG_PRINT("%s dead %d\n", __func__, index);
+  } else if (_target.current_process == index) {
+    /* The trival case */
+    DBG_PRINT("%s trivial %d\n", __func__, index);
+    ret = RET_OK;
+  } else if (PROCESS_STATE(index) == PS_RUN) {
+    DBG_PRINT("%s hard case %x %d\n", __func__, tid, index);
+    /*
+     * The current thread is not the one that is being switched to.
+     * So stop the needed thread, and continue the now old current thread
+     */
+    ptrace_stop(pid, tid);
+    /*
+     * ptrace_stop send a SIG_INT to the tid
+     * To seperate this signal from a normal signal, flag it as 'internal'
+     */
+    PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+    /*
+     * Now wait..
+     * Ripped off logic from normal wait.
+     * TBD : Clean up.
+     */
+    {
+      int wait_ret;
+      char str[128];
+      int tries = 0;
+      int max_tries = 20;
+      do {
+        /*
+         * Keep track of the number of tries
+         * Don't get stuck in an infinite loop here.
+         */
+        tries++;
+        if (tries > max_tries) {
+          DBG_PRINT("Exceeded maximume retries to switch threads\n");
+          /* Some thread is waiting.. so goto end and return an error */
+          goto end;
+        }
+        /* Sleep for a a msec */
+        usleep(1000);
+        wait_ret = ptrace_wait(str, 0, true);
+        if (wait_ret == RET_OK) {
+          DBG_PRINT("%s hard case %s\n", __func__, str);
+          /*
+           * When an RET_OK was hit, we have something to report
+           * However the thread handling the event may not be
+           * the thread we want.
+           *
+           * However since everyone is waiting then
+           * it is ok to switch the current thread
+           */
+          target_thread_make_current(tid);
+        } else if (wait_ret == RET_IGNORE) {
+          int g = ptrace_arch_signal_to_gdb(SIGINT);
+          ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID,
+                                     0, g);
+        }
+      } while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
+      /*
+       * ptrace_wait could have thrown an error
+       * use ptrace_wait's return as this functions return
+       */
+      ret = wait_ret;
+    }
+  } else {
+    /* Assume stopped */
+    /* We got lucky, the process is already in a stopped state */
+    target_thread_make_current(tid);
+    /*
+     * Continuing the old current will happen automatically
+     * when the normal continue/wait logic runs
+     */
+    ret = RET_OK;
+  }
 
 end:
-	return ret;
+  return ret;
 }
 
 /*
@@ -567,89 +558,93 @@ end:
  * However any other signal's need to be handled normally, the
  * current thread is set to signalling thread.
  */
-void ptrace_os_stopped_single(char *str, bool debug)
-{
-	int index;
-	for (index = 0; index < _target.number_processes; index++) {
-		if (PROCESS_WAIT(index))
-			break;
-	}
-	if (index < _target.number_processes) {
-		pid_t tid = PROCESS_TID(index);
-		int wait_status = PROCESS_WAIT_STATUS(index);
-		if (WIFSTOPPED(wait_status)) {
-			int s = WSTOPSIG(wait_status);
-			int g = ptrace_arch_signal_to_gdb(s);
-			if (s == SIGTRAP) {
-				unsigned long pc = 0;
-				unsigned long watch_addr = 0;
-				ptrace_arch_get_pc(tid, &pc);
-				if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-					target_thread_make_current(tid);
-					gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
-					CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
-					/*
-					 * process stat points to the true thread to continue
-					 * Not that it matter on FreeBSD as they all go at once
-					 */
-					PROCESS_STATE(index) = PS_CONT;
-				} else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
-					/* A watchpoint was hit */
-					target_thread_make_current(tid);
-					gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
-					CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
-					/*
-					 * process stat points to the true thread to continue
-					 * Not that it matters on FreeBSD as they all go at once
-					 */
-					PROCESS_STATE(index) = PS_CONT;
-				} else {
-				    int reason;
-				    /*
-				     * Map all tid's to the current tid
-				     *
-				     * Either a normal breakpoint or a step, it doesn't matter
-				     */
-				    target_thread_make_current(tid);
+void ptrace_os_stopped_single(char *str, bool debug) {
+  int index;
+  for (index = 0; index < _target.number_processes; index++) {
+    if (PROCESS_WAIT(index))
+      break;
+  }
+  if (index < _target.number_processes) {
+    pid_t tid = PROCESS_TID(index);
+    int wait_status = PROCESS_WAIT_STATUS(index);
+    if (WIFSTOPPED(wait_status)) {
+      int s = WSTOPSIG(wait_status);
+      int g = ptrace_arch_signal_to_gdb(s);
+      if (s == SIGTRAP) {
+        unsigned long pc = 0;
+        unsigned long watch_addr = 0;
+        ptrace_arch_get_pc(tid, &pc);
+        if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+          target_thread_make_current(tid);
+          gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
+          CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
+          /*
+           * process stat points to the true thread to continue
+           * Not that it matter on FreeBSD as they all go at once
+           */
+          PROCESS_STATE(index) = PS_CONT;
+        } else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+          /* A watchpoint was hit */
+          target_thread_make_current(tid);
+          gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
+          CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
+          /*
+           * process stat points to the true thread to continue
+           * Not that it matters on FreeBSD as they all go at once
+           */
+          PROCESS_STATE(index) = PS_CONT;
+        } else {
+          int reason;
+          /*
+           * Map all tid's to the current tid
+           *
+           * Either a normal breakpoint or a step, it doesn't matter
+           */
+          target_thread_make_current(tid);
 
-				    if (_target.step) {
-					/* stepping can run over a normal breakpoint so precidence is for stepping */
-					reason = LLDB_STOP_REASON_TRACE;
-				    } else {
-					/*
-					 * XXX A real trap and a breakpoint could be at the same location
-					 *
-					 * lldb checks if the pc matches what was used to set the breakpoint.
-					 * At this point the pc can advanced (at least on x86).
-					 * If the pc and the breakpoint don't match, lldb puts itself in a bad
-					 * state.  So check if we are on lldb and roll back the pc one sw break's
-					 * worth.
-					 * 
-					 * On freebsd arm, the pc isn't advanced so use the arch dependent function
-					 * ptrace_arch_swbreak_rollback
-					 */
-					if (_target.lldb)
-					  ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
-					
-					reason = LLDB_STOP_REASON_BREAKPOINT;
-				    }
-				    gdb_stop_string(str, g, tid, 0, reason);
-				    CURRENT_PROCESS_STOP = reason;
+          if (_target.step) {
+            /* stepping can run over a normal breakpoint so precidence is for
+             * stepping */
+            reason = LLDB_STOP_REASON_TRACE;
+          } else {
+            /*
+             * XXX A real trap and a breakpoint could be at the same location
+             *
+             * lldb checks if the pc matches what was used to set the
+             *breakpoint.
+             * At this point the pc can advanced (at least on x86).
+             * If the pc and the breakpoint don't match, lldb puts itself in a
+             *bad
+             * state.  So check if we are on lldb and roll back the pc one sw
+             *break's
+             * worth.
+             *
+             * On freebsd arm, the pc isn't advanced so use the arch dependent
+             *function
+             * ptrace_arch_swbreak_rollback
+             */
+            if (_target.lldb)
+              ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
 
-				    /*
-				     * process stat points to the true thread to continue
-				     * Not that it matter on FreeBSD as they all go at once
-				     */
-				    PROCESS_STATE(index) = PS_CONT;
-				}
-			} else {
-				/* A non trap signal, report the true thread */
-				target_thread_make_current(tid);
-				gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
-				CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
-			}
-		}
-	}
+            reason = LLDB_STOP_REASON_BREAKPOINT;
+          }
+          gdb_stop_string(str, g, tid, 0, reason);
+          CURRENT_PROCESS_STOP = reason;
+
+          /*
+           * process stat points to the true thread to continue
+           * Not that it matter on FreeBSD as they all go at once
+           */
+          PROCESS_STATE(index) = PS_CONT;
+        }
+      } else {
+        /* A non trap signal, report the true thread */
+        target_thread_make_current(tid);
+        gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+        CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
+      }
+    }
+  }
 }
 
 /*
@@ -658,93 +653,96 @@ void ptrace_os_stopped_single(char *str, bool debug)
  * start:<mem start>;size:<siz>;permissions:rx;
  *
  */
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
-{
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
+                                  size_t out_buff_size) {
   bool ret = false;
   pid_t pid = CURRENT_PROCESS_PID;
   struct kinfo_vmentry *ptr;
   int cntp = 0;
   ptr = kinfo_getvmmap(pid, &cntp);
   if (ptr) {
-      int i;
-      for (i = 0; i < cntp; i++) {
-	  if ((addr >= ptr[i].kve_start) && (addr < ptr[i].kve_end)) {
-	      if (ptr[i].kve_protection & (KVME_PROT_READ | KVME_PROT_WRITE | KVME_PROT_EXEC)) {
-		  uint8_t p = 0;
-		  char perm_strs[8][4] = { "", "r", "w", "rw", "x", "rx", "wx", "rwx" };
-		  if (ptr[i].kve_protection & KVME_PROT_READ)
-		      p |= 1;
-		  if (ptr[i].kve_protection & KVME_PROT_WRITE)
-		      p |= 2;
-		  if (ptr[i].kve_protection & KVME_PROT_EXEC)
-		      p |= 4;
-		  snprintf(out_buff, out_buff_size, "start:%"PRIx64";size:%"PRIx64";permissions:%s;",
-			   ptr[i].kve_start, ptr[i].kve_end - ptr[i].kve_start, &perm_strs[p][0]);
-		  ret = true;
-	      }
-	      break;
-	  }
+    int i;
+    for (i = 0; i < cntp; i++) {
+      if ((addr >= ptr[i].kve_start) && (addr < ptr[i].kve_end)) {
+        if (ptr[i].kve_protection &
+            (KVME_PROT_READ | KVME_PROT_WRITE | KVME_PROT_EXEC)) {
+          uint8_t p = 0;
+          char perm_strs[8][4] = {"", "r", "w", "rw", "x", "rx", "wx", "rwx"};
+          if (ptr[i].kve_protection & KVME_PROT_READ)
+            p |= 1;
+          if (ptr[i].kve_protection & KVME_PROT_WRITE)
+            p |= 2;
+          if (ptr[i].kve_protection & KVME_PROT_EXEC)
+            p |= 4;
+          snprintf(out_buff, out_buff_size,
+                   "start:%" PRIx64 ";size:%" PRIx64 ";permissions:%s;",
+                   ptr[i].kve_start, ptr[i].kve_end - ptr[i].kve_start,
+                   &perm_strs[p][0]);
+          ret = true;
+        }
+        break;
       }
-      free(ptr);
+    }
+    free(ptr);
   }
-  return  ret;
+  return ret;
 }
 
-bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset, size_t *size)
-{
-    bool ret = false;
-    /*
-     * An offset != 0 doesn't fit how auxv is retrieved in FreeBSD
-     * So bail..
-     * XXX also assume it will all fit in the return buffer
-     */
-    if (offset == 0) {
-	struct procstat *prstat;
-	/* See FreeBSD usr.bin/procstat/ */
-	prstat = procstat_open_sysctl();
-	if (prstat != NULL) {
-	    pid_t pid = CURRENT_PROCESS_PID;
-	    struct kinfo_proc *kp;
-	    unsigned int cntp = 0;
-	    kp = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cntp);
-	    if (kp != NULL) {
-		/* Assume 1 */
-		Elf_Auxinfo *auxv;
-		cntp = 0; /* reset */
-		auxv = procstat_getauxv(prstat, kp, &cntp);
-		if (auxv != NULL && cntp > 0) {
-		    size_t space_left = *size;
-		    size_t el_size = sizeof(Elf_Auxinfo);
-		    /* Need to know at least 1 will fit */
-		    if (space_left > el_size) {
-			unsigned int i;
-			/* 
-			 * The > takes care of the prefix 'l'
-			 * Because we can not tolerate an offset, there will be no 'm'
-			 */
-			out_buf[0] = 'l';
-			space_left--;
-			for (i = 0; i < cntp; i++) {
-			    if (space_left >= el_size) {
-				memcpy(&out_buf[i * el_size + 1], &auxv[i], el_size);
-				space_left -= el_size;
-			    } else {
-				break;
-			    }
-			}
-			/* Return what we filled */
-			*size = *size - space_left;
-			ret = true;
-		    }
-		    procstat_freeauxv(prstat, auxv);
-		    auxv = NULL;
-		}
-		procstat_freeprocs(prstat, kp);
-		kp = NULL;
-	    }
-	    procstat_close(prstat);
-	    prstat = NULL;
-	}
+bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset,
+                         size_t *size) {
+  bool ret = false;
+  /*
+   * An offset != 0 doesn't fit how auxv is retrieved in FreeBSD
+   * So bail..
+   * XXX also assume it will all fit in the return buffer
+   */
+  if (offset == 0) {
+    struct procstat *prstat;
+    /* See FreeBSD usr.bin/procstat/ */
+    prstat = procstat_open_sysctl();
+    if (prstat != NULL) {
+      pid_t pid = CURRENT_PROCESS_PID;
+      struct kinfo_proc *kp;
+      unsigned int cntp = 0;
+      kp = procstat_getprocs(prstat, KERN_PROC_PID, pid, &cntp);
+      if (kp != NULL) {
+        /* Assume 1 */
+        Elf_Auxinfo *auxv;
+        cntp = 0; /* reset */
+        auxv = procstat_getauxv(prstat, kp, &cntp);
+        if (auxv != NULL && cntp > 0) {
+          size_t space_left = *size;
+          size_t el_size = sizeof(Elf_Auxinfo);
+          /* Need to know at least 1 will fit */
+          if (space_left > el_size) {
+            unsigned int i;
+            /*
+             * The > takes care of the prefix 'l'
+             * Because we can not tolerate an offset, there will be no 'm'
+             */
+            out_buf[0] = 'l';
+            space_left--;
+            for (i = 0; i < cntp; i++) {
+              if (space_left >= el_size) {
+                memcpy(&out_buf[i * el_size + 1], &auxv[i], el_size);
+                space_left -= el_size;
+              } else {
+                break;
+              }
+            }
+            /* Return what we filled */
+            *size = *size - space_left;
+            ret = true;
+          }
+          procstat_freeauxv(prstat, auxv);
+          auxv = NULL;
+        }
+        procstat_freeprocs(prstat, kp);
+        kp = NULL;
+      }
+      procstat_close(prstat);
+      prstat = NULL;
     }
-    return ret;
+  }
+  return ret;
 }

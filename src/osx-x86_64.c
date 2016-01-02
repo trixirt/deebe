@@ -37,137 +37,88 @@
 #include "dptrace.h"
 
 struct reg_location_list grll[] = {
-	{0},
+    {0},
 };
 
 struct reg_location_list frll[] = {
-	{0},
+    {0},
 };
 
 struct reg_location_list fxrll[] = {
-	{0},
+    {0},
 };
 
 #define GDB_GREG_MAX 0
 
-int ptrace_arch_gdb_greg_max()
-{
-	return GDB_GREG_MAX;
+int ptrace_arch_gdb_greg_max() { return GDB_GREG_MAX; }
+
+int ptrace_arch_swbreak_insn(void *bdata) {
+  int ret = RET_ERR;
+  return ret;
 }
 
-int ptrace_arch_swbreak_insn(void *bdata)
-{
-	int ret = RET_ERR;
-	return ret;
+int ptrace_arch_add_break(int type, unsigned long addr, size_t len,
+                          void **bdata) {
+  /* TBD */
+  int ret = RET_ERR;
+  return ret;
 }
 
-int ptrace_arch_add_break(int type, unsigned long addr,
-			  size_t len, void **bdata)
-{
-	/* TBD */
-	int ret = RET_ERR;
-	return ret;
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc) { /* TBD */ }
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc) { /* TBD */ }
+
+void ptrace_arch_set_singlestep(pid_t pid, long *request) { /* TBD */ }
+
+void ptrace_arch_clear_singlestep(pid_t pid) { /* TBD */ }
+
+void ptrace_arch_read_greg(pid_t tid) { /* TBD */ }
+
+void ptrace_arch_write_greg(pid_t tid) { /* TBD */ }
+
+bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size) {
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
-{
-	/* TBD */
-}
-void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
-{
-	/* TBD */
+int ptrace_arch_signal_to_gdb(int sig) { return 0; }
+
+int ptrace_arch_signal_from_gdb(int gdb) { return 0; }
+
+bool ptrace_arch_support_watchpoint(pid_t tid, int type) {
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_arch_set_singlestep(pid_t pid, long *request)
-{
-	/* TBD */
+bool ptrace_arch_add_watchpoint(pid_t pid, int type, unsigned long addr,
+                                size_t len) {
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_arch_clear_singlestep(pid_t pid)
-{
-	/* TBD */
+bool ptrace_arch_remove_watchpoint(pid_t pid, int type, unsigned long addr,
+                                   size_t len) {
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_arch_read_greg(pid_t tid)
-{
-	/* TBD */
+bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr) {
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_arch_write_greg(pid_t tid)
-{
-	/* TBD */
-}
+void ptrace_arch_read_fxreg(pid_t tid) { /* stub */ }
 
-bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size)
-{
-	bool ret = false;
-	return ret;
-}
+void ptrace_arch_write_fxreg(pid_t tid) { /* stub */ }
 
-int ptrace_arch_signal_to_gdb(int sig)
-{
-	return 0;
-}
+void ptrace_arch_option_set_syscall(pid_t pid) { /* stub */ }
 
-int ptrace_arch_signal_from_gdb(int gdb)
-{
-	return 0;
-}
+bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig) { return false; }
 
-bool ptrace_arch_support_watchpoint(pid_t tid, int type)
-{
-	bool ret = false;
-	return ret;
-}
+void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
+                             void *arg3, void *arg4, void *ret) {}
 
-bool ptrace_arch_add_watchpoint(pid_t pid, int type,
-				unsigned long addr, size_t len)
-{
-	bool ret = false;
-	return ret;
-}
-
-bool ptrace_arch_remove_watchpoint(pid_t pid, int type,
-				   unsigned long addr, size_t len)
-{
-	bool ret = false;
-	return ret;
-}
-
-bool ptrace_arch_hit_watchpoint(pid_t pid, unsigned long *addr)
-{
-	bool ret = false;
-	return ret;
-}
-
-void ptrace_arch_read_fxreg(pid_t tid)
-{
-	/* stub */
-}
-
-void ptrace_arch_write_fxreg(pid_t tid)
-{
-	/* stub */
-}
-
-void ptrace_arch_option_set_syscall(pid_t pid)
-{
-	/* stub */
-}
-
-bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
-{
-	return false;
-}
-
-void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1,
-			     void *arg2, void *arg3, void *arg4, void *ret)
-{
-}
-
-bool osx_arch_read_registers(thread_act_t tid)
-{
-	bool ret = false;
+bool osx_arch_read_registers(thread_act_t tid) {
+  bool ret = false;
 #if 0
 	if (0 == _target.reg_size) {
 		_target.reg = malloc(sizeof(x86_thread_state64_t));
@@ -197,26 +148,20 @@ bool osx_arch_read_registers(thread_act_t tid)
 		}
 	}
 #endif
-	return ret;
+  return ret;
 }
 
-bool ptrace_arch_support_hardware_breakpoints(pid_t tid)
-{
-  return false;
-}
+bool ptrace_arch_support_hardware_breakpoints(pid_t tid) { return false; }
 bool ptrace_arch_add_hardware_breakpoint(pid_t tid, unsigned long addr,
-					 size_t len)
-{
+                                         size_t len) {
   return false;
 }
 bool ptrace_arch_remove_hardware_breakpoint(pid_t tid, unsigned long addr,
-					    size_t len)
-{
+                                            size_t len) {
   return false;
 }
 
-bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc)
-{
+bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc) {
   return false;
 }
 
@@ -225,16 +170,11 @@ const char *ptrace_arch_get_xml_register_string() {
   return str;
 }
 
-bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
-{
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
+                                    size_t out_buf_size) {
   return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
 }
-void ptrace_arch_option_set_thread(pid_t pid)
-{
-	ptrace_os_option_set_thread(pid);
+void ptrace_arch_option_set_thread(pid_t pid) {
+  ptrace_os_option_set_thread(pid);
 }
-size_t ptrace_arch_swbreak_size()
-{
-  return 1;
-}
-
+size_t ptrace_arch_swbreak_size() { return 1; }

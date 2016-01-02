@@ -32,14 +32,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-int host_signal_to_gdb(int sig)
-{
-	int ret = -1;
-	return ret;
+int host_signal_to_gdb(int sig) {
+  int ret = -1;
+  return ret;
 }
 
-int host_signal_from_gdb(int gdb)
-{
-	int ret = -1;
-	return ret;
+int host_signal_from_gdb(int gdb) {
+  int ret = -1;
+  return ret;
 }

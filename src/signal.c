@@ -46,221 +46,210 @@ void (*signal_handle_sigio)(int sig) = NULL;
 void (*signal_handle_sigrtmin)(int sig) = NULL;
 void (*signal_handle_sigchld)(int sig) = NULL;
 
-static void signal_sigio(int sig)
-{
-	if (signal_handle_sigio)
-		signal_handle_sigio(sig);
+static void signal_sigio(int sig) {
+  if (signal_handle_sigio)
+    signal_handle_sigio(sig);
 }
 
-void signal_sigrtmin(int sig)
-{
-	if (signal_handle_sigrtmin)
-		signal_handle_sigrtmin(sig);
+void signal_sigrtmin(int sig) {
+  if (signal_handle_sigrtmin)
+    signal_handle_sigrtmin(sig);
 }
 
-void signal_sigchld(int sig)
-{
-	if (signal_handle_sigchld)
-		signal_handle_sigchld(sig);
+void signal_sigchld(int sig) {
+  if (signal_handle_sigchld)
+    signal_handle_sigchld(sig);
 }
 
-bool signal_sigio_setup(int fd)
-{
-	bool ret = false;
-	int flags;
-	if (fcntl(fd, F_SETOWN, getpid()) < 0) {
-		/* Failure */
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR setting socket pid\n");
-			perror("");
-		}
-	} else {
-		/* Sucess */
-		flags = fcntl(fd, F_GETFL);
-		flags |= FASYNC;
-		if (fcntl(fd, F_SETFL, flags) < 0) {
-			/* Failure */
-			fprintf(stderr, "ERROR setting socket to async\n");
-			perror("");
-		} else {
-			/* Success */
-			ret = true;
-		}
-	}
-	return ret;
+bool signal_sigio_setup(int fd) {
+  bool ret = false;
+  int flags;
+  if (fcntl(fd, F_SETOWN, getpid()) < 0) {
+    /* Failure */
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR setting socket pid\n");
+      perror("");
+    }
+  } else {
+    /* Sucess */
+    flags = fcntl(fd, F_GETFL);
+    flags |= FASYNC;
+    if (fcntl(fd, F_SETFL, flags) < 0) {
+      /* Failure */
+      fprintf(stderr, "ERROR setting socket to async\n");
+      perror("");
+    } else {
+      /* Success */
+      ret = true;
+    }
+  }
+  return ret;
 }
 
-bool signal_sigio_on()
-{
-	bool ret = false;
-	if (SIG_ERR != signal(SIGIO, signal_sigio)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGIO on");
-			perror("");
-		}
-	}
-	return ret;
+bool signal_sigio_on() {
+  bool ret = false;
+  if (SIG_ERR != signal(SIGIO, signal_sigio)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGIO on");
+      perror("");
+    }
+  }
+  return ret;
 }
 
-bool signal_sigio_off()
-{
-	bool ret = false;
-	if (SIG_ERR != signal(SIGIO, SIG_IGN)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGIO off");
-			perror("");
-		}
-	}
-	return ret;
+bool signal_sigio_off() {
+  bool ret = false;
+  if (SIG_ERR != signal(SIGIO, SIG_IGN)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGIO off");
+      perror("");
+    }
+  }
+  return ret;
 }
 
-bool signal_sigrtmin_on()
-{
-	bool ret = false;
+bool signal_sigrtmin_on() {
+  bool ret = false;
 #ifdef SIGRTMIN
-	if (SIG_ERR != signal(SIGRTMIN, signal_sigrtmin)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGRTMIN on");
-			perror("");
-		}
-	}
+  if (SIG_ERR != signal(SIGRTMIN, signal_sigrtmin)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGRTMIN on");
+      perror("");
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }
 
-bool signal_sigrtmin_off()
-{
-	bool ret = false;
+bool signal_sigrtmin_off() {
+  bool ret = false;
 #ifdef SIGRTMIN
-	if (SIG_ERR != signal(SIGRTMIN, SIG_IGN)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGRTMIN off");
-			perror("");
-		}
-	}
+  if (SIG_ERR != signal(SIGRTMIN, SIG_IGN)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGRTMIN off");
+      perror("");
+    }
+  }
 #endif
-	return ret;
+  return ret;
 }
 
-void signal_query_mask()
-{
-	sigset_t o_block, o_unblock, o_setmask;
-	int max_s = 128;
-	int i;
-	if (0 == sigemptyset(&o_setmask)) {
-		if (0 == sigprocmask(SIG_SETMASK, NULL, &o_setmask)) {
-			bool found = false;
-			for (i = 0; i < max_s; i++) {
-				if (1 == sigismember(&o_setmask, i)) {
-					found = true;
-					if (signal_verbose)
-						DBG_PRINT("SIG_SETMASK %d\n", i);
-				}
-			}
-			if (false == found) {
-				if (signal_verbose)
-					DBG_PRINT("SIG_SETMASK - none\n");
-			}
-		} else {
-			/* failure */
-			if (signal_verbose)
-				DBG_PRINT("Error with sigprocmask SIG_SETMASK\n");
-		}
-	} else {
-		/* failure */
-		if (signal_verbose)
-			DBG_PRINT("Error with sigemptyset\n");
-	}
+void signal_query_mask() {
+  sigset_t o_block, o_unblock, o_setmask;
+  int max_s = 128;
+  int i;
+  if (0 == sigemptyset(&o_setmask)) {
+    if (0 == sigprocmask(SIG_SETMASK, NULL, &o_setmask)) {
+      bool found = false;
+      for (i = 0; i < max_s; i++) {
+        if (1 == sigismember(&o_setmask, i)) {
+          found = true;
+          if (signal_verbose)
+            DBG_PRINT("SIG_SETMASK %d\n", i);
+        }
+      }
+      if (false == found) {
+        if (signal_verbose)
+          DBG_PRINT("SIG_SETMASK - none\n");
+      }
+    } else {
+      /* failure */
+      if (signal_verbose)
+        DBG_PRINT("Error with sigprocmask SIG_SETMASK\n");
+    }
+  } else {
+    /* failure */
+    if (signal_verbose)
+      DBG_PRINT("Error with sigemptyset\n");
+  }
 
-	if (0 == sigemptyset(&o_block)) {
-		if (0 == sigprocmask(SIG_BLOCK, NULL, &o_block)) {
-			bool found = false;
-			for (i = 0; i < max_s; i++) {
-				if (1 == sigismember(&o_block, i)) {
-					found = true;
-					if (signal_verbose)
-						DBG_PRINT("SIG_BLOCK %d\n", i);
-				}
-			}
-			if (false == found) {
-				if (signal_verbose)
-					DBG_PRINT("SIG_BLOCK - none\n");
-			}
-		} else {
-			/* failure */
-			if (signal_verbose)
-				DBG_PRINT("Error with sigprocmask SIG_BLOCK\n");
-		}
-	} else {
-		/* failure */
-		if (signal_verbose)
-			DBG_PRINT("Error with sigemptyset\n");
-	}
+  if (0 == sigemptyset(&o_block)) {
+    if (0 == sigprocmask(SIG_BLOCK, NULL, &o_block)) {
+      bool found = false;
+      for (i = 0; i < max_s; i++) {
+        if (1 == sigismember(&o_block, i)) {
+          found = true;
+          if (signal_verbose)
+            DBG_PRINT("SIG_BLOCK %d\n", i);
+        }
+      }
+      if (false == found) {
+        if (signal_verbose)
+          DBG_PRINT("SIG_BLOCK - none\n");
+      }
+    } else {
+      /* failure */
+      if (signal_verbose)
+        DBG_PRINT("Error with sigprocmask SIG_BLOCK\n");
+    }
+  } else {
+    /* failure */
+    if (signal_verbose)
+      DBG_PRINT("Error with sigemptyset\n");
+  }
 
-	if (0 == sigemptyset(&o_unblock)) {
-		if (0 == sigprocmask(SIG_UNBLOCK, NULL, &o_unblock)) {
-			bool found = false;
-			for (i = 0; i < max_s; i++) {
-				if (1 == sigismember(&o_unblock, i)) {
-					found = true;
-					if (signal_verbose)
-						DBG_PRINT("SIG_UNBLOCK %d\n", i);
-				}
-			}
-			if (false == found) {
-				if (signal_verbose)
-					DBG_PRINT("SIG_UNBLOCK - none\n");
-			}
-		} else {
-			/* failure */
-			if (signal_verbose)
-				DBG_PRINT("Error with sigprocmask SIG_UNBLOCK\n");
-		}
-	} else {
-		/* failure */
-		if (signal_verbose)
-			DBG_PRINT("Error with sigemptyset\n");
-	}
+  if (0 == sigemptyset(&o_unblock)) {
+    if (0 == sigprocmask(SIG_UNBLOCK, NULL, &o_unblock)) {
+      bool found = false;
+      for (i = 0; i < max_s; i++) {
+        if (1 == sigismember(&o_unblock, i)) {
+          found = true;
+          if (signal_verbose)
+            DBG_PRINT("SIG_UNBLOCK %d\n", i);
+        }
+      }
+      if (false == found) {
+        if (signal_verbose)
+          DBG_PRINT("SIG_UNBLOCK - none\n");
+      }
+    } else {
+      /* failure */
+      if (signal_verbose)
+        DBG_PRINT("Error with sigprocmask SIG_UNBLOCK\n");
+    }
+  } else {
+    /* failure */
+    if (signal_verbose)
+      DBG_PRINT("Error with sigemptyset\n");
+  }
 }
 
-bool signal_sigchld_on()
-{
-	bool ret = false;
-	if (SIG_ERR != signal(SIGCHLD, signal_sigchld)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGCHLD on");
-			perror("");
-		}
-	}
-	return ret;
+bool signal_sigchld_on() {
+  bool ret = false;
+  if (SIG_ERR != signal(SIGCHLD, signal_sigchld)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGCHLD on");
+      perror("");
+    }
+  }
+  return ret;
 }
 
-bool signal_sigchld_off()
-{
-	bool ret = false;
-	if (SIG_ERR != signal(SIGCHLD, SIG_IGN)) {
-		/* Success */
-		ret = true;
-	} else {
-		if (signal_verbose) {
-			fprintf(stderr, "ERROR turning SIGCHLD off");
-			perror("");
-		}
-	}
-	return ret;
+bool signal_sigchld_off() {
+  bool ret = false;
+  if (SIG_ERR != signal(SIGCHLD, SIG_IGN)) {
+    /* Success */
+    ret = true;
+  } else {
+    if (signal_verbose) {
+      fprintf(stderr, "ERROR turning SIGCHLD off");
+      perror("");
+    }
+  }
+  return ret;
 }

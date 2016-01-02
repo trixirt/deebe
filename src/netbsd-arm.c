@@ -34,4 +34,3 @@
  */
 #include "os.h"
 #include "gdb-arm.h"
-

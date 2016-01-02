@@ -43,130 +43,123 @@ const char util_hex[] = "0123456789abcdef";
 
 extern FILE *fp_log;
 
-void util_print_buffer(FILE *fd, size_t current,
-		       size_t total, unsigned char *buffer) {
-	if (total > current) {
-		size_t i = 0;
-		size_t bc = 0;
-		size_t bc_max = total - current;
-		size_t bc_leftover = bc_max - ((bc_max / 16) * 16);
-		unsigned char *p = &buffer[current];
+void util_print_buffer(FILE *fd, size_t current, size_t total,
+                       unsigned char *buffer) {
+  if (total > current) {
+    size_t i = 0;
+    size_t bc = 0;
+    size_t bc_max = total - current;
+    size_t bc_leftover = bc_max - ((bc_max / 16) * 16);
+    unsigned char *p = &buffer[current];
 
-		fprintf(fd, "%zd %zd %p\n", current, total, buffer);
+    fprintf(fd, "%zd %zd %p\n", current, total, buffer);
 
-		for (bc = 0; bc < bc_max / 16; bc++) {
-			fprintf(fd, "%8.8zx: ", bc*16);
-			for (i = 0; i < 16; i++) {
-				fprintf(fd, "%2.2x ", p[i]);
-			}
-			fprintf(fd, " -- ");
-			for (i = 0; i < 16; i++) {
-				fprintf(fd, "%c", PRINTABLE(p[i]));
-			}
-			fprintf(fd, "\n");
-			p += 16;
-		}
-		if (0 != bc_leftover) {
-			fprintf(fd, "%8.8zx: ", bc*16);
-			for (i = 0; i < bc_leftover; i++) {
-				fprintf(fd, "%2.2x ", p[i]);
-			}
-			for (; i < 16; i++) {
-				fprintf(fd, "   ");
-			}
-			fprintf(fd, " -- ");
-			for (i = 0; i < bc_leftover; i++) {
-				fprintf(fd, "%c", PRINTABLE(p[i]));
-			}
-			fprintf(fd, "\n");
-		}
-	}
+    for (bc = 0; bc < bc_max / 16; bc++) {
+      fprintf(fd, "%8.8zx: ", bc * 16);
+      for (i = 0; i < 16; i++) {
+        fprintf(fd, "%2.2x ", p[i]);
+      }
+      fprintf(fd, " -- ");
+      for (i = 0; i < 16; i++) {
+        fprintf(fd, "%c", PRINTABLE(p[i]));
+      }
+      fprintf(fd, "\n");
+      p += 16;
+    }
+    if (0 != bc_leftover) {
+      fprintf(fd, "%8.8zx: ", bc * 16);
+      for (i = 0; i < bc_leftover; i++) {
+        fprintf(fd, "%2.2x ", p[i]);
+      }
+      for (; i < 16; i++) {
+        fprintf(fd, "   ");
+      }
+      fprintf(fd, " -- ");
+      for (i = 0; i < bc_leftover; i++) {
+        fprintf(fd, "%c", PRINTABLE(p[i]));
+      }
+      fprintf(fd, "\n");
+    }
+  }
 }
 
-void util_log(const char *fmt, ...)
-{
-	if (NULL != fp_log) {
-		va_list v;
-		va_start(v, fmt);
-		vfprintf(fp_log, fmt, v);
-		va_end(v);
-	}
+void util_log(const char *fmt, ...) {
+  if (NULL != fp_log) {
+    va_list v;
+    va_start(v, fmt);
+    vfprintf(fp_log, fmt, v);
+    va_end(v);
+  }
 }
 
-void util_encode_byte(unsigned int val, char *out)
-{
-	ASSERT(val <= 0xff);
-	ASSERT(out != NULL);
-	if (out != NULL) {
-	  *(out + 0) = util_hex[(val >> 4) & 0xf];
-	  *(out + 1) = util_hex[val & 0xf];
-	}
+void util_encode_byte(unsigned int val, char *out) {
+  ASSERT(val <= 0xff);
+  ASSERT(out != NULL);
+  if (out != NULL) {
+    *(out + 0) = util_hex[(val >> 4) & 0xf];
+    *(out + 1) = util_hex[val & 0xf];
+  }
 }
 
-int util_hex_nibble(char in)
-{
-	int c;
+int util_hex_nibble(char in) {
+  int c;
 
-	c = in & 0xff;
+  c = in & 0xff;
 
-	if (c >= '0'  &&  c <= '9')
-		return  c - '0';
+  if (c >= '0' && c <= '9')
+    return c - '0';
 
-	if (c >= 'A'  &&  c <= 'F')
-		return  c - 'A' + 10;
+  if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
 
-	if (c >= 'a'  &&  c <= 'f')
-		return  c - 'a' + 10;
+  if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
 
-	return  -1;
+  return -1;
 }
 
 /* Decode a single nibble */
-bool util_decode_nibble(const char *in, uint8_t *nibble)
-{
-	bool ret = false;
-	int nib;
+bool util_decode_nibble(const char *in, uint8_t *nibble) {
+  bool ret = false;
+  int nib;
 
-	nib = util_hex_nibble(*in);
-	if (nib >= 0) {
-		*nibble = nib;
-		ret = true;
-	}
+  nib = util_hex_nibble(*in);
+  if (nib >= 0) {
+    *nibble = nib;
+    ret = true;
+  }
 
-	return ret;
+  return ret;
 }
 
 /* Decode byte */
-bool util_decode_byte(const char *in, uint8_t *byte_ptr)
-{
-	bool ret = false;
-	uint8_t ls_nibble;
-	uint8_t ms_nibble;
+bool util_decode_byte(const char *in, uint8_t *byte_ptr) {
+  bool ret = false;
+  uint8_t ls_nibble;
+  uint8_t ms_nibble;
 
-	if (util_decode_nibble(in, &ms_nibble)) {
-		if (util_decode_nibble(in + 1, &ls_nibble)) {
-			*byte_ptr = (ms_nibble << 4) + ls_nibble;
-			ret = true;
-		}
-	}
-	return  ret;
+  if (util_decode_nibble(in, &ms_nibble)) {
+    if (util_decode_nibble(in + 1, &ls_nibble)) {
+      *byte_ptr = (ms_nibble << 4) + ls_nibble;
+      ret = true;
+    }
+  }
+  return ret;
 }
 
 /* Convert an array of bytes into an array of characters */
-int util_encode_data(const unsigned char *data, size_t data_len, char *out, size_t out_size)
-{
+int util_encode_data(const unsigned char *data, size_t data_len, char *out,
+                     size_t out_size) {
   size_t i;
   int ret = 1;
 
-  if (((data_len*2) >= out_size) ||
-      (data == NULL) ||
-      (out == NULL) ||
+  if (((data_len * 2) >= out_size) || (data == NULL) || (out == NULL) ||
       (data_len == 0)) {
     /* Error conditions, bail */
     goto end;
   }
 
-  for (i = 0;  i < data_len;  i++, data++, out += 2)
+  for (i = 0; i < data_len; i++, data++, out += 2)
     util_encode_byte(*data, out);
 
   *out = 0;
@@ -177,8 +170,7 @@ end:
 }
 
 /* Encode string into an array of characters, s must be null terminated */
-int util_encode_string(const char *s, char *out, size_t out_size)
-{
+int util_encode_string(const char *s, char *out, size_t out_size) {
   int i = 0;
   if (s != NULL && out != NULL && out_size > 0) {
     /* +1 for the null, x2 for the byte to 2 chars */
@@ -200,10 +192,9 @@ end:
 }
 
 /* Decode a hex string to an unsigned 32-bit value */
-bool util_decode_uint32(char **in, uint32_t *val, char break_char)
-{
+bool util_decode_uint32(char **in, uint32_t *val, char break_char) {
   bool ret = false;
-  
+
   if (in != NULL && *in != NULL && val != NULL) {
     uint8_t nibble;
     uint32_t tmp;
@@ -213,16 +204,16 @@ bool util_decode_uint32(char **in, uint32_t *val, char break_char)
       /* We are expecting at least one character */
       goto end;
     }
-    
-    for (tmp = 0, count = 0;  **in  &&  count < 8;  count++, (*in)++) {
+
+    for (tmp = 0, count = 0; **in && count < 8; count++, (*in)++) {
       if (!util_decode_nibble(*in, &nibble))
-	break;
+        break;
       tmp = (tmp << 4) + nibble;
     }
-    
-    if (**in != break_char)	{
-      DBG_PRINT("ERROR wrong terminator expecting %d and got %d\n",
-		break_char, **in);
+
+    if (**in != break_char) {
+      DBG_PRINT("ERROR wrong terminator expecting %d and got %d\n", break_char,
+                **in);
       /* Wrong terminating character */
       goto end;
     }
@@ -236,8 +227,7 @@ end:
 }
 
 /* Decode a hex string to an unsigned 64-bit value */
-bool util_decode_int64(char **in, int64_t *val, char break_char)
-{
+bool util_decode_int64(char **in, int64_t *val, char break_char) {
   int ret = false;
   if (in != NULL && *in != NULL && val != NULL) {
     uint8_t nibble;
@@ -252,15 +242,15 @@ bool util_decode_int64(char **in, int64_t *val, char break_char)
       /* We are expecting at least one character */
       goto end;
     }
-    for (count = 0;  **in  &&  count < 16;  count++, (*in)++) {
+    for (count = 0; **in && count < 16; count++, (*in)++) {
       if (!util_decode_nibble(*in, &nibble))
-	break;
+        break;
       /* Overflow */
       if ((count == 0) && (sign == -1) && (nibble & 0x8))
-	goto end;
+        goto end;
       tmp = (tmp << 4) + nibble;
     }
-    if (**in != break_char)	{
+    if (**in != break_char) {
       /* Wrong terminating character */
       goto end;
     }
@@ -274,8 +264,7 @@ end:
 }
 
 /* Decode a hex string to an unsigned 64-bit value */
-bool util_decode_uint64(char **in, uint64_t *val, char break_char)
-{
+bool util_decode_uint64(char **in, uint64_t *val, char break_char) {
   bool ret = false;
   if (in != NULL && *in != NULL && val != NULL) {
     uint8_t nibble;
@@ -287,13 +276,13 @@ bool util_decode_uint64(char **in, uint64_t *val, char break_char)
       goto end;
     }
 
-    for (tmp = 0, count = 0;  **in  &&  count < 16;  count++, (*in)++) {
+    for (tmp = 0, count = 0; **in && count < 16; count++, (*in)++) {
       if (!util_decode_nibble(*in, &nibble))
-	break;
+        break;
       tmp = (tmp << 4) + nibble;
     }
 
-    if (**in != break_char)	{
+    if (**in != break_char) {
       /* Wrong terminating character */
       goto end;
     }
@@ -306,21 +295,16 @@ end:
   return ret;
 }
 
-size_t util_escape_binary(uint8_t *dst, uint8_t *src, size_t size)
-{
+size_t util_escape_binary(uint8_t *dst, uint8_t *src, size_t size) {
   size_t i, j;
   for (i = 0, j = 0; i < size; i++) {
     uint8_t c = src[i];
-    if ((0x23 == c) ||
-	(0x24 == c) ||
-	(0x2a == c) ||
-	(0x7d == c)) {
+    if ((0x23 == c) || (0x24 == c) || (0x2a == c) || (0x7d == c)) {
       dst[j++] = 0x7d;
-      dst[j++] = c ^0x20;
+      dst[j++] = c ^ 0x20;
     } else {
       dst[j++] = c;
     }
   }
   return j;
 }
-

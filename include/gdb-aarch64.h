@@ -37,16 +37,16 @@
 
 #define GDB_GREG_MAX 34
 
-#define GDB_GPR0  0
-#define GDB_GPR1  1
-#define GDB_GPR2  2
-#define GDB_GPR3  3
-#define GDB_GPR4  4
-#define GDB_GPR5  5
-#define GDB_GPR6  6
-#define GDB_GPR7  7
-#define GDB_GPR8  8
-#define GDB_GPR9  9
+#define GDB_GPR0 0
+#define GDB_GPR1 1
+#define GDB_GPR2 2
+#define GDB_GPR3 3
+#define GDB_GPR4 4
+#define GDB_GPR5 5
+#define GDB_GPR6 6
+#define GDB_GPR7 7
+#define GDB_GPR8 8
+#define GDB_GPR9 9
 #define GDB_GPR10 10
 #define GDB_GPR11 11
 #define GDB_GPR12 12
@@ -68,8 +68,8 @@
 #define GDB_GPR28 28
 #define GDB_GPR29 29
 #define GDB_GPR30 30
-#define GDB_SP    31
-#define GDB_PC    32
-#define GDB_PSTATE    33
+#define GDB_SP 31
+#define GDB_PC 32
+#define GDB_PSTATE 33
 
 #endif

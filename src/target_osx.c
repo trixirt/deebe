@@ -36,108 +36,94 @@
 #include "dptrace.h"
 #include "os.h"
 
-int osx_threadextrainfo_query(int64_t thread_id, char *out_buf, size_t out_buf_size)
-{
-	return RET_NOSUPP;
+int osx_threadextrainfo_query(int64_t thread_id, char *out_buf,
+                              size_t out_buf_size) {
+  return RET_NOSUPP;
 }
 
-int osx_set_gen_thread(int64_t process_id, int64_t thread_id)
-{
-	return RET_NOSUPP;
+int osx_set_gen_thread(int64_t process_id, int64_t thread_id) {
+  return RET_NOSUPP;
 }
 
-int osx_set_ctrl_thread(int64_t process_id, int64_t thread_id)
-{
-	return RET_NOSUPP;
+int osx_set_ctrl_thread(int64_t process_id, int64_t thread_id) {
+  return RET_NOSUPP;
 }
 
 int osx_is_thread_alive(int64_t process_id, int64_t thread_id,
-			/*@unused@*/int *alive)
-{
-	return RET_NOSUPP;
+                        /*@unused@*/ int *alive) {
+  return RET_NOSUPP;
 }
 
 int osx_process_query(unsigned int *mask, gdb_thread_ref *arg,
-		      rp_thread_info *info)
-{
-	return RET_ERR;
+                      rp_thread_info *info) {
+  return RET_ERR;
 }
 
-int osx_list_query(int first, gdb_thread_ref *arg,
-		   gdb_thread_ref *result, size_t max_num,
-		   size_t *num, int *done)
-{
-	return RET_ERR;
+int osx_list_query(int first, gdb_thread_ref *arg, gdb_thread_ref *result,
+                   size_t max_num, size_t *num, int *done) {
+  return RET_ERR;
 }
 
-int osx_current_thread_query(int64_t *process_id, int64_t *thread_id)
-{
-	return RET_ERR;
+int osx_current_thread_query(int64_t *process_id, int64_t *thread_id) {
+  return RET_ERR;
 }
 
-static int osx_query_current_signal(int *s)
-{
-	int ret = RET_ERR;
-	if (s) {
-		int sig;
-		/* The raw signal */
-		sig = ptrace_get_signal();
-		/* The gdb translation */
-		*s = ptrace_arch_signal_to_gdb(sig);
-		ret = RET_OK;
-	}
-	return ret;
+static int osx_query_current_signal(int *s) {
+  int ret = RET_ERR;
+  if (s) {
+    int sig;
+    /* The raw signal */
+    sig = ptrace_get_signal();
+    /* The gdb translation */
+    *s = ptrace_arch_signal_to_gdb(sig);
+    ret = RET_OK;
+  }
+  return ret;
 }
 
 gdb_target osx_target = {
-	.next                     = NULL,
-	.name                     = "osx",
-	.desc                     = "osx target",
-	.help                     = ptrace_help,
-	.open                     = ptrace_open,
-	.attach                   = ptrace_attach,
-	.detach                   = ptrace_detach,
-	.close                    = ptrace_close,
-	.connect                  = ptrace_connect,
-	.disconnect               = ptrace_disconnect,
-	.kill                     = ptrace_kill,
-	.restart                  = ptrace_restart,
-	.stop                     = ptrace_stop,
-	.set_gen_thread           = osx_set_gen_thread,
-	.set_ctrl_thread          = osx_set_ctrl_thread,
-	.is_thread_alive          = osx_is_thread_alive,
-	.read_registers           = osx_read_registers,
-	.write_registers          = osx_write_registers,
-	.read_single_register     = osx_read_single_register,
-	.write_single_register    = osx_write_single_register,
-	.read_mem                 = ptrace_read_mem,
-	.write_mem                = ptrace_write_mem,
-	.resume_from_current      = ptrace_resume_from_current,
-	.resume_from_addr         = ptrace_resume_from_addr,
-	.go_waiting               = ptrace_go_waiting,
-	.wait                     = ptrace_wait,
-	.process_query            = osx_process_query,
-	.list_query               = osx_list_query,
-	.current_thread_query     = osx_current_thread_query,
-	.offsets_query            = ptrace_offsets_query,
-	.crc_query                = ptrace_crc_query,
-	.add_break                = ptrace_add_break,
-	.remove_break             = ptrace_remove_break,
-	.threadinfo_query         = ptrace_threadinfo_query,
-	.threadextrainfo_query    = osx_threadextrainfo_query,
-	.supported_features_query = ptrace_supported_features_query,
-	.query_current_signal     = osx_query_current_signal,
-	.get_xml_register_string  = ptrace_get_xml_register_string,
-	.set_xml_register_reporting = ptrace_set_xml_register_reporting,
-	.register_info = ptrace_register_info,
-	.memory_region_info = ptrace_memory_region_info,
+    .next = NULL,
+    .name = "osx",
+    .desc = "osx target",
+    .help = ptrace_help,
+    .open = ptrace_open,
+    .attach = ptrace_attach,
+    .detach = ptrace_detach,
+    .close = ptrace_close,
+    .connect = ptrace_connect,
+    .disconnect = ptrace_disconnect,
+    .kill = ptrace_kill,
+    .restart = ptrace_restart,
+    .stop = ptrace_stop,
+    .set_gen_thread = osx_set_gen_thread,
+    .set_ctrl_thread = osx_set_ctrl_thread,
+    .is_thread_alive = osx_is_thread_alive,
+    .read_registers = osx_read_registers,
+    .write_registers = osx_write_registers,
+    .read_single_register = osx_read_single_register,
+    .write_single_register = osx_write_single_register,
+    .read_mem = ptrace_read_mem,
+    .write_mem = ptrace_write_mem,
+    .resume_from_current = ptrace_resume_from_current,
+    .resume_from_addr = ptrace_resume_from_addr,
+    .go_waiting = ptrace_go_waiting,
+    .wait = ptrace_wait,
+    .process_query = osx_process_query,
+    .list_query = osx_list_query,
+    .current_thread_query = osx_current_thread_query,
+    .offsets_query = ptrace_offsets_query,
+    .crc_query = ptrace_crc_query,
+    .add_break = ptrace_add_break,
+    .remove_break = ptrace_remove_break,
+    .threadinfo_query = ptrace_threadinfo_query,
+    .threadextrainfo_query = osx_threadextrainfo_query,
+    .supported_features_query = ptrace_supported_features_query,
+    .query_current_signal = osx_query_current_signal,
+    .get_xml_register_string = ptrace_get_xml_register_string,
+    .set_xml_register_reporting = ptrace_set_xml_register_reporting,
+    .register_info = ptrace_register_info,
+    .memory_region_info = ptrace_memory_region_info,
 };
 
-void target_init(struct gdb_target_s **target)
-{
-	*target = &osx_target;
-}
-void target_cleanup()
-{
-	/* Add cleanup code here */
-}
+void target_init(struct gdb_target_s **target) { *target = &osx_target; }
+void target_cleanup() { /* Add cleanup code here */ }

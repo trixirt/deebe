@@ -36,15 +36,15 @@
 #define DEEBE_MACROS_H
 
 /* FreeBSD's assert throws warnings, rewrite here */
-#define	ASSERT(e)	((e) ? (void)0 : \
-fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
-	__func__, __FILE__, __LINE__, #e))
+#define ASSERT(e)                                                              \
+  ((e) ? (void)0 : fprintf(stderr, "Assertion failed at %s %s %d : %s\n",      \
+                           __func__, __FILE__, __LINE__, #e))
 
-#define WATCHDOG_ERROR()                                                     \
-	do {                                                                 \
-		fprintf(stderr, "Watchdog time expired, program exiting\n"); \
-		exit(-1);						     \
-	} while (0)
+#define WATCHDOG_ERROR()                                                       \
+  do {                                                                         \
+    fprintf(stderr, "Watchdog time expired, program exiting\n");               \
+    exit(-1);                                                                  \
+  } while (0)
 
 #ifdef DEEBE_RELEASE
 #define DBG_PRINT(fmt, args...)
@@ -52,12 +52,13 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 #define DBG_PRINT(fmt, args...) util_log(fmt, ##args)
 #endif
 
-#define PRINTABLE(c) (((c) >= (__typeof__(c))0x20 && (c) < (__typeof__(c))127) ? (c) : '.')
+#define PRINTABLE(c)                                                           \
+  (((c) >= (__typeof__(c))0x20 && (c) < (__typeof__(c))127) ? (c) : '.')
 
 /* Size of data buffer  */
 #define GDB_INTERFACE_PARAM_DATABYTES_MAX (0x20000)
 /* Size of input and out buffers */
-#define INOUTBUF_SIZE (2*GDB_INTERFACE_PARAM_DATABYTES_MAX+32)
+#define INOUTBUF_SIZE (2 * GDB_INTERFACE_PARAM_DATABYTES_MAX + 32)
 
 /* These must match the table of reasons the gdb_stop_string function */
 #define LLDB_STOP_REASON_TRACE 0
@@ -66,13 +67,13 @@ fprintf(stderr, "Assertion failed at %s %s %d : %s\n",\
 #define LLDB_STOP_REASON_WATCHPOINT 3
 #define LLDB_STOP_REASON_SIGNAL 4
 #define LLDB_STOP_REASON_EXCEPTION 5 /* Not supported */
-#define LLDB_STOP_REASON_MAX (LLDB_STOP_REASON_SIGNAL+1)
+#define LLDB_STOP_REASON_MAX (LLDB_STOP_REASON_SIGNAL + 1)
 
-#define PTRACE_ERROR_TRACEME       125
+#define PTRACE_ERROR_TRACEME 125
 #define PTRACE_ERROR_RAISE_SIGSTOP 124
-#define PTRACE_ERROR_EXECV         123
-#define PTRACE_ERROR_ATTACH        122
-#define PTRACE_ERROR_INTERNAL      121
+#define PTRACE_ERROR_EXECV 123
+#define PTRACE_ERROR_ATTACH 122
+#define PTRACE_ERROR_INTERNAL 121
 
 /*
  * FreeBSD makes it a point to not define HOST_NAME_MAX

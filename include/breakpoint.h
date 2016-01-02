@@ -39,36 +39,31 @@
 
 struct breakpoint;
 struct breakpoint {
-	int type;
-	unsigned long addr;
-	size_t len;
-	int ref_count;
-	void *data;
-	void *bdata;
-	struct breakpoint *n;
-	struct breakpoint *p;
+  int type;
+  unsigned long addr;
+  size_t len;
+  int ref_count;
+  void *data;
+  void *bdata;
+  struct breakpoint *n;
+  struct breakpoint *p;
 };
 
 void _breakpoint_print(struct breakpoint *bpl);
-/*@null@*/struct breakpoint *breakpoint_find(struct breakpoint *bpl,
-					      int debug_level,
-					      unsigned long addr);
+/*@null@*/ struct breakpoint *
+breakpoint_find(struct breakpoint *bpl, int debug_level, unsigned long addr);
 void breakpoint_remove(struct breakpoint **bpl, int debug_level,
-		       unsigned long addr);
-/*@null@*/struct breakpoint *breakpoint_add(struct breakpoint **bpl,
-					    int debug_level,
-					    unsigned long addr, int type,
-					    size_t len);
-void breakpoint_adjust_read_buffer(struct breakpoint *bpl,
-				   int debug_level,
-				   unsigned long addr,
-				   size_t len,
-				   void *buffer);
+                       unsigned long addr);
+/*@null@*/ struct breakpoint *breakpoint_add(struct breakpoint **bpl,
+                                             int debug_level,
+                                             unsigned long addr, int type,
+                                             size_t len);
+void breakpoint_adjust_read_buffer(struct breakpoint *bpl, int debug_level,
+                                   unsigned long addr, size_t len,
+                                   void *buffer);
 
-void breakpoint_adjust_write_buffer(struct breakpoint *bpl,
-				    int debug_level,
-				    unsigned long addr,
-				    size_t len,
-				    void *buffer);
+void breakpoint_adjust_write_buffer(struct breakpoint *bpl, int debug_level,
+                                    unsigned long addr, size_t len,
+                                    void *buffer);
 
 #endif

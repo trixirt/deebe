@@ -58,12 +58,12 @@
 
 extern int ptrace_current_thread_query(int64_t *process_id, int64_t *thread_id);
 extern int ptrace_is_thread_alive(int64_t process_id, int64_t thread_id,
-				  /*@unused@*/int *alive);
+                                  /*@unused@*/ int *alive);
 extern int ptrace_list_query(int first, gdb_thread_ref *arg,
-			     gdb_thread_ref *result, size_t max_num,
-			     size_t *num, int *done);
+                             gdb_thread_ref *result, size_t max_num,
+                             size_t *num, int *done);
 extern int ptrace_process_query(unsigned int *mask, gdb_thread_ref *arg,
-				rp_thread_info *info);
-extern int ptrace_threadextrainfo_query(int64_t thread_id,
-					char *out_buf, size_t out_buf_size);
+                                rp_thread_info *info);
+extern int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf,
+                                        size_t out_buf_size);
 #endif

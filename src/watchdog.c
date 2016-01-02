@@ -45,53 +45,40 @@ static timer_t timer;
 #endif
 static bool watchdog = false;
 
-void watchdog_cleanup()
-{
-	signal_sigrtmin_off();
-}
-bool watchdog_init(long sec)
-{
-	bool ret = false;
+void watchdog_cleanup() { signal_sigrtmin_off(); }
+bool watchdog_init(long sec) {
+  bool ret = false;
 #ifdef HAVE_TIMER_CREATE
-	/*
-	 * Netbsd (7) does not export SIGRTMIN yet
-	 * so check if this is also defined.
-	 */
+/*
+ * Netbsd (7) does not export SIGRTMIN yet
+ * so check if this is also defined.
+ */
 #ifdef SIGRTMIN
-	struct sigevent signal_event;
-	signal_sigrtmin_off();
+  struct sigevent signal_event;
+  signal_sigrtmin_off();
 
-	signal_event.sigev_notify = SIGEV_SIGNAL;
-	signal_event.sigev_signo = SIGRTMIN;
-	signal_event.sigev_value.sival_ptr = &timer;
-	if (0 == timer_create(CLOCK_MONOTONIC, &signal_event, &timer)) {
-		struct itimerspec time;
+  signal_event.sigev_notify = SIGEV_SIGNAL;
+  signal_event.sigev_signo = SIGRTMIN;
+  signal_event.sigev_value.sival_ptr = &timer;
+  if (0 == timer_create(CLOCK_MONOTONIC, &signal_event, &timer)) {
+    struct itimerspec time;
 
-		time.it_value.tv_sec = sec;
-		time.it_value.tv_nsec = 0;
-		time.it_interval.tv_sec = time.it_value.tv_sec;
-		time.it_interval.tv_nsec = time.it_value.tv_nsec;
+    time.it_value.tv_sec = sec;
+    time.it_value.tv_nsec = 0;
+    time.it_interval.tv_sec = time.it_value.tv_sec;
+    time.it_interval.tv_nsec = time.it_value.tv_nsec;
 
-		if (0 == timer_settime(timer, 0, &time, NULL)) {
-			signal_sigrtmin_on();
-			ret = true;
-		}
-	}
+    if (0 == timer_settime(timer, 0, &time, NULL)) {
+      signal_sigrtmin_on();
+      ret = true;
+    }
+  }
 #endif /* SIGRTMIN */
 #endif /* HAVE_TIMER_CREATE */
-	return ret;
+  return ret;
 }
-bool watchdog_get()
-{
-	return watchdog;
-}
+bool watchdog_get() { return watchdog; }
 
-void watchdog_set()
-{
-	watchdog = true;
-}
+void watchdog_set() { watchdog = true; }
 
-void watchdog_clear()
-{
-	watchdog = false;
-}
+void watchdog_clear() { watchdog = false; }

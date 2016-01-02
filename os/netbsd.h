@@ -41,24 +41,19 @@
 #include "target_ptrace.h"
 #include "global.h"
 
-#define GRLL(N, E, GDB, O, S, GDB_S)				\
-	{							\
-		.off = (O) + offsetof(struct reg, E),		\
-		.size = (S) ? (S) : msizeof(struct reg, E),	\
-		.gdb = (GDB),					\
-		.name = #N,					\
-		.gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct reg, E), \
-	}
+#define GRLL(N, E, GDB, O, S, GDB_S)                                           \
+  {                                                                            \
+    .off = (O)+offsetof(struct reg, E),                                        \
+    .size = (S) ? (S) : msizeof(struct reg, E), .gdb = (GDB), .name = #N,      \
+    .gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct reg, E),                    \
+  }
 
-
-#define FRLL(N, E, GDB, O, S, GDB_S)				\
-	{							\
-		.off = (O) + offsetof(struct vfpreg, E),	\
-		.size = (S) ? (S) : msizeof(struct vfpreg, E),	\
-		.gdb = (GDB),					\
-		.name = #N,					\
-		.gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct vfpreg, E), \
-	}
+#define FRLL(N, E, GDB, O, S, GDB_S)                                           \
+  {                                                                            \
+    .off = (O)+offsetof(struct vfpreg, E),                                     \
+    .size = (S) ? (S) : msizeof(struct vfpreg, E), .gdb = (GDB), .name = #N,   \
+    .gdb_size = (GDB_S) ? (GDB_S) : msizeof(struct vfpreg, E),                 \
+  }
 
 /* NetBSD and Linux swap the 3rd / 4th arg */
 #define PTRACE_GETSET(a, b, c, d) ptrace((a), (b), (void *)(d), (c))

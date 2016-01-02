@@ -40,32 +40,30 @@
 #include "gdb_interface.h"
 #include "target.h"
 
-void osx_report_kernel_error(FILE *fp, kern_return_t kret)
-{
-	switch (kret) {
-	case KERN_SUCCESS: /* 0 */
-		fprintf(fp, "success!, what are you doing here?");
-		break;
-	case KERN_INVALID_ARGUMENT: /* 4 */
-		fprintf(fp, "invalid argument");
-		break;
-	case KERN_FAILURE: /* 5 */
-		fprintf(fp, "generic kernel failure");
-		break;
-	default:
-		fprintf(fp, "code %d\n", kret);
-		break;
-	}
+void osx_report_kernel_error(FILE *fp, kern_return_t kret) {
+  switch (kret) {
+  case KERN_SUCCESS: /* 0 */
+    fprintf(fp, "success!, what are you doing here?");
+    break;
+  case KERN_INVALID_ARGUMENT: /* 4 */
+    fprintf(fp, "invalid argument");
+    break;
+  case KERN_FAILURE: /* 5 */
+    fprintf(fp, "generic kernel failure");
+    break;
+  default:
+    fprintf(fp, "code %d\n", kret);
+    break;
+  }
 }
 
 int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
-		       size_t buf_size, size_t *read_size)
-{
-	/*
-	 * XXX
-	 * Assumes single threaded
-	 */
-	int ret = RET_ERR;
+                       size_t buf_size, size_t *read_size) {
+  /*
+   * XXX
+   * Assumes single threaded
+   */
+  int ret = RET_ERR;
 #if 0
 	task_t task = 0;
 	kern_return_t kret;
@@ -116,64 +114,49 @@ int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
 		fprintf(stderr, "\n");
 	}
 #endif
-	return ret;
+  return ret;
 }
 
 int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
-			     uint8_t *avail, size_t buf_size, size_t *read_size)
-{
-	return RET_NOSUPP;
+                             uint8_t *avail, size_t buf_size,
+                             size_t *read_size) {
+  return RET_NOSUPP;
 }
-int osx_write_registers(pid_t tid, uint8_t *data, size_t size)
-{
-	return RET_NOSUPP;
+int osx_write_registers(pid_t tid, uint8_t *data, size_t size) {
+  return RET_NOSUPP;
 }
-int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data, size_t size)
-{
-	return RET_NOSUPP;
+int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
+                              size_t size) {
+  return RET_NOSUPP;
 }
 
 /* Define stubs for now */
-void ptrace_arch_read_dbreg()
-{
+void ptrace_arch_read_dbreg() {}
+
+void ptrace_arch_write_dbreg() {}
+
+int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
+  int ret = RET_ERR;
+  return ret;
 }
 
-void ptrace_arch_write_dbreg()
-{
-}
+void ptrace_os_continue_others() {}
 
-int ptrace_os_gen_thread(pid_t pid, pid_t tid)
-{
-	int ret = RET_ERR;
-	return ret;
-}
-
-void ptrace_os_continue_others()
-{
-}
-
-void ptrace_os_stopped_single(char *str, size_t len, bool debug)
-{
-}
+void ptrace_os_stopped_single(char *str, size_t len, bool debug) {}
 
 bool ptrace_os_new_thread(pid_t tid, int status) {
-    bool ret = false;
-    return ret;
+  bool ret = false;
+  return ret;
 }
 
-void ptrace_os_wait(pid_t tid)
-{
+void ptrace_os_wait(pid_t tid) {}
+
+bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig) {
+  bool ret = false;
+  return ret;
 }
 
-bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig)
-{
-	bool ret = false;
-	return ret;
-}
-
-void ptrace_os_option_set_thread(pid_t pid)
-{
-}
+void ptrace_os_option_set_thread(pid_t pid) {}
 
 /*
  *
@@ -181,14 +164,13 @@ void ptrace_os_option_set_thread(pid_t pid)
  * start:<mem start>;size:<siz>;permissions:rx;
  *
  */
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff, size_t out_buff_size)
-{
+bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
+                                  size_t out_buff_size) {
   bool ret = false;
   return ret;
 }
 
-long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig)
-{
-	long ret = -1;
-	return ret;
+long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
+  long ret = -1;
+  return ret;
 }

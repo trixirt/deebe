@@ -59,84 +59,88 @@
 #define DEEBE_REG_STRUCT user
 #include "regmacros.h"
 struct reg_location_list grll[] = {
-  /* general */
-  RLL(r15,      regs.r15,      GDB_R15,      0, 0, 0, uint, hex, 15, 15, X, X),
-  RLL(r14,      regs.r14,      GDB_R14,      0, 0, 0, uint, hex, 14, 14, X, X),
-  RLL(r13,      regs.r13,      GDB_R13,      0, 0, 0, uint, hex, 13, 13, X, X),
-  RLL(r12,      regs.r12,      GDB_R12,      0, 0, 0, uint, hex, 12, 12, X, X),
-  RLL(r11,      regs.r11,      GDB_R11,      0, 0, 0, uint, hex, 11, 11, X, X),
-  RLL(r10,      regs.r10,      GDB_R10,      0, 0, 0, uint, hex, 10, 10, X, X),
-  RLL(r9,       regs.r9,       GDB_R9,       0, 0, 0, uint, hex,  9,  9, arg6, arg6),
-  RLL(r8,       regs.r8,       GDB_R8,       0, 0, 0, uint, hex,  8,  8, arg5, arg5),
-  RLL(rsi,      regs.rsi,      GDB_RSI,      0, 0, 0, uint, hex,  4,  4, arg2, arg2),
-  RLL(rdi,      regs.rdi,      GDB_RDI,      0, 0, 0, uint, hex,  5,  5, arg1, arg1),
-  RLL(orig_rax, regs.orig_rax, GDB_ORIG_RAX, 0, 0, 0, uint, hex, -1, -1, X, X),
-  RLL(rbp,      regs.rbp,      GDB_RBP,      0, 0, 0, uint, hex,  6,  6, fp, fp),
-  RLL(rbx,      regs.rbx,      GDB_RBX,      0, 0, 0, uint, hex,  3,  3, X, X),
-  RLL(rdx,      regs.rdx,      GDB_RDX,      0, 0, 0, uint, hex,  1,  1, arg3, arg3),
-  RLL(rcx,      regs.rcx,      GDB_RCX,      0, 0, 0, uint, hex,  2,  2, arg4, arg4),
-  RLL(rax,      regs.rax,      GDB_RAX,      0, 0, 0, uint, hex,  0,  0, X, X),
-  RLL(fs,       regs.fs,       GDB_FS,       0, 0, 4, uint, hex, 54, 54, X, X),
-  RLL(gs,       regs.gs,       GDB_GS,       0, 0, 4, uint, hex, 55, 55, X, X),
-  RLL(es,       regs.es,       GDB_ES,       0, 0, 4, uint, hex, 50, 50, X, X),
-  RLL(ds,       regs.ds,       GDB_DS,       0, 0, 4, uint, hex, 53, 53, X, X),
-  RLL(rip,      regs.rip,      GDB_RIP,      0, 0, 0, uint, hex, 16, 16, pc, pc),
-  RLL(cs,       regs.cs,       GDB_CS,       0, 0, 4, uint, hex, 51, 51, X, X),
-  RLL(rflags,   regs.eflags,   GDB_RFLAGS,   0, 0, 4, uint, hex, 49, 49, flags, flags),
-  RLL(rsp,      regs.rsp,      GDB_RSP,      0, 0, 4, uint, hex,  7,  7, sp, sp),
-  RLL(ss,       regs.ss,       GDB_SS,       0, 0, 4, uint, hex, 52, 52, X, X),
-  {0},
+    /* general */
+    RLL(r15, regs.r15, GDB_R15, 0, 0, 0, uint, hex, 15, 15, X, X),
+    RLL(r14, regs.r14, GDB_R14, 0, 0, 0, uint, hex, 14, 14, X, X),
+    RLL(r13, regs.r13, GDB_R13, 0, 0, 0, uint, hex, 13, 13, X, X),
+    RLL(r12, regs.r12, GDB_R12, 0, 0, 0, uint, hex, 12, 12, X, X),
+    RLL(r11, regs.r11, GDB_R11, 0, 0, 0, uint, hex, 11, 11, X, X),
+    RLL(r10, regs.r10, GDB_R10, 0, 0, 0, uint, hex, 10, 10, X, X),
+    RLL(r9, regs.r9, GDB_R9, 0, 0, 0, uint, hex, 9, 9, arg6, arg6),
+    RLL(r8, regs.r8, GDB_R8, 0, 0, 0, uint, hex, 8, 8, arg5, arg5),
+    RLL(rsi, regs.rsi, GDB_RSI, 0, 0, 0, uint, hex, 4, 4, arg2, arg2),
+    RLL(rdi, regs.rdi, GDB_RDI, 0, 0, 0, uint, hex, 5, 5, arg1, arg1),
+    RLL(orig_rax, regs.orig_rax, GDB_ORIG_RAX, 0, 0, 0, uint, hex, -1, -1, X,
+        X),
+    RLL(rbp, regs.rbp, GDB_RBP, 0, 0, 0, uint, hex, 6, 6, fp, fp),
+    RLL(rbx, regs.rbx, GDB_RBX, 0, 0, 0, uint, hex, 3, 3, X, X),
+    RLL(rdx, regs.rdx, GDB_RDX, 0, 0, 0, uint, hex, 1, 1, arg3, arg3),
+    RLL(rcx, regs.rcx, GDB_RCX, 0, 0, 0, uint, hex, 2, 2, arg4, arg4),
+    RLL(rax, regs.rax, GDB_RAX, 0, 0, 0, uint, hex, 0, 0, X, X),
+    RLL(fs, regs.fs, GDB_FS, 0, 0, 4, uint, hex, 54, 54, X, X),
+    RLL(gs, regs.gs, GDB_GS, 0, 0, 4, uint, hex, 55, 55, X, X),
+    RLL(es, regs.es, GDB_ES, 0, 0, 4, uint, hex, 50, 50, X, X),
+    RLL(ds, regs.ds, GDB_DS, 0, 0, 4, uint, hex, 53, 53, X, X),
+    RLL(rip, regs.rip, GDB_RIP, 0, 0, 0, uint, hex, 16, 16, pc, pc),
+    RLL(cs, regs.cs, GDB_CS, 0, 0, 4, uint, hex, 51, 51, X, X),
+    RLL(rflags, regs.eflags, GDB_RFLAGS, 0, 0, 4, uint, hex, 49, 49, flags,
+        flags),
+    RLL(rsp, regs.rsp, GDB_RSP, 0, 0, 4, uint, hex, 7, 7, sp, sp),
+    RLL(ss, regs.ss, GDB_SS, 0, 0, 4, uint, hex, 52, 52, X, X),
+    {0},
 };
 
 #undef DEEBE_REG_STRUCT
 #define DEEBE_REG_STRUCT user_fpregs_struct
 #include "regmacros.h"
 struct reg_location_list frll[] = {
-  RLL(st0,    st_space[0], GDB_FST0,     0,   10,   10, vector, vector-uint8, 33, 33, X, X),
-  RLL(st1,    st_space, GDB_FST1,    10,   10,   10, vector, vector-uint8, 34, 34, X, X),
-  RLL(st2,    st_space, GDB_FST2,    20,   10,   10, vector, vector-uint8, 35, 35, X, X),
-  RLL(st3,    st_space, GDB_FST3,    30,   10,   10, vector, vector-uint8, 36, 36, X, X),
-  RLL(st4,    st_space, GDB_FST4,    40,   10,   10, vector, vector-uint8, 37, 37, X, X),
-  RLL(st5,    st_space, GDB_FST5,    50,   10,   10, vector, vector-uint8, 38, 38, X, X),
-  RLL(st6,    st_space, GDB_FST6,    60,   10,   10, vector, vector-uint8, 39, 39, X, X),
-  RLL(st7,    st_space, GDB_FST7,    70,   10,   10, vector, vector-uint8, 40, 40, X, X),
-  RLL(cwd,         cwd, GDB_FCTRL,    0,    2,    4,   uint,          hex, -1, -1, X, X),
-  RLL(swd,         swd, GDB_FSTAT,    0,    2,    4,   uint,          hex, -1, -1, X, X),
-  RLL(ftw,         ftw, GDB_FTAG,     0,    2,    4,   uint,          hex, -1, -1, X, X),
-  RLL(fop,         fop, GDB_FOP,      0,    2,    4,   uint,          hex, -1, -1, X, X),
-  RLL(mm0,   xmm_space, GDB_XMM0,  0x00, 0x10, 0x10,   uint,          hex, 41, 41, X, X),
-  RLL(mm1,   xmm_space, GDB_XMM1,  0x10, 0x10, 0x10,   uint,          hex, 42, 42, X, X),
-  RLL(mm2,   xmm_space, GDB_XMM2,  0x20, 0x10, 0x10,   uint,          hex, 43, 43, X, X),
-  RLL(mm3,   xmm_space, GDB_XMM3,  0x30, 0x10, 0x10,   uint,          hex, 44, 44, X, X),
-  RLL(mm4,   xmm_space, GDB_XMM4,  0x40, 0x10, 0x10,   uint,          hex, 45, 45, X, X),
-  RLL(mm5,   xmm_space, GDB_XMM5,  0x50, 0x10, 0x10,   uint,          hex, 46, 46, X, X),
-  RLL(mm6,   xmm_space, GDB_XMM6,  0x60, 0x10, 0x10,   uint,          hex, 47, 47, X, X),
-  RLL(mm7,   xmm_space, GDB_XMM7,  0x70, 0x10, 0x10,   uint,          hex, 48, 48, X, X),
-  RLL(mm8,   xmm_space, GDB_XMM8,  0x80, 0x10, 0x10,   uint,          hex, 49, 49, X, X),
-  RLL(mm9,   xmm_space, GDB_XMM9,  0x90, 0x10, 0x10,   uint,          hex, 50, 50, X, X),
-  RLL(mm10,  xmm_space, GDB_XMM10, 0xa0, 0x10, 0x10,   uint,          hex, 51, 51, X, X),
-  RLL(mm11,  xmm_space, GDB_XMM11, 0xb0, 0x10, 0x10,   uint,          hex, 52, 52, X, X),
-  RLL(mm12,  xmm_space, GDB_XMM12, 0xc0, 0x10, 0x10,   uint,          hex, 53, 53, X, X),
-  RLL(mm13,  xmm_space, GDB_XMM13, 0xd0, 0x10, 0x10,   uint,          hex, 54, 54, X, X),
-  RLL(mm14,  xmm_space, GDB_XMM14, 0xe0, 0x10, 0x10,   uint,          hex, 55, 55, X, X),
-  RLL(mm15,  xmm_space, GDB_XMM15, 0xf0, 0x10, 0x10,   uint,          hex, 56, 56, X, X),
-  RLL(mxcsr, mxcsr,     GDB_MXCSR,    0,    0,    0,   uint,          hex, 64, 64, X, X),
-	{0},
+    RLL(st0, st_space[0], GDB_FST0, 0, 10, 10, vector, vector - uint8, 33, 33,
+        X, X),
+    RLL(st1, st_space, GDB_FST1, 10, 10, 10, vector, vector - uint8, 34, 34, X,
+        X),
+    RLL(st2, st_space, GDB_FST2, 20, 10, 10, vector, vector - uint8, 35, 35, X,
+        X),
+    RLL(st3, st_space, GDB_FST3, 30, 10, 10, vector, vector - uint8, 36, 36, X,
+        X),
+    RLL(st4, st_space, GDB_FST4, 40, 10, 10, vector, vector - uint8, 37, 37, X,
+        X),
+    RLL(st5, st_space, GDB_FST5, 50, 10, 10, vector, vector - uint8, 38, 38, X,
+        X),
+    RLL(st6, st_space, GDB_FST6, 60, 10, 10, vector, vector - uint8, 39, 39, X,
+        X),
+    RLL(st7, st_space, GDB_FST7, 70, 10, 10, vector, vector - uint8, 40, 40, X,
+        X),
+    RLL(cwd, cwd, GDB_FCTRL, 0, 2, 4, uint, hex, -1, -1, X, X),
+    RLL(swd, swd, GDB_FSTAT, 0, 2, 4, uint, hex, -1, -1, X, X),
+    RLL(ftw, ftw, GDB_FTAG, 0, 2, 4, uint, hex, -1, -1, X, X),
+    RLL(fop, fop, GDB_FOP, 0, 2, 4, uint, hex, -1, -1, X, X),
+    RLL(mm0, xmm_space, GDB_XMM0, 0x00, 0x10, 0x10, uint, hex, 41, 41, X, X),
+    RLL(mm1, xmm_space, GDB_XMM1, 0x10, 0x10, 0x10, uint, hex, 42, 42, X, X),
+    RLL(mm2, xmm_space, GDB_XMM2, 0x20, 0x10, 0x10, uint, hex, 43, 43, X, X),
+    RLL(mm3, xmm_space, GDB_XMM3, 0x30, 0x10, 0x10, uint, hex, 44, 44, X, X),
+    RLL(mm4, xmm_space, GDB_XMM4, 0x40, 0x10, 0x10, uint, hex, 45, 45, X, X),
+    RLL(mm5, xmm_space, GDB_XMM5, 0x50, 0x10, 0x10, uint, hex, 46, 46, X, X),
+    RLL(mm6, xmm_space, GDB_XMM6, 0x60, 0x10, 0x10, uint, hex, 47, 47, X, X),
+    RLL(mm7, xmm_space, GDB_XMM7, 0x70, 0x10, 0x10, uint, hex, 48, 48, X, X),
+    RLL(mm8, xmm_space, GDB_XMM8, 0x80, 0x10, 0x10, uint, hex, 49, 49, X, X),
+    RLL(mm9, xmm_space, GDB_XMM9, 0x90, 0x10, 0x10, uint, hex, 50, 50, X, X),
+    RLL(mm10, xmm_space, GDB_XMM10, 0xa0, 0x10, 0x10, uint, hex, 51, 51, X, X),
+    RLL(mm11, xmm_space, GDB_XMM11, 0xb0, 0x10, 0x10, uint, hex, 52, 52, X, X),
+    RLL(mm12, xmm_space, GDB_XMM12, 0xc0, 0x10, 0x10, uint, hex, 53, 53, X, X),
+    RLL(mm13, xmm_space, GDB_XMM13, 0xd0, 0x10, 0x10, uint, hex, 54, 54, X, X),
+    RLL(mm14, xmm_space, GDB_XMM14, 0xe0, 0x10, 0x10, uint, hex, 55, 55, X, X),
+    RLL(mm15, xmm_space, GDB_XMM15, 0xf0, 0x10, 0x10, uint, hex, 56, 56, X, X),
+    RLL(mxcsr, mxcsr, GDB_MXCSR, 0, 0, 0, uint, hex, 64, 64, X, X),
+    {0},
 };
 
 struct reg_location_list fxrll[] = {
-	{0},
+    {0},
 };
 
-void ptrace_arch_read_fxreg(pid_t tid)
-{
-	/* part of fp regs */
-}
+void ptrace_arch_read_fxreg(pid_t tid) { /* part of fp regs */ }
 
-void ptrace_arch_write_fxreg(pid_t tid)
-{
-	/* part of fp regs */
-}
+void ptrace_arch_write_fxreg(pid_t tid) { /* part of fp regs */ }
 
 #ifdef PT_GETXSTATE
 #define GDB_GREG_MAX 49
@@ -144,82 +148,68 @@ void ptrace_arch_write_fxreg(pid_t tid)
 #define GDB_GREG_MAX 40
 #endif
 
-int ptrace_arch_gdb_greg_max()
-{
-	return 24;
+int ptrace_arch_gdb_greg_max() { return 24; }
+
+void ptrace_arch_get_pc(pid_t tid, unsigned long *pc) {
+  _read_greg(tid);
+  memcpy(pc, _target.reg + offsetof(struct user, regs.rip),
+         sizeof(unsigned long));
 }
 
-void ptrace_arch_get_pc(pid_t tid, unsigned long *pc)
-{
-	_read_greg(tid);
-	memcpy(pc, _target.reg + offsetof(struct user, regs.rip),
-	       sizeof(unsigned long));
+void ptrace_arch_set_pc(pid_t tid, unsigned long pc) {
+  _read_greg(tid);
+  memcpy(_target.reg + offsetof(struct user, regs.rip), &pc,
+         sizeof(unsigned long));
+  _write_greg(tid);
 }
 
-void ptrace_arch_set_pc(pid_t tid, unsigned long pc)
-{
-	_read_greg(tid);
-	memcpy(_target.reg + offsetof(struct user, regs.rip), &pc,
-	       sizeof(unsigned long));
-	_write_greg(tid);
+void ptrace_arch_option_set_syscall(pid_t pid) {
+  ptrace_os_option_set_syscall(pid);
 }
 
-void ptrace_arch_option_set_syscall(pid_t pid)
-{
-	ptrace_os_option_set_syscall(pid);
-}
-
-bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig)
-{
-	return false;
-}
+bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig) { return false; }
 
 void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
-			     void *arg3, void *arg4, void *ret)
-{
-	_read_greg(tid);
+                             void *arg3, void *arg4, void *ret) {
+  _read_greg(tid);
 }
 
-bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size)
-{
-	bool ret = false;
-	if (GDB_FISEG == reg) {
-		*pad_size = 4;
-		ret = true;
-	} else if (GDB_FIOFF == reg) {
-		*pad_size = 4;
-		ret = true;
-	} else if (GDB_FOSEG == reg) {
-		*pad_size = 4;
-		ret = true;
-	} else if (GDB_FOOFF == reg) {
-		*pad_size = 4;
-		ret = true;
-	}
-	return ret;
+bool ptrace_arch_check_unrecognized_register(int reg, size_t *pad_size) {
+  bool ret = false;
+  if (GDB_FISEG == reg) {
+    *pad_size = 4;
+    ret = true;
+  } else if (GDB_FIOFF == reg) {
+    *pad_size = 4;
+    ret = true;
+  } else if (GDB_FOSEG == reg) {
+    *pad_size = 4;
+    ret = true;
+  } else if (GDB_FOOFF == reg) {
+    *pad_size = 4;
+    ret = true;
+  }
+  return ret;
 }
 
-void ptrace_arch_option_set_thread(pid_t pid)
-{
-	ptrace_os_option_set_thread(pid);
+void ptrace_arch_option_set_thread(pid_t pid) {
+  ptrace_os_option_set_thread(pid);
 }
 
-bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status)
-{
-	return ptrace_os_wait_new_thread(out_pid, out_status);
+bool ptrace_arch_wait_new_thread(pid_t *out_pid, int *out_status) {
+  return ptrace_os_wait_new_thread(out_pid, out_status);
 }
 
-bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid)
-{
-	return ptrace_os_check_new_thread(pid, status, out_pid);
+bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
+  return ptrace_os_check_new_thread(pid, status, out_pid);
 }
 
-bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff, size_t out_buf_size)
-{
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
+                                    size_t out_buf_size) {
   return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
 }
 
-bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset, size_t *size)
-{
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
+                           size_t *size) {
   return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
 }

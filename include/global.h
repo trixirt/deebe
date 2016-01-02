@@ -98,14 +98,14 @@ extern int gPipeStdout[2];
 #else
 
 /* cmdline */
-/*@null@*/char *cmdline_net = NULL;
-/*@null@*/char *cmdline_net_fwd = NULL;
+/*@null@*/ char *cmdline_net = NULL;
+/*@null@*/ char *cmdline_net_fwd = NULL;
 long cmdline_port = -1;
 long cmdline_port_fwd = -1;
 int cmdline_argc = 0;
-/*@null@*/char **cmdline_argv = NULL;
+/*@null@*/ char **cmdline_argv = NULL;
 pid_t cmdline_pid = 0;
-/*@null@*/char *cmdline_program_name = NULL;
+/*@null@*/ char *cmdline_program_name = NULL;
 bool cmdline_once = false;
 long cmdline_watchdog_minutes = -1;
 bool cmdline_silence_memory_read_errors = false;
@@ -115,9 +115,9 @@ bool cmdline_msg = false;
 int network_listen_sd = -1;
 int network_client_sd = -1;
 int network_fwd_sd = -1;
-struct sockaddr_in network_address = { 0 };
-struct sockaddr_in network_client_address = { 0 };
-struct sockaddr_in network_address_fwd = { 0 };
+struct sockaddr_in network_address = {0};
+struct sockaddr_in network_client_address = {0};
+struct sockaddr_in network_address_fwd = {0};
 socklen_t network_client_address_size = sizeof(struct sockaddr_in);
 uint8_t *network_out_buffer = NULL;
 uint8_t *network_in_buffer = NULL;
@@ -128,15 +128,17 @@ size_t network_in_buffer_size = 0;
 size_t network_in_buffer_current = 0;
 size_t network_in_buffer_total = 0;
 /* gdb interface */
-/*@null@*/gdb_target *gdb_interface_target = NULL;
+/*@null@*/ gdb_target *gdb_interface_target = NULL;
 int gdb_interface_debug_level = -1;
-/*@null@*/log_func gdb_interface_log = NULL;
+/*@null@*/ log_func gdb_interface_log = NULL;
 
 FILE *fp_log = NULL;
 
 bool gDebugeeRunning = true;
 
-int gPipeStdout[2] = { -1, -1, };
+int gPipeStdout[2] = {
+    -1, -1,
+};
 
 #endif /* DECL_GLOBAL */
 #endif /* DEEBE_GLOBAL_H */
