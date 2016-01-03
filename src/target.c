@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Juniper Networks, Inc.
+ * Copyright (c) 2013-2016 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -261,3 +261,21 @@ bool target_is_attached() {
     ret = true;
   return ret;
 }
+
+bool target_is_gdb_reg(int gdb, int *g_index, struct reg_location_list *rl) {
+  bool ret = false;
+  int c = 0;
+  while (1) {
+    if (GUARD_RLL(rl[c])) {
+      break;
+    } else if (rl[c].gdb == gdb) {
+      *g_index = c;
+      ret = true;
+      break;
+    } else {
+      c++;
+    }
+  }
+  return ret;
+}
+
