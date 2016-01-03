@@ -62,6 +62,10 @@ extern int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
 extern int osx_write_registers(pid_t tid, uint8_t *data, size_t size);
 extern int osx_write_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
                                      size_t size);
+extern int osx_read_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+			size_t *read_size);
+extern int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
+			 size_t size);
 
 bool osx_arch_read_registers(thread_act_t tid);
 void ptrace_os_option_set_syscall(pid_t pid);
