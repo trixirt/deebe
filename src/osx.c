@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Juniper Networks, Inc.
+ * Copyright (c) 2013-2016 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -39,6 +39,8 @@
 #include "os.h"
 #include "gdb_interface.h"
 #include "target.h"
+#include "util.h"
+#include "macros.h"
 
 void osx_report_kernel_error(FILE *fp, kern_return_t kret) {
   switch (kret) {
@@ -156,7 +158,31 @@ bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig) {
   return ret;
 }
 
-void ptrace_os_option_set_thread(pid_t pid) {}
+void ptrace_os_option_set_thread(pid_t pid) {
+  kern_return_t status;
+  if (PROCESS_TID(0) == PROCESS_PID(0)) {
+    task_t task;
+    status = task_for_pid(mach_task_self (), pid, &task);
+    if (KERN_SUCCESS == status) {
+      thread_array_t threads;
+      mach_msg_type_number_t num_threads;
+      status = task_threads(task, &threads, &num_threads);
+      if (KERN_SUCCESS == status) {
+	if (num_threads > 0) {
+	  PROCESS_TID(0) = threads[0];
+	} else {
+	  DBG_PRINT("ERROR : %s : unexpected number of threads %d\n", __func__, num_threads);
+	}
+      } else {
+	DBG_PRINT("ERROR : %s : failed to get thread info for pid %x : %d\n", __func__, pid, status);
+      }
+    } else {
+      DBG_PRINT("ERROR : %s : failed to get osx task from pid %x : %d\n", __func__, pid, status);
+    }
+  } else {
+    DBG_PRINT("ERROR : %s : called when pid != tid\n", __func__);
+  }
+}
 
 /*
  *
