@@ -538,11 +538,6 @@ long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data) {
 /*
  * Tested on linux versions
  * 3.11.0
- * Assuming /proc/<pid>/maps format is like
- *
- * 7f3858d45000-7f3858d49000 r--p 001b3000 08:01 1179857
- */lib/x86_64-linux-gnu/libc-2.15.so
- * <mem start>-<mem end> <perms> ...
  *
  * For lldb, output is
  * start:<mem start>;size:<siz>;permissions:rx;

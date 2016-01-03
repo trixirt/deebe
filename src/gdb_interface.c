@@ -1242,7 +1242,7 @@ static int rp_encode_process_query_response(unsigned int mask,
   return 1;
 }
 
-static bool gdb_handle_query_command(char *const in_buf, char *out_buf,
+static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *out_buf,
                                      gdb_target *t) {
   int status;
   uint32_t val;
@@ -1510,11 +1510,15 @@ static bool gdb_handle_query_command(char *const in_buf, char *out_buf,
       if (util_decode_uint64(&n, &addr, ';')) {
         uint32_t len;
         if (util_decode_uint32(&n, &len, ';')) {
-          size_t bmax = INOUTBUF_SIZE - (n - in_buf);
+	  size_t bmax = in_len - (n - in_buf);
           uint8_t *pattern = (uint8_t *)malloc(bmax * sizeof(uint8_t));
           if (pattern) {
             size_t pattern_len = 0;
-            pattern_len = util_escape_binary(pattern, (uint8_t *)n, bmax);
+	    /*
+	     * gdb doc says pattern is hex-encoded.
+	     * The pattter in really escaped binary
+	     */
+	    pattern_len = util_escape_binary(pattern, (uint8_t *)n, bmax);
             if (pattern_len > 0) {
               if (pattern_len <= len) {
                 uint8_t *read_buf = (uint8_t *)malloc(len);
@@ -2235,11 +2239,11 @@ static int gdb_decode_mem(char *in, uint64_t *addr, size_t *len) {
 
   *len = 0;
 
-  if (FALSE != util_decode_uint64(&in, addr, ',')) {
+  if (util_decode_uint64(&in, addr, ',')) {
     /* On 64 bit, size_t != uint32_t */
     uint32_t l = 0;
 
-    if (FALSE != util_decode_uint32(&in, &l, '\0')) {
+    if (util_decode_uint32(&in, &l, '\0')) {
       *len = l;
       ret = TRUE;
     }
@@ -2603,7 +2607,7 @@ int gdb_interface_packet() {
         } else {
           if (!lldb_handle_query_command(in_buf, out_buf,
                                          gdb_interface_target) &&
-              !gdb_handle_query_command(in_buf, out_buf,
+              !gdb_handle_query_command(in_buf, in_len, out_buf,
                                         gdb_interface_target)) {
             /* Not supported */
           } else {

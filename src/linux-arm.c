@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -42,43 +42,54 @@
 int ptrace_arch_gdb_greg_max() { return GDB_GREG_MAX; }
 
 /* General */
+#define DEEBE_REG_STRUCT user_regs
+#include "regmacros.h"
 struct reg_location_list grll[] = {
-    GRLL(gp0, regs.uregs[0], GDB_GPR0, 0, 0, 0),
-    GRLL(gp1, regs.uregs[1], GDB_GPR1, 0, 0, 0),
-    GRLL(gp2, regs.uregs[2], GDB_GPR2, 0, 0, 0),
-    GRLL(gp3, regs.uregs[3], GDB_GPR3, 0, 0, 0),
-    GRLL(gp4, regs.uregs[4], GDB_GPR4, 0, 0, 0),
-    GRLL(gp5, regs.uregs[5], GDB_GPR5, 0, 0, 0),
-    GRLL(gp6, regs.uregs[6], GDB_GPR6, 0, 0, 0),
-    GRLL(gp7, regs.uregs[7], GDB_GPR7, 0, 0, 0),
-    GRLL(gp8, regs.uregs[8], GDB_GPR8, 0, 0, 0),
-    GRLL(gp9, regs.uregs[9], GDB_GPR9, 0, 0, 0),
-    GRLL(gp10, regs.uregs[10], GDB_GPR10, 0, 0, 0),
-    GRLL(gp11, regs.uregs[11], GDB_GPR11, 0, 0, 0),
-    GRLL(gp12, regs.uregs[12], GDB_GPR12, 0, 0, 0),
-    GRLL(sp, regs.uregs[13], GDB_SP, 0, 0, 0),
-    GRLL(lr, regs.uregs[14], GDB_LR, 0, 0, 0),
-    GRLL(pc, regs.uregs[15], GDB_PC, 0, 0, 0),
-    GRLL(cpsr, regs.uregs[16], GDB_CPSR, 0, 0, 0),
+    RLL(gp0, uregs[0], GDB_GPR0, 0, 0, 0, uint, hex, 0, 0, arg1, r0),
+    RLL(gp1, uregs[1], GDB_GPR1, 0, 0, 0, uint, hex, 1, 1, arg2, r1),
+    RLL(gp2, uregs[2], GDB_GPR2, 0, 0, 0, uint, hex, 2, 2, arg3, r2),
+    RLL(gp3, uregs[3], GDB_GPR3, 0, 0, 0, uint, hex, 3, 3, arg4, r3),
+    RLL(gp4, uregs[4], GDB_GPR4, 0, 0, 0, uint, hex, 4, 4, X, r4),
+    RLL(gp5, uregs[5], GDB_GPR5, 0, 0, 0, uint, hex, 5, 5, X, r5),
+    RLL(gp6, uregs[6], GDB_GPR6, 0, 0, 0, uint, hex, 6, 6, X, r6),
+    RLL(gp7, uregs[7], GDB_GPR7, 0, 0, 0, uint, hex, 7, 7, X, r7),
+    RLL(gp8, uregs[8], GDB_GPR8, 0, 0, 0, uint, hex, 8, 8, X, r8),
+    RLL(gp9, uregs[9], GDB_GPR9, 0, 0, 0, uint, hex, 9, 9, X, r9),
+    RLL(gp10, uregs[10], GDB_GPR10, 0, 0, 0, uint, hex, 10, 10, X, r10),
+    RLL(gp11, uregs[11], GDB_GPR11, 0, 0, 0, uint, hex, 11, 11, X, r11),
+    RLL(gp12, uregs[12], GDB_GPR12, 0, 0, 0, uint, hex, 12, 12, X, r12),
+    RLL(sp, uregs[13], GDB_SP, 0, 0, 0, uint, hex, 13, 13, sp, r13),
+    RLL(lr, uregs[14], GDB_LR, 0, 0, 0, uint, hex, 14, 14, lr, r14),
+    RLL(pc, uregs[15], GDB_PC, 0, 0, 0, uint, hex, 15, 15, pc, r15),
+    RLL(cpsr, uregs[16], GDB_CPSR, 0, 0, 0, uint, hex, 16, 16, X, psr),
     {0},
 };
 
 /* Floating point */
+#undef DEEBE_REG_STRUCT
+#define DEEBE_REG_STRUCT user_fpregs
+#include "regmacros.h"
 struct reg_location_list frll[] = {
-    FRLL(fp0, fpregs[0], GDB_FPR0, 0, 0, 0),
-    FRLL(fp1, fpregs[1], GDB_FPR1, 0, 0, 0),
-    FRLL(fp2, fpregs[2], GDB_FPR2, 0, 0, 0),
-    FRLL(fp3, fpregs[3], GDB_FPR3, 0, 0, 0),
-    FRLL(fp4, fpregs[4], GDB_FPR4, 0, 0, 0),
-    FRLL(fp5, fpregs[5], GDB_FPR5, 0, 0, 0),
-    FRLL(fp6, fpregs[6], GDB_FPR6, 0, 0, 0),
-    FRLL(fp7, fpregs[7], GDB_FPR7, 0, 0, 0),
+    RLL(fp0, fpregs[0], GDB_FPR0, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp1, fpregs[1], GDB_FPR1, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp2, fpregs[2], GDB_FPR2, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp3, fpregs[3], GDB_FPR3, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp4, fpregs[4], GDB_FPR4, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp5, fpregs[5], GDB_FPR5, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp6, fpregs[6], GDB_FPR6, 0, 0, 0, ieee754, float, -1, -1, X, X),
+    RLL(fp7, fpregs[7], GDB_FPR7, 0, 0, 0, ieee754, float, -1, -1, X, X),
     {
      .name = "fps",
      .off = 3 * sizeof(unsigned int) * 8,
      .size = 4,
      .gdb_size = 4,
      .gdb = GDB_FPS,
+     .encoding = "uint",
+     .format = "hex",
+     .gcc = -1,
+     .dwarf = -1,
+     .generic = "X",
+     .altname = "X",
     },
     {0},
 };
@@ -535,3 +546,19 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc) {
 #endif
   return ret;
 }
+
+bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
+                                    size_t out_buf_size) {
+  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
+}
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
+                           size_t *size) {
+  return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
+}
+
+const char *ptrace_arch_get_xml_register_string() {
+  static char *str = "arm";
+  return str;
+}
+
+size_t ptrace_arch_swbrk_rollback() { return 0; }
