@@ -1703,7 +1703,7 @@ static void handle_breakpoint_command(char *const in_buf, char *out_buf,
   if (GDB_OPEN_##N == ((g) & (GDB_OPEN_##N)))                                  \
   m |= S_##N
 
-static int handle_v_command(char *const in_buf, char *out_buf,
+static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
                             gdb_target *target) {
   int ret = RET_ERR;
   char str[128];
@@ -1968,14 +1968,14 @@ static int handle_v_command(char *const in_buf, char *out_buf,
              * n - in_buf is how much has already been read
              * -3 for end of buffer #XY crc check
              */
-            if ((n - in_buf) < INOUTBUF_SIZE) {
+            if ((n - in_buf) < in_len) {
               if (off != lseek(s_fd, off, SEEK_SET)) {
                 /* Error */
                 sprintf(out_buf, "F%d", -1);
               } else {
                 size_t bytes_to_write = 0;
                 size_t bytes_written = 0;
-                bytes_to_write = INOUTBUF_SIZE - (n - in_buf);
+                bytes_to_write = in_len - (n - in_buf);
                 /* Data is binary, no need to decode */
                 bytes_written = write(s_fd, n, bytes_to_write);
                 sprintf(out_buf, "F%zx", bytes_written);
@@ -2667,7 +2667,7 @@ int gdb_interface_packet() {
         /* Now the binary command */
         switch (in_buf[0]) {
         case 'v':
-          handle_v_command(in_buf, out_buf, gdb_interface_target);
+	  handle_v_command(in_buf, in_len, out_buf, gdb_interface_target);
           break;
         default:
           break;
