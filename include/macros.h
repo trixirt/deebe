@@ -57,8 +57,17 @@
 
 #define GUARD_RLL(r) (((r).off == 0) && ((r).size == 0) && ((r).gdb == 0))
 
-/* Size of data buffer  */
-#define GDB_INTERFACE_PARAM_DATABYTES_MAX (0x20000)
+/*
+ * Size of data buffer
+ * lldb likes 0x20000
+ * gdb likes   0x4000
+ *
+ * If you really want the full lldb ..
+ *
+ * #define GDB_INTERFACE_PARAM_DATABYTES_MAX (0x20000)
+ */
+#define GDB_INTERFACE_PARAM_DATABYTES_MAX (0x4000)
+
 /* Size of input and out buffers */
 #define INOUTBUF_SIZE (2 * GDB_INTERFACE_PARAM_DATABYTES_MAX + 32)
 
