@@ -726,14 +726,15 @@ static bool _decode_reg_tid(char *const in_buf, uint32_t *reg, pid_t *tid) {
       if (!ret)
         goto end;
       *tid = thread_id;
-    } else {
-      /* Get a single register. Format 'pNN' */
-      ret = util_decode_reg(&in, reg);
-      if (!ret)
-        goto end;
     }
-    ret = true;
+  } else {
+    /* Get a single register. Format 'pNN' */
+    ret = util_decode_reg(&in, reg);
+    if (!ret)
+      goto end;
   }
+  ret = true;
+
 end:
   return ret;
 }
@@ -2509,7 +2510,9 @@ int gdb_interface_packet() {
       gdb_interface_write_retval(RET_NOSUPP, out_buf);
       rp_target_out_valid = FALSE;
 
+      DBG_PRINT("%s %s\n", __func__, in_buf);
       switch (in_buf[0]) {
+	      
 
       case '!':
         /* Set extended operation */
