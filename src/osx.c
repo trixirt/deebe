@@ -36,6 +36,12 @@
 #include <mach/mach_traps.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
+#include <mach/mach_vm.h>
+#include <mach/vm_region.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#include <inttypes.h>
 #include "os.h"
 #include "gdb_interface.h"
 #include "target.h"
@@ -168,10 +174,50 @@ void ptrace_os_option_set_thread(pid_t pid) {
 bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
                                   size_t out_buff_size) {
   bool ret = false;
+
+  task_t task;
+  kern_return_t status;
+  status = task_for_pid(mach_task_self (), CURRENT_PROCESS_PID, &task);
+  if (KERN_SUCCESS == status) {
+	  mach_vm_address_t address = (mach_vm_address_t)addr;
+	  mach_vm_size_t size;
+	  vm_region_flavor_t flavor = VM_REGION_BASIC_INFO_64;
+	  vm_region_basic_info_data_64_t info = {0};
+	  mach_msg_type_number_t info_count = VM_REGION_BASIC_INFO_COUNT_64;
+	  mach_port_t object_name;
+	  status = mach_vm_region(task, &address, &size, flavor, (vm_region_info_t)&info, &info_count, &object_name);
+	  if (KERN_SUCCESS == status) {
+		  uint8_t p = 0;
+		  char perm_strs[8][4] = {"", "r", "w", "rw", "x", "rx", "wx", "rwx"};
+		  if (info.protection & VM_PROT_READ)
+			  p |= 1;
+		  if (info.protection & VM_PROT_WRITE)
+			  p |= 2;
+		  if (info.protection & VM_PROT_EXECUTE)
+			  p |= 4;
+		  if (p > 0 && p < 8) {
+			  sprintf(out_buff,
+				   "start:%" PRIx64 ";size:%" PRIx64 ";permissions:%s;", address,
+				   size, &perm_strs[p][0]);
+			  ret = true;
+		  }
+	  }
+  }
   return ret;
 }
 
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
   long ret = -1;
   return ret;
+}
+
+int osx_read_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+		 size_t *read_size) {
+	int ret = RET_ERR;
+	return ret;
+}
+int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
+		  size_t size) {
+	int ret = RET_ERR;
+	return ret;
 }
