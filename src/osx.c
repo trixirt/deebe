@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 Juniper Networks, Inc.
+ * Copyright (c) 2013-2016 Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -39,6 +39,8 @@
 #include "os.h"
 #include "gdb_interface.h"
 #include "target.h"
+#include "util.h"
+#include "macros.h"
 
 void osx_report_kernel_error(FILE *fp, kern_return_t kret) {
   switch (kret) {
@@ -59,68 +61,43 @@ void osx_report_kernel_error(FILE *fp, kern_return_t kret) {
 
 int osx_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
                        size_t buf_size, size_t *read_size) {
-  /*
-   * XXX
-   * Assumes single threaded
-   */
   int ret = RET_ERR;
-#if 0
-	task_t task = 0;
-	kern_return_t kret;
-
-	kret = task_for_pid(mach_task_self(), tstate.cpid, &task);
-	if (KERN_SUCCESS == kret) {
-		thread_act_array_t threads;
-		mach_msg_type_number_t cnt;
-		kret = task_threads(task, &threads, &cnt);
-		if (KERN_SUCCESS == kret) {
-			if (0 == cnt) {
-				fprintf(stderr, "Error number of threads is 0 for pid %d\n", tstate.cpid);
-			} else {
-				if (1 < cnt) {
-					fprintf(stderr, "Warning number of threads is %d for pid %d\n", cnt, tstate.cpid);
-					fprintf(stderr, "ONLY USING THE FIRST THREAD\n");
-				}
-				if (osx_arch_read_registers(threads[0])) {
-					size_t transfer_size = _target.reg_size;
-					if (transfer_size > buf_size) {
-						transfer_size = buf_size;
-						fprintf(stderr, "Warning expecting transfer buffer to be at least %zu but got %zu\n",
-							_target.reg_size, buf_size);
-					}
-					memcpy(data, _target.reg,
-					       transfer_size);
-					memset(avail, 0xff, transfer_size);
-					*read_size = transfer_size;
-					ret = RET_OK;
-				} else {
-					/* Failure */
-					fprintf(stderr,
-						"Error in arch functions\n");
-				}
-			}
-		} else {
-			fprintf(stderr,
-				"Error getting the osx threads pid %d reason :",
-				tstate.cpid);
-			osx_report_kernel_error(stderr, kret);
-			fprintf(stderr, "\n");
-		}
-	} else {
-		fprintf(stderr,
-			"Error getting the osx task for pid %d reason :",
-			tstate.cpid);
-		osx_report_kernel_error(stderr, kret);
-		fprintf(stderr, "\n");
-	}
-#endif
+  if (osx_arch_read_registers(tid)) {
+    size_t transfer_size = _target.reg_size;
+    if (transfer_size > buf_size) {
+      transfer_size = buf_size;
+      DBG_PRINT("Warning expecting transfer buffer to be at least %zu but got %zu\n",
+	      _target.reg_size, buf_size);
+    }
+    memcpy(data, _target.reg, transfer_size);
+    memset(avail, 0xff, transfer_size);
+    *read_size = transfer_size;
+    ret = RET_OK;
+  } else {
+    /* Failure */
+    DBG_PRINT("Error in arch functions\n");
+  }
   return ret;
 }
 
 int osx_read_single_register(pid_t tid, unsigned int gdb, uint8_t *data,
                              uint8_t *avail, size_t buf_size,
                              size_t *read_size) {
-  return RET_NOSUPP;
+	int ret = RET_ERR;
+	int c = 0;
+	if (target_is_gdb_reg(gdb, &c, &grll[0])) {
+		if (osx_arch_read_registers(tid)) {
+			if (grll[c].off < _target.reg_size) {
+				size_t s = 0;
+				/* Success */
+				memcpy(data + s, _target.reg + grll[c].off, grll[c].size);
+				memset(avail + s, 0xff, grll[c].size);
+				*read_size = s + grll[c].size;
+				ret = RET_OK;
+			}
+		}
+	}
+	return ret;
 }
 int osx_write_registers(pid_t tid, uint8_t *data, size_t size) {
   return RET_NOSUPP;
@@ -156,7 +133,31 @@ bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig) {
   return ret;
 }
 
-void ptrace_os_option_set_thread(pid_t pid) {}
+void ptrace_os_option_set_thread(pid_t pid) {
+  kern_return_t status;
+  if (PROCESS_TID(0) == PROCESS_PID(0)) {
+    task_t task;
+    status = task_for_pid(mach_task_self (), pid, &task);
+    if (KERN_SUCCESS == status) {
+      thread_array_t threads;
+      mach_msg_type_number_t num_threads;
+      status = task_threads(task, &threads, &num_threads);
+      if (KERN_SUCCESS == status) {
+	if (num_threads > 0) {
+	  PROCESS_TID(0) = threads[0];
+	} else {
+	  DBG_PRINT("ERROR : %s : unexpected number of threads %d\n", __func__, num_threads);
+	}
+      } else {
+	DBG_PRINT("ERROR : %s : failed to get thread info for pid %x : %d\n", __func__, pid, status);
+      }
+    } else {
+      DBG_PRINT("ERROR : %s : failed to get osx task from pid %x : %d\n", __func__, pid, status);
+    }
+  } else {
+    DBG_PRINT("ERROR : %s : called when pid != tid\n", __func__);
+  }
+}
 
 /*
  *

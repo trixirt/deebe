@@ -165,4 +165,6 @@ extern struct reg_location_list frll[];
 /* Extended */
 extern struct reg_location_list fxrll[];
 
+bool target_is_gdb_reg(int gdb, int *g_index, struct reg_location_list *rl);
+
 #endif

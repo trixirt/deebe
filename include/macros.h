@@ -55,6 +55,8 @@
 #define PRINTABLE(c)                                                           \
   (((c) >= (__typeof__(c))0x20 && (c) < (__typeof__(c))127) ? (c) : '.')
 
+#define GUARD_RLL(r) (((r).off == 0) && ((r).size == 0) && ((r).gdb == 0))
+
 /* Size of data buffer  */
 #define GDB_INTERFACE_PARAM_DATABYTES_MAX (0x20000)
 /* Size of input and out buffers */
