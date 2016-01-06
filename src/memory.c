@@ -35,3 +35,201 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
+#include <sys/types.h>
+#include <stdint.h>
+#include "breakpoint.h"
+#include "dptrace.h"
+#include "os.h"
+
+static bool _read_mem_verbose = false;
+static bool _write_mem_verbose = false;
+
+/*
+ * read mem is used by breakpoint creation
+ * So break out the reading parts from the
+ * public interface
+ */
+int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+		size_t *read_size, bool breakpoint_check) {
+  size_t kbuf_size = 0;
+  size_t tran_size = sizeof(ptrace_return_t);
+  size_t mask = tran_size - 1;
+  size_t leading = 0;
+  size_t trailing = 0;
+  ptrace_return_t *a = NULL;
+  int ret = RET_ERR;
+  /* Linux kernel uses unsigned long's internally */
+  /* This cast may need to be cleaned up */
+  unsigned long kb_addr = (unsigned long)addr;
+  unsigned long ke_addr = kb_addr + size;
+  /* align */
+  leading = kb_addr & mask;
+  kb_addr -= leading;
+  trailing = ke_addr & mask;
+  if (trailing) {
+    ke_addr += tran_size - trailing;
+  }
+  kbuf_size = (ke_addr - kb_addr) / tran_size;
+  a = (ptrace_return_t *)malloc(kbuf_size * tran_size);
+  if (a) {
+    size_t i;
+    for (i = 0; i < kbuf_size; i++) {
+      void *l = (void *)(kb_addr + i * tran_size);
+      errno = 0;
+      a[i] = ptrace(PT_READ_D, tid, l, 0);
+      if (errno) {
+        if (_read_mem_verbose) {
+          DBG_PRINT("Error with failed to read %p\n", l);
+          DBG_PRINT("leading %zu trailing %zu\n", leading, trailing);
+        }
+        break;
+      }
+    }
+    if (i == kbuf_size) {
+      /* Success */
+      uint8_t *b = (uint8_t *)a;
+      b += leading;
+      memcpy(data, b, size);
+      if (NULL != read_size)
+        *read_size = size;
+      /*
+       * If a read memory region overlaps an existing breakpoint,
+       * The contents of the data buffer contain the breakpoint
+       * and not the original memory.  To recover this memory
+       * run the data buffer through the breakpoint memory
+       * adjuster.
+       */
+      if (breakpoint_check) {
+        breakpoint_adjust_read_buffer(_target.bpl, _read_mem_verbose,
+                                      kb_addr + leading, size, data);
+      }
+      ret = RET_OK;
+    } else {
+      /* Failure */
+      if (_read_mem_verbose) {
+        DBG_PRINT("ERROR only read %zu of %zu\n", i, kbuf_size);
+      }
+    }
+    free(a);
+    a = NULL;
+  } else {
+    /* Failure */
+    if (_read_mem_verbose) {
+      DBG_PRINT("ERROR Allocating buffer for memory read of size %zu\n",
+                kbuf_size * tran_size);
+    }
+  }
+  return ret;
+}
+
+int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
+                    size_t *read_size) {
+  int ret;
+  ret = memory_read(tid, addr, data, size, read_size,
+		    true /*breakpoint check*/);
+  return ret;
+}
+
+int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
+			size_t size, bool breakpoint_check) {
+  size_t kbuf_size = 0;
+  size_t tran_size = sizeof(ptrace_return_t);
+  size_t mask = tran_size - 1;
+  size_t leading = 0;
+  size_t trailing = 0;
+  ptrace_return_t *a = NULL;
+  int ret = RET_ERR;
+  /* Linux kernel uses unsigned long's internally */
+  /* This cast may need to be cleaned up */
+  unsigned long kb_addr = (unsigned long)addr;
+  unsigned long ke_addr = kb_addr + size;
+  /* align */
+  leading = kb_addr & mask;
+  kb_addr -= leading;
+  trailing = ke_addr & mask;
+  if (trailing)
+    ke_addr += tran_size - trailing;
+  kbuf_size = (ke_addr - kb_addr) / tran_size;
+  a = (ptrace_return_t *)malloc(kbuf_size * tran_size);
+  if (a) {
+    int err = 0;
+    size_t i = 0;
+    void *l = NULL;
+    /*
+     * If there is leading or trailing data, the
+     * buffer is a mix of what is already there
+     * and what is being written now.
+     * Fetch just the leading and trailing data
+     */
+    if (leading) {
+      i = 0;
+      l = (void *)(kb_addr + i * tran_size);
+      errno = 0;
+      a[i] = ptrace(PT_READ_D, tid, l, 0);
+      if (errno) {
+        if (_write_mem_verbose) {
+          DBG_PRINT("Error with reading data at %p\n", l);
+        }
+        err = 1;
+      }
+    }
+    if (trailing && !err) {
+      i = kbuf_size - 1;
+      /* No double tap */
+      if (i || !leading) {
+        l = (void *)(kb_addr + i * tran_size);
+        errno = 0;
+        a[i] = ptrace(PT_READ_D, tid, l, 0);
+        if (errno) {
+          if (_write_mem_verbose) {
+            DBG_PRINT("Error with reading data at %p\n", l);
+          }
+          err = 1;
+        }
+      }
+    }
+    /* Copy the user data */
+    if (!err) {
+      uint8_t *b = (uint8_t *)&a[0];
+      b += leading;
+      memcpy(b, data, size);
+      /*
+       * If a write memory region overlaps an existing breakpoint,
+       * The breakpoint needs to update is memory location
+       * and the code for the breakpoint insn should not change.
+       */
+      if (breakpoint_check) {
+        breakpoint_adjust_write_buffer(_target.bpl, _read_mem_verbose,
+                                       kb_addr + leading, size, data);
+      }
+      for (i = 0; i < kbuf_size; i++) {
+        void *l = (void *)(kb_addr + i * tran_size);
+        if (0 != ptrace(PT_WRITE_D, tid, l, a[i])) {
+          if (_write_mem_verbose) {
+            DBG_PRINT("Error with write data at %p\n", l);
+          }
+          break;
+        }
+      }
+      if (i == kbuf_size) {
+        /* Success */
+        ret = RET_OK;
+      } else {
+        /* Failure */
+        ;
+      }
+    }
+    free(a);
+    a = NULL;
+  } else {
+    /* Failure */
+    ;
+  }
+  return ret;
+}
+
+int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size) {
+  int ret;
+  ret = memory_write(tid, addr, data, size, true /* breakpoint check */);
+  return ret;
+}

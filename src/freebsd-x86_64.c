@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Juniper Networks, Inc.
+ * Copyright (c) 2013-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -37,6 +37,7 @@
 #include "os.h"
 #include "global.h"
 #include "gdb-x86_64.h"
+#include "memory.h"
 
 #define DEEBE_REG_STRUCT reg
 #include "regmacros.h"
@@ -188,8 +189,6 @@ void ptrace_arch_option_set_syscall(pid_t pid) {
 
 bool ptrace_arch_check_syscall(pid_t pid, int *in_out_sig) { return false; }
 
-extern int _ptrace_read_mem(uint64_t addr, uint8_t *data, size_t size,
-                            size_t *read_size, bool breakpoint_check);
 void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
                              void *arg3, void *arg4, void *ret) {
   _read_greg(tid);
@@ -197,10 +196,10 @@ void ptrace_arch_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
   int size = sizeof(unsigned long);
   memcpy(&sp, _target.reg + offsetof(struct reg, r_rsp), size);
   memcpy(id, _target.reg + offsetof(struct reg, r_rax), size);
-  _ptrace_read_mem(sp + (1 * size), arg1, size, NULL, false);
-  _ptrace_read_mem(sp + (2 * size), arg2, size, NULL, false);
-  _ptrace_read_mem(sp + (3 * size), arg3, size, NULL, false);
-  _ptrace_read_mem(sp + (4 * size), arg4, size, NULL, false);
+  memory_read(tid, sp + (1 * size), arg1, size, NULL, false);
+  memory_read(tid, sp + (2 * size), arg2, size, NULL, false);
+  memory_read(tid, sp + (3 * size), arg3, size, NULL, false);
+  memory_read(tid, sp + (4 * size), arg4, size, NULL, false);
   memcpy(ret, _target.reg + offsetof(struct reg, r_rax), size);
 }
 

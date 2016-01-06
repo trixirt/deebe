@@ -138,8 +138,6 @@ extern int ptrace_open(/*@unused@*/ int argc, /*@unused@*/ char *argv[],
 extern void ptrace_option_set_syscall();
 extern int ptrace_get_signal(void);
 extern int ptrace_raw_query(char *in_buf, char *out_buf, size_t out_buf_size);
-extern int ptrace_read_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
-                           size_t *read_size);
 extern int ptrace_read_registers(pid_t tid, uint8_t *data, uint8_t *avail,
                                  size_t buf_size, size_t *read_size);
 extern int ptrace_read_single_register(pid_t tid, unsigned int gdb,
@@ -158,8 +156,6 @@ extern void ptrace_threadinfo_query(int first, char *out_buf);
 extern int ptrace_wait(char *status_string, int step,
                        bool skip_continue_others);
 extern void ptrace_quick_signal(pid_t pid, pid_t tid, int sig);
-extern int ptrace_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
-                            size_t size);
 extern int ptrace_write_registers(pid_t tid, uint8_t *data, size_t size);
 extern int ptrace_write_single_register(pid_t tid, unsigned int gdb,
                                         uint8_t *data, size_t size);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -38,6 +38,7 @@
 #include "config.h"
 #include "dptrace.h"
 #include "gdb_interface.h"
+#include "memory.h"
 #include "target.h"
 
 /* Table of commands */
@@ -143,8 +144,8 @@ gdb_target ptrace_target = {
     .write_registers = ptrace_write_registers,
     .read_single_register = ptrace_read_single_register,
     .write_single_register = ptrace_write_single_register,
-    .read_mem = ptrace_read_mem,
-    .write_mem = ptrace_write_mem,
+    .read_mem = memory_read_gdb,
+    .write_mem = memory_write_gdb,
     .resume_from_current = ptrace_resume_from_current,
     .resume_from_addr = ptrace_resume_from_addr,
     .go_waiting = ptrace_go_waiting,

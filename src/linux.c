@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -458,7 +458,7 @@ void ptrace_os_stopped_single(char *str, bool debug) {
         if (pc) {
           uint8_t b[32] = {0};
           size_t read_size = 0;
-          ptrace_read_mem(tid, pc, &b[0], 32, &read_size);
+          memory_read_gdb(tid, pc, &b[0], 32, &read_size);
           util_print_buffer(fp_log, 0, 32, &b[0]);
         }
       }
