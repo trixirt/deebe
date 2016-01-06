@@ -221,3 +221,18 @@ int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
 	int ret = RET_ERR;
 	return ret;
 }
+
+void memory_os_request_size(size_t *size)
+{
+    *size = 1;
+}
+
+bool memory_os_read(pid_t tid, void *addr, void *val) {
+    bool ret = false;
+    return ret;
+}
+
+bool memory_os_write(pid_t tid, void *addr, void *val) {
+    bool ret = false;
+    return ret;
+}

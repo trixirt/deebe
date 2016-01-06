@@ -42,5 +42,7 @@ int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 		 size_t size, bool breakpoint_check);
 int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
-
+void memory_os_request_size(size_t *size);
+bool memory_os_read(pid_t tid, void *addr, void *val);
+bool memory_os_write(pid_t tid, void *addr, void *val);
 #endif /* DEEBE_MEMORY_H */

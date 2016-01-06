@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include "breakpoint.h"
 #include "dptrace.h"
+#include "memory.h"
 #include "os.h"
 
 static bool _read_mem_verbose = false;
@@ -52,16 +53,18 @@ static bool _write_mem_verbose = false;
 int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 		size_t *read_size, bool breakpoint_check) {
   size_t kbuf_size = 0;
-  size_t tran_size = sizeof(ptrace_return_t);
-  size_t mask = tran_size - 1;
+  size_t tran_size, mask;
   size_t leading = 0;
   size_t trailing = 0;
-  ptrace_return_t *a = NULL;
+  uint8_t *a = NULL;
   int ret = RET_ERR;
   /* Linux kernel uses unsigned long's internally */
   /* This cast may need to be cleaned up */
   unsigned long kb_addr = (unsigned long)addr;
   unsigned long ke_addr = kb_addr + size;
+  /* Find transaction size, assume power of 2 */
+  memory_os_request_size(&tran_size);
+  mask = tran_size - 1;
   /* align */
   leading = kb_addr & mask;
   kb_addr -= leading;
@@ -70,19 +73,18 @@ int memory_read(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
     ke_addr += tran_size - trailing;
   }
   kbuf_size = (ke_addr - kb_addr) / tran_size;
-  a = (ptrace_return_t *)malloc(kbuf_size * tran_size);
+  a = malloc(kbuf_size * tran_size);
+  memset(a, 0xaa, kbuf_size * tran_size);
   if (a) {
     size_t i;
     for (i = 0; i < kbuf_size; i++) {
       void *l = (void *)(kb_addr + i * tran_size);
-      errno = 0;
-      a[i] = ptrace(PT_READ_D, tid, l, 0);
-      if (errno) {
-        if (_read_mem_verbose) {
-          DBG_PRINT("Error with failed to read %p\n", l);
-          DBG_PRINT("leading %zu trailing %zu\n", leading, trailing);
-        }
-        break;
+      if (! memory_os_read(tid, l, &a[i * tran_size])) {
+	  if (_read_mem_verbose) {
+	      DBG_PRINT("Error with failed to read %p\n", l);
+	      DBG_PRINT("leading %zu trailing %zu\n", leading, trailing);
+	  }
+	  break;
       }
     }
     if (i == kbuf_size) {
@@ -133,16 +135,18 @@ int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
 int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 			size_t size, bool breakpoint_check) {
   size_t kbuf_size = 0;
-  size_t tran_size = sizeof(ptrace_return_t);
-  size_t mask = tran_size - 1;
+  size_t tran_size, mask;
   size_t leading = 0;
   size_t trailing = 0;
-  ptrace_return_t *a = NULL;
+  uint8_t *a = NULL;
   int ret = RET_ERR;
   /* Linux kernel uses unsigned long's internally */
   /* This cast may need to be cleaned up */
   unsigned long kb_addr = (unsigned long)addr;
   unsigned long ke_addr = kb_addr + size;
+  /* Find transaction size, assume power of 2 */
+  memory_os_request_size(&tran_size);
+  mask = tran_size - 1;
   /* align */
   leading = kb_addr & mask;
   kb_addr -= leading;
@@ -150,7 +154,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
   if (trailing)
     ke_addr += tran_size - trailing;
   kbuf_size = (ke_addr - kb_addr) / tran_size;
-  a = (ptrace_return_t *)malloc(kbuf_size * tran_size);
+  a = malloc(kbuf_size * tran_size);
   if (a) {
     int err = 0;
     size_t i = 0;
@@ -164,9 +168,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
     if (leading) {
       i = 0;
       l = (void *)(kb_addr + i * tran_size);
-      errno = 0;
-      a[i] = ptrace(PT_READ_D, tid, l, 0);
-      if (errno) {
+      if (! memory_os_read(tid, l, &a[i * tran_size])) {
         if (_write_mem_verbose) {
           DBG_PRINT("Error with reading data at %p\n", l);
         }
@@ -178,9 +180,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
       /* No double tap */
       if (i || !leading) {
         l = (void *)(kb_addr + i * tran_size);
-        errno = 0;
-        a[i] = ptrace(PT_READ_D, tid, l, 0);
-        if (errno) {
+	if (! memory_os_read(tid, l, &a[i * tran_size])) {
           if (_write_mem_verbose) {
             DBG_PRINT("Error with reading data at %p\n", l);
           }
@@ -204,7 +204,7 @@ int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
       }
       for (i = 0; i < kbuf_size; i++) {
         void *l = (void *)(kb_addr + i * tran_size);
-        if (0 != ptrace(PT_WRITE_D, tid, l, a[i])) {
+        if (!memory_os_write(tid, l, &a[i * tran_size])) {
           if (_write_mem_verbose) {
             DBG_PRINT("Error with write data at %p\n", l);
           }

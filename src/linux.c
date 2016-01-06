@@ -624,3 +624,26 @@ bool ptrace_os_read_auxv(char *out_buf, size_t out_buf_size, size_t offset,
   }
   return ret;
 }
+
+void memory_os_request_size(size_t *size)
+{
+    *size = sizeof(ptrace_return_t);
+}
+
+bool memory_os_read(pid_t tid, void *addr, void *val) {
+    bool ret = false;
+    ptrace_return_t *pt_val = (ptrace_return_t *) val;
+    errno = 0;
+    *pt_val = ptrace(PT_READ_D, tid, addr, 0);
+    if (errno == 0)
+	ret = true;
+    return ret;
+}
+
+bool memory_os_write(pid_t tid, void *addr, void *val) {
+    bool ret = false;
+    ptrace_return_t *pt_val = (ptrace_return_t *) val;
+    if (0 == ptrace(PT_WRITE_D, tid, addr, *pt_val))
+	ret = true;
+    return ret;
+}
