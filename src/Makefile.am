@@ -7,6 +7,7 @@ deebe_SOURCES = \
 	cmdline.c \
 	gdb_interface.c \
 	lldb_interface.c \
+	memory.c \
 	main.c \
 	network.c \
 	ptrace.c \
