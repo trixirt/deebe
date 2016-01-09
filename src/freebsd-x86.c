@@ -181,10 +181,7 @@ void ptrace_arch_option_set_thread(pid_t pid) {
 bool ptrace_arch_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
   return ptrace_os_check_new_thread(pid, status, out_pid);
 }
-bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
-                                    size_t out_buf_size) {
-  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
-}
+
 bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                            size_t *size) {
   return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);

@@ -545,8 +545,8 @@ long ptrace_linux_getset(long request, pid_t pid, void *addr, void *data) {
  * Only trick bit is the permissions field, its a permutation of rwx
  * Assuming if there is no permissions, then shouldn't report the region.
  */
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
-                                  size_t out_buff_size) {
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
+			       size_t out_buff_size) {
   bool ret = false;
   FILE *fp = NULL;
   pid_t pid = CURRENT_PROCESS_PID;

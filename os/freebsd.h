@@ -63,8 +63,8 @@ int os_thread_kill(int tid, int sig);
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig);
 int ptrace_os_gen_thread(pid_t pid, pid_t tid);
 void ptrace_os_stopped_single(char *str, bool debug);
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
-                                  size_t out_buf_size);
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
+			       size_t out_buf_size);
 bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                          size_t *size);
 #endif

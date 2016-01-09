@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -653,8 +653,8 @@ void ptrace_os_stopped_single(char *str, bool debug) {
  * start:<mem start>;size:<siz>;permissions:rx;
  *
  */
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
-                                  size_t out_buff_size) {
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
+			       size_t out_buff_size) {
   bool ret = false;
   pid_t pid = CURRENT_PROCESS_PID;
   struct kinfo_vmentry *ptr;

@@ -41,8 +41,12 @@ int memory_read_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
                     size_t *read_size);
 int memory_write(pid_t tid, uint64_t addr, uint8_t *data,
 		 size_t size, bool breakpoint_check);
+bool memory_region_info_gdb(uint64_t addr, char *out_buff, size_t out_buf_size);
+
 int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size);
 void memory_os_request_size(size_t *size);
 bool memory_os_read(pid_t tid, void *addr, void *val);
 bool memory_os_write(pid_t tid, void *addr, void *val);
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff, size_t out_buf_size);
+
 #endif /* DEEBE_MEMORY_H */

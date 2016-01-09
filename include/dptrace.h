@@ -165,8 +165,6 @@ extern void ptrace_get_syscall(pid_t tid, void *id, void *arg1, void *arg2,
 extern const char *ptrace_get_xml_register_string();
 extern void ptrace_set_xml_register_reporting();
 extern bool ptrace_register_info(uint32_t reg, char *out_buff);
-extern bool ptrace_memory_region_info(uint64_t addr, char *out_buff,
-                                      size_t out_buf_size);
 extern bool ptrace_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                              size_t *size);
 extern int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id);

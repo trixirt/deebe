@@ -234,3 +234,8 @@ int memory_write_gdb(pid_t tid, uint64_t addr, uint8_t *data, size_t size) {
   ret = memory_write(tid, addr, data, size, true /* breakpoint check */);
   return ret;
 }
+
+bool memory_region_info_gdb(uint64_t addr, char *out_buff,
+			    size_t out_buf_size) {
+	return memory_os_region_info_gdb(addr, out_buff, out_buf_size);
+}

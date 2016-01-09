@@ -122,7 +122,7 @@ gdb_target osx_target = {
     .get_xml_register_string = ptrace_get_xml_register_string,
     .set_xml_register_reporting = ptrace_set_xml_register_reporting,
     .register_info = ptrace_register_info,
-    .memory_region_info = ptrace_memory_region_info,
+    .memory_region_info = memory_region_info_gdb,
 };
 
 void target_init(struct gdb_target_s **target) { *target = &osx_target; }

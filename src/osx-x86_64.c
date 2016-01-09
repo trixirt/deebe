@@ -166,10 +166,6 @@ const char *ptrace_arch_get_xml_register_string() {
   return str;
 }
 
-bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
-                                    size_t out_buf_size) {
-  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
-}
 void ptrace_arch_option_set_thread(pid_t pid) {
   ptrace_os_option_set_thread(pid);
 }

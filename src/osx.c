@@ -171,8 +171,8 @@ void ptrace_os_option_set_thread(pid_t pid) {
  * start:<mem start>;size:<siz>;permissions:rx;
  *
  */
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
-                                  size_t out_buff_size) {
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
+			       size_t out_buff_size) {
   bool ret = false;
 
   task_t task;

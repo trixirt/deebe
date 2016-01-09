@@ -76,8 +76,8 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid);
 bool ptrace_os_new_thread(pid_t tid, int status);
 void ptrace_os_stopped_single(char *str, bool debug);
 void ptrace_os_wait(pid_t tid);
-bool ptrace_os_memory_region_info(uint64_t addr, char *out_buff,
-                                  size_t out_buf_size);
+bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
+			       size_t out_buf_size);
 
 /* OSX ptrace returns int */
 #define ptrace_return_t int

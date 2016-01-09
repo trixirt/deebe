@@ -547,10 +547,6 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc) {
   return ret;
 }
 
-bool ptrace_arch_memory_region_info(uint64_t addr, char *out_buff,
-                                    size_t out_buf_size) {
-  return ptrace_os_memory_region_info(addr, out_buff, out_buf_size);
-}
 bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                            size_t *size) {
   return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
