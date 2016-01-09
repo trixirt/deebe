@@ -494,13 +494,16 @@ bool lldb_handle_binary_read_command(char *const in_buf, char *out_buf,
         char *scratch_buf = out_buf + (out_buf_len / 2);
         /* Since we are not going to handle the error at least clear memory */
         memset(scratch_buf, 0, size);
-        target->read_mem(CURRENT_PROCESS_TID, addr, (uint8_t *)scratch_buf,
-                         size, &len);
-        /* ignore len, ignore ret, go ahead and escap */
-        len = util_escape_binary((uint8_t *)out_buf, (uint8_t *)scratch_buf,
-                                 size);
-        network_put_dbg_packet(out_buf, len);
-        *binary_cmd = true;
+        if (RET_OK == target->read_mem(CURRENT_PROCESS_TID, addr, (uint8_t *)scratch_buf,
+				       size, &len)) {
+		/* ignore len, ignore ret, go ahead and escap */
+		len = util_escape_binary((uint8_t *)out_buf, (uint8_t *)scratch_buf,
+					 size);
+		network_put_dbg_packet(out_buf, len);
+		*binary_cmd = true;
+	} else {
+		gdb_interface_write_retval(RET_ERR, out_buf);
+	}
       }
     }
   }
