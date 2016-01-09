@@ -211,10 +211,26 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
   return ret;
 }
 
-int osx_read_mem(pid_t tid, uint64_t addr, uint8_t *data, size_t size,
-		 size_t *read_size) {
-	int ret = RET_ERR;
-	return ret;
+bool memory_os_read(pid_t tid, void *addr, void *dst) {
+	bool ret = false;
+
+  task_t task;
+  kern_return_t status;
+
+  status = task_for_pid(mach_task_self (), CURRENT_PROCESS_PID, &task);
+  if (KERN_SUCCESS == status) {
+    mach_vm_address_t address = (mach_vm_address_t)addr;
+    mach_vm_size_t num_read = 0;
+    status = mach_vm_read_overwrite(task, address, 1, (mach_vm_address_t)dst, &num_read);
+    if ((KERN_SUCCESS == status) && (1 == num_read)) {
+	    ret = true;
+      } else {
+	    DBG_PRINT("ERROR : %s read failed status %d num_read %d\n", __func__, status, num_read);
+      }
+  } else {
+    DBG_PRINT("ERROR : %s getting task failed status %d\n", __func__, status);
+  }
+  return ret;
 }
 int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
 		  size_t size) {
@@ -225,11 +241,6 @@ int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
 void memory_os_request_size(size_t *size)
 {
     *size = 1;
-}
-
-bool memory_os_read(pid_t tid, void *addr, void *val) {
-    bool ret = false;
-    return ret;
 }
 
 bool memory_os_write(pid_t tid, void *addr, void *val) {
