@@ -38,6 +38,8 @@
 #include <mach/task.h>
 #include <mach/mach_vm.h>
 #include <mach/vm_region.h>
+#include <sys/types.h>
+#include <sys/ptrace.h>
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -208,6 +210,11 @@ bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
 
 long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
   long ret = -1;
+  long request = PT_CONTINUE;
+  if (step == 1)
+	  request = PT_STEP;
+
+  ret = ptrace(request, CURRENT_PROCESS_PID, (caddr_t)1, sig);
   return ret;
 }
 
@@ -232,10 +239,26 @@ bool memory_os_read(pid_t tid, void *addr, void *dst) {
   }
   return ret;
 }
-int osx_write_mem(pid_t tid, uint64_t addr, uint8_t *data,
-		  size_t size) {
-	int ret = RET_ERR;
-	return ret;
+
+bool memory_os_write(pid_t tid, void *addr, void *src) {
+    bool ret = false;
+
+  task_t task;
+  kern_return_t status;
+
+  status = task_for_pid(mach_task_self (), CURRENT_PROCESS_PID, &task);
+  if (KERN_SUCCESS == status) {
+    mach_vm_address_t address = (mach_vm_address_t)addr;
+    status = mach_vm_write(task, address, (vm_offset_t)src, 1);
+    if (KERN_SUCCESS == status) {
+	    ret = true;
+      } else {
+	    DBG_PRINT("ERROR : %s write failed status %d \n", __func__, status);
+      }
+  } else {
+    DBG_PRINT("ERROR : %s getting task failed status %d\n", __func__, status);
+  }
+    return ret;
 }
 
 void memory_os_request_size(size_t *size)
@@ -243,7 +266,4 @@ void memory_os_request_size(size_t *size)
     *size = 1;
 }
 
-bool memory_os_write(pid_t tid, void *addr, void *val) {
-    bool ret = false;
-    return ret;
-}
+
