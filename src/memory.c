@@ -40,6 +40,7 @@
 #include "breakpoint.h"
 #include "dptrace.h"
 #include "memory.h"
+#include "macros.h"
 #include "os.h"
 
 static bool _read_mem_verbose = false;

@@ -35,6 +35,8 @@
 #ifndef DEEBE_MACROS_H
 #define DEEBE_MACROS_H
 
+#include "util.h"
+
 /* FreeBSD's assert throws warnings, rewrite here */
 #define ASSERT(e)                                                              \
   ((e) ? (void)0 : fprintf(stderr, "Assertion failed at %s %s %d : %s\n",      \
@@ -93,5 +95,17 @@
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 64
 #endif
+
+/* Return values of gdb interface functions */
+/* Success */
+#define RET_OK (0)
+/* Error */
+#define RET_ERR (1)
+ /* Operation is not supported */
+#define RET_NOSUPP (2)
+/* Repeat the last operation */
+#define RET_IGNORE (3)
+/* No body waiting.. skip resume and go back to waiting */
+#define RET_CONTINUE_WAIT (4)
 
 #endif

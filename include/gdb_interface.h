@@ -320,14 +320,6 @@ struct gdb_target_s {
                     size_t *size);
 };
 
-/* Return values of target functions */
-#define RET_OK (0)     /* Success */
-#define RET_ERR (1)    /* Error */
-#define RET_NOSUPP (2) /* Operation is not supported */
-#define RET_IGNORE (3) /* Repeat the last operation */
-#define RET_CONTINUE_WAIT                                                      \
-  (4) /* No body waiting.. skip resume and go back to waiting */
-
 /* Bits of process_query mask */
 #define RP_BIT_PROCQMASK_THREADID (1)
 #define RP_BIT_PROCQMASK_EXISTS (2)

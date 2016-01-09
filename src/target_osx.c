@@ -34,6 +34,7 @@
  */
 #include "global.h"
 #include "dptrace.h"
+#include "memory.h"
 #include "os.h"
 
 int osx_threadextrainfo_query(int64_t thread_id, char *out_buf) {
