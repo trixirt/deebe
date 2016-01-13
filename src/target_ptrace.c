@@ -40,6 +40,7 @@
 #include "gdb_interface.h"
 #include "memory.h"
 #include "target.h"
+#include "macros.h"
 
 /* Table of commands */
 static const RCMD_TABLE ptrace_remote_commands[] = {
