@@ -1631,30 +1631,21 @@ void ptrace_threadinfo_query(int first, char *out_buf) {
   static int n;
   pid_t t;
 
-  if (_target.lldb) {
-    if (first)
-      n = 0;
-    else
-      n++;
+  if (first)
+    n = 0;
+  else
+    n++;
 
+  if (_target.lldb) {
     if (n < _target.number_processes) {
       t = PROCESS_TID(n);
       sprintf(out_buf, "m%x", t);
     } else {
       sprintf(out_buf, "l");
     }
-
   } else {
     pid_t p = PROCESS_PID(0);
-
-    if (first)
-      n = -1;
-    else
-      n++;
-
-    if (n == -1) {
-      sprintf(out_buf, "mp%x.-1", p);
-    } else if (n < _target.number_processes) {
+    if (n < _target.number_processes) {
       t = PROCESS_TID(n);
       sprintf(out_buf, "mp%x.%x", p, t);
     } else {
