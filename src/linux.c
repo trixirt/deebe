@@ -35,9 +35,13 @@
 #include <unistd.h>
 #include <sys/ptrace.h>
 #include <linux/ptrace.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "global.h"
 #include "dptrace.h"
 #include "breakpoint.h"
+#include "memory.h"
 #include "../os/linux.h"
 
 void ptrace_os_read_fxreg(pid_t tid) {
@@ -646,4 +650,12 @@ bool memory_os_write(pid_t tid, void *addr, void *val) {
     if (0 == ptrace(PT_WRITE_D, tid, addr, *pt_val))
 	ret = true;
     return ret;
+}
+
+int elf_os_image(pid_t pid) {
+  int ret;
+  char n[256];
+  snprintf(n, 256, "/proc/%u/exe", pid);
+  ret = open(n, O_RDONLY);
+  return ret;
 }
