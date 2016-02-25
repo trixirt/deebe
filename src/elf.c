@@ -182,6 +182,15 @@ static void elf_munmap(int fd, void *mm) {
   }
 }
 
+static char *elf_shstring_table32(void *mm) {
+  elf_file_header *efh = (elf_file_header *)mm;
+  size_t shoff = efh->u.e32.e_shoff;
+  size_t shstrndx = efh->u.e32.e_shstrndx;
+  size_t shentsize = efh->u.e32.e_shentsize;
+  elf_section_header *esh = (elf_section_header *) (mm + shoff + (shstrndx * shentsize));
+  return (mm + esh->u.e32.sh_offset);
+}
+
 static char *elf_shstring_table64(void *mm) {
   elf_file_header *efh = (elf_file_header *)mm;
   size_t shoff = efh->u.e64.e_shoff;
@@ -189,6 +198,27 @@ static char *elf_shstring_table64(void *mm) {
   size_t shentsize = efh->u.e64.e_shentsize;
   elf_section_header *esh = (elf_section_header *) (mm + shoff + (shstrndx * shentsize));
   return (mm + esh->u.e64.sh_offset);
+}
+
+static elf_section_header *elf_find_section32(void *mm, char *name)
+{
+  elf_file_header *efh = (elf_file_header *)mm;
+  char *string_table = elf_shstring_table32(mm);
+  size_t shoff = efh->u.e32.e_shoff;
+  size_t shnum = efh->u.e32.e_shnum;
+  size_t shentsize = efh->u.e32.e_shentsize;
+  size_t idx;
+  for (idx = 0; idx < shnum; idx++) {
+    size_t offset = shoff + (idx * shentsize);
+    elf_section_header *esh = (elf_section_header *) (mm + offset);
+    size_t str_off = esh->u.e32.sh_name;
+    char *try_name = &string_table[str_off];
+    if ((strlen(try_name) == strlen(name)) &&
+	(strcmp(try_name, name) == 0)) {
+      return esh;
+    }
+  }
+  return NULL;
 }
 
 static elf_section_header *elf_find_section64(void *mm, char *name)
@@ -212,6 +242,15 @@ static elf_section_header *elf_find_section64(void *mm, char *name)
   return NULL;
 }
 
+static char *elf_string_table32(void *mm) {
+  char *ret = NULL;
+  elf_section_header *esh = elf_find_section32(mm, ELF_SECTION_NAME_STRTAB);
+  if (esh) {
+    ret = mm + esh->u.e32.sh_offset;
+  }
+  return (ret);
+}
+
 static char *elf_string_table64(void *mm) {
   char *ret = NULL;
   elf_section_header *esh = elf_find_section64(mm, ELF_SECTION_NAME_STRTAB);
@@ -221,11 +260,33 @@ static char *elf_string_table64(void *mm) {
   return (ret);
 }
 
+static void * elf_section32(void *mm, elf_section_header *esh) {
+  return (mm + esh->u.e32.sh_offset);
+}
+
 static void * elf_section64(void *mm, elf_section_header *esh) {
   return (mm + esh->u.e64.sh_offset);
 }
 
 static void elf_dump_symbol_table32(void *mm) {
+  elf_section_header *esh;
+  esh = elf_find_section32(mm, ELF_SECTION_NAME_SYMTAB);
+  char *string_table = elf_string_table32(mm);
+  if (esh && string_table) {
+    void *sec = (elf_symbol *) elf_section32(mm, esh);
+    size_t size_sym = esh->u.e32.sh_entsize;
+    size_t number_sym = esh->u.e32.sh_size / size_sym;
+    size_t idx;
+    fprintf(stderr, "Symbol table size %zu\n", number_sym);
+    for (idx = 0; idx < number_sym; idx++) {
+      elf_symbol *sym = (elf_symbol *) (sec + (idx * size_sym));
+      size_t str_off = sym->u.e32.st_name;
+      uint32_t addr  = sym->u.e32.st_value;
+      char *name = &string_table[str_off];
+      fprintf(stderr, "%zu : %08" PRIx32 " %s\n",
+	      idx, addr, (str_off != 0) ? name : "");
+    }
+  }
 }
 
 static void elf_dump_symbol_table64(void *mm) {
@@ -243,9 +304,8 @@ static void elf_dump_symbol_table64(void *mm) {
       size_t str_off = sym->u.e64.st_name;
       uint64_t addr  = sym->u.e64.st_value;
       char *name = &string_table[str_off];
-      fprintf(stderr, "%zu : %16.16lx %zu str off %lld %s\n",
-	      idx, addr, sym->u.e64.st_size, (long long) str_off,
-	      (str_off != 0) ? name : "");
+      fprintf(stderr, "%zu : %016" PRIx64 " %s\n",
+	      idx, addr, (str_off != 0) ? name : "");
     }
   }
 }

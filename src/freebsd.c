@@ -38,6 +38,7 @@
 #include <sys/sysctl.h>
 #include <sys/thr.h>
 #include <sys/user.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <libutil.h>
 #include <libprocstat.h>
@@ -768,4 +769,16 @@ bool memory_os_write(pid_t tid, void *addr, void *val) {
     if (0 == ptrace(PT_WRITE_D, tid, addr, *pt_val))
 	ret = true;
     return ret;
+}
+
+int elf_os_image(pid_t pid) {
+  int ret = -1;
+  char filepath[MAXPATHLEN];
+  size_t filepathlen = MAXPATHLEN;
+  int name[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, pid };
+
+  if (sysctl(name, 4, filepath, &filepathlen, NULL, 0) == 0) {
+    ret = open(filepath, O_RDONLY);
+  }
+  return ret;
 }
