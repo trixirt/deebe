@@ -1226,10 +1226,7 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         if (_target.lldb) {
           sprintf(out_buf, "QC%" PRIx64, thread);
         } else {
-          if (process != thread)
-            sprintf(out_buf, "QCp%" PRIx64 ".%" PRIx64, process, thread);
-          else
-            sprintf(out_buf, "QCp%" PRIx64 ".-1", process);
+	  sprintf(out_buf, "QCp%" PRIx64 ".%" PRIx64, process, thread);
         }
       } else {
         gdb_interface_write_retval(status, out_buf);
