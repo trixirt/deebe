@@ -1,7 +1,7 @@
 /*
    This file is derrived from the gdbproxy project's gdbproxy.c
    The changes to this file are
-   Copyright (C) 2012-2015 Juniper Networks, Inc
+   Copyright (C) 2012-2016 Juniper Networks, Inc
 
    The original copyright is
 
@@ -109,60 +109,6 @@ static uint16_t dbg_sock_readchar() {
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
 
-static void gdb_interface_log_local(int level, const char *fmt, ...) {
-  va_list args;
-
-  /* Convert our log level values to system ones */
-  switch (level) {
-  case GDB_INTERFACE_LOGLEVEL_EMERG:
-    DBG_PRINT("emergency: ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_ALERT:
-    DBG_PRINT("alert:     ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_CRIT:
-    DBG_PRINT("critical:  ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_ERR:
-    DBG_PRINT("error:     ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_WARNING:
-    DBG_PRINT("warning:   ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_NOTICE:
-    DBG_PRINT("notice:    ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_INFO:
-    DBG_PRINT("info:      ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_DEBUG:
-    if (gdb_interface_debug_level < 1)
-      return;
-    DBG_PRINT("debug:     ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_DEBUG2:
-    if (gdb_interface_debug_level < 2)
-      return;
-    DBG_PRINT("debug:     ");
-    break;
-  case GDB_INTERFACE_LOGLEVEL_DEBUG3:
-    if (gdb_interface_debug_level < 3)
-      return;
-    DBG_PRINT("debug:     ");
-    break;
-  default:
-    ASSERT(0);
-    DBG_PRINT("debug:     ");
-    break;
-  }
-  if (fp_log) {
-    va_start(args, fmt);
-    vfprintf(fp_log, fmt, args);
-    va_end(args);
-  }
-  DBG_PRINT("\n");
-}
-
 /* Connection to debugger */
 static void rp_console_output(const char *buf);
 static void rp_data_output(const char *buf);
@@ -246,8 +192,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
          * Unexpected start of packet marker
          * in mid-packet.
          */
-        gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                          ": unexpected new packet");
         seq[0] = 0;
         seq[1] = 0;
         seq_valid = false;
@@ -272,8 +216,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
         } else if (c == '\3') {
 
           /* A control C */
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": Control-C received");
           ret = '\3';
           break;
         } else if (c == '+') {
@@ -284,7 +226,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
            * sequence number after this
            * character.
            */
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG2, ": ACK received");
           ret = ACK;
           break;
         } else if (c == '-') {
@@ -295,12 +236,9 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
            * sequence number after this
            character.
           */
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG2, ": NAK received");
           ret = NAK;
           break;
         } else {
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": we got junk - 0x%X", c & 0xFF);
         }
       } else if ((state == 1) || (state == 2)) {
         /*
@@ -380,8 +318,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
           state = STATE_HASHMARK;
         } else {
           if (pkt_len >= buf_len) {
-            gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                              ": received excessive length packet");
             break;
           }
           buf[pkt_len++] = c;
@@ -389,8 +325,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
         }
       } else if (state == STATE_BINARY_RAW) {
         if (pkt_len >= buf_len) {
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": received a packet that is too long");
           break;
         }
         if (esc_found) {
@@ -426,8 +360,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
       } else if (state == STATE_BINARY_ENCODED) {
         /* Escaped binary data mode - post ':' */
         if (pkt_len >= buf_len) {
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": received a packet that is too long");
           break;
         }
         if (esc_found) {
@@ -458,8 +390,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
          */
         nib = util_hex_nibble(c);
         if (nib < 0) {
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": bad checksum character %c", c);
           break;
         }
         calc_csum = (calc_csum << 4) | nib;
@@ -469,8 +399,6 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
            check it. */
         nib = util_hex_nibble(c);
         if (nib < 0) {
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                            ": bad checksum character %c", c);
           break;
         }
         calc_csum = (calc_csum << 4) | nib;
@@ -486,14 +414,9 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
           if (ret_ack)
             dbg_ack_packet_received(seq_valid, seq);
 
-          gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG2,
-                            ": packet received: %s", buf);
           ret = 0;
           break;
         }
-        gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                          ": bad checksum calculated=0x%x received=0x%x",
-                          rx_csum, calc_csum);
         break;
       } else {
         /* Unreachable */
@@ -585,7 +508,6 @@ void handle_thread_commands(char *const in_buf, char *out_buf,
     }
   } else {
     gdb_interface_write_retval(RET_ERR, out_buf);
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR, ": Bad H command");
   }
 }
 
@@ -670,8 +592,6 @@ static int gdb_decode_data(const char *in, unsigned char *out, size_t out_size,
   for (count = 0; *in && count < out_size; count++, in += 2, out++) {
     if (*(in + 1) == '\0') {
       /* Odd number of nibbles. Discard the last one */
-      gdb_interface_log(GDB_INTERFACE_LOGLEVEL_WARNING,
-                        ": odd number of nibbles");
       if (count == 0)
         return FALSE;
       *len = count;
@@ -804,8 +724,6 @@ void handle_read_memory_command(char *const in_buf, char *out_buf,
     break;
   case RET_ERR:
     if (cmdline_silence_memory_read_errors) {
-      gdb_interface_log(GDB_INTERFACE_LOGLEVEL_WARNING,
-                        " : silencing memory read error\n");
       memset(data_buf, 0, len);
       util_encode_data(data_buf, len, out_buf, INOUTBUF_SIZE);
     } else {
@@ -963,21 +881,8 @@ int handle_kill_command(char *const in_buf, char *out_buf, gdb_target *t) {
   t->kill(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
 
   if (!extended_protocol) {
-    if (cmdline_once) {
-      /*
-       * If the current target cannot restart,
-       * we have little choice but
-       * to exit right now.
-       */
-      gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-                        ": session killed. Exiting");
-    } else {
-      gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-                        ": session killed. Will wait for a new connection");
-    }
     return FALSE;
   }
-  gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO, ": remote proxy restarting");
   /* Let us do our best while starting system */
   if (cmdline_once) {
     /*
@@ -990,12 +895,8 @@ int handle_kill_command(char *const in_buf, char *out_buf, gdb_target *t) {
   ASSERT(ret != RET_NOSUPP);
   if (ret != RET_OK) {
     /* There is no point in continuing */
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
-                      ": unable to restart target %s", t->name);
     gdb_interface_write_retval(RET_ERR, out_buf);
     network_put_dbg_packet(out_buf, 0);
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-                      ": will wait for a new connection");
     return FALSE;
   }
   return TRUE;
@@ -1029,21 +930,8 @@ int handle_restart_target_command(char *const in_buf, char *out_buf,
   ret = t->restart();
   if (ret != RET_OK) {
     /* There is no point to continuing */
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_ERR,
-                      ": unable to restart target %s", t->name);
     gdb_interface_write_retval(RET_ERR, out_buf);
     network_put_dbg_packet(out_buf, 0);
-    if (cmdline_once) {
-      /*
-       * If the current target cannot restart,
-       * we have little choice but
-         to exit right now.
-      */
-      gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-                        ": target is not restartable. Exiting");
-    }
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_INFO,
-                      ": will wait for a new connection");
     return -1;
   }
   return TRUE;
@@ -2159,8 +2047,6 @@ static void rp_console_output(const char *s) {
 #endif /* RP_VAL_DBG_PBUFSIZ < 10 */
 
   if (!rp_target_out_valid) {
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                      ": unexpected output from target: %s", s);
     return;
   }
 
@@ -2193,8 +2079,6 @@ static void rp_data_output(const char *s) {
 #endif /* RP_VAL_DBG_PBUFSIZ < 10 */
 
   if (!rp_target_out_valid) {
-    gdb_interface_log(GDB_INTERFACE_LOGLEVEL_DEBUG,
-                      ": unexpected output from target: %s", s);
     return;
   }
 
@@ -2406,10 +2290,7 @@ void gdb_interface_init() {
     fprintf(stderr, "Error allocting input buffer");
     exit(1);
   }
-  /* Set to debug level of choice */
-  gdb_interface_debug_level = -1;
   target_init(&gdb_interface_target);
-  gdb_interface_log = &gdb_interface_log_local;
 }
 
 int gdb_interface_quick_packet() {

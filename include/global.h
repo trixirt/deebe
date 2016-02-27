@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  *
@@ -83,8 +83,6 @@ extern size_t network_in_buffer_current;
 extern size_t network_in_buffer_total;
 /* gdb interface */
 extern gdb_target *gdb_interface_target;
-extern int gdb_interface_debug_level;
-extern log_func gdb_interface_log;
 
 extern FILE *fp_log;
 
@@ -129,8 +127,6 @@ size_t network_in_buffer_current = 0;
 size_t network_in_buffer_total = 0;
 /* gdb interface */
 /*@null@*/ gdb_target *gdb_interface_target = NULL;
-int gdb_interface_debug_level = -1;
-/*@null@*/ log_func gdb_interface_log = NULL;
 
 FILE *fp_log = NULL;
 
