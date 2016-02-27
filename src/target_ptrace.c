@@ -52,7 +52,7 @@ int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf) {
   int index;
   index = target_index((pid_t)thread_id);
   if (index >= 0) {
-    sprintf(out_buf, "Thread %d", index + 1);
+    sprintf(out_buf, "LWP %d", (pid_t)thread_id);
     ret = RET_OK;
   } else {
     /* gdb can also pass in the process id */
