@@ -59,6 +59,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
+#include <errno.h>
 #include <fcntl.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -1664,7 +1665,7 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
   }
   sprintf(str, "vFile:");
   if (strncmp(str, n, strlen(str)) == 0) {
-    static int s_fd = -1;
+    int fd = -1;
     char *end = NULL;
     n += strlen(str);
     sprintf(str, "open:");
@@ -1717,10 +1718,7 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
                 if (end != ms) {
                   int flag = 0;
                   mode_t mode = 0;
-                  if (s_fd > 0) {
-                    close(s_fd);
-                    s_fd = -1;
-                  }
+		  char *rpath = NULL;
                   if (GDB_OPEN_FLAG_RDONLY(gdb_flag)) {
                     flag = O_RDONLY;
                   } else {
@@ -1742,13 +1740,24 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
                   GDB_OPEN_MODE(mode, gdb_mode, IRUSR);
                   GDB_OPEN_MODE(mode, gdb_mode, IFDIR);
                   GDB_OPEN_MODE(mode, gdb_mode, IFREG);
-                  s_fd = open(filepath, flag, mode);
-                  if (s_fd > 0) {
+		  rpath = realpath(filepath, NULL);
+		  errno = 0;
+		  if (rpath) {
+		    fd = open(rpath, flag, mode);
+		    free(rpath);
+		    rpath = NULL;
+		  } else {
+		    fd = open(filepath, flag, mode);
+		  }
+                  if (fd > 0) {
                     /* Success */
                     ret = RET_OK;
                   }
-                  /* Good or ill, send the fd as the response */
-                  sprintf(out_buf, "F%x", s_fd);
+		  if (fd < 0) {
+		    sprintf(out_buf, "F%d,%d", -1, errno);
+		  } else {
+		    sprintf(out_buf, "F%x", fd);
+		  }
                 } else {
                   /* Error */
                   sprintf(out_buf, "F%d", -1);
@@ -1823,7 +1832,7 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
     }
     sprintf(str, "pwrite:");
     if (strncmp(str, n, strlen(str)) == 0) {
-      int try_fd = -1;
+      int fd = -1;
       n += strlen(str);
       handled = true;
       /*
@@ -1831,61 +1840,56 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
        * FD, OFFSET, DATA
        */
       end = NULL;
-      try_fd = strtol(n, &end, 10);
+      fd = strtol(n, &end, 10);
       if (end != n) {
-        if (try_fd == s_fd) {
-          /* Move past comma */
-          n = end + 1;
-          off_t off;
-          end = NULL;
-          /*
-           * WARNING
-           * This will only handle 31 bit offsets
-           */
-          off = strtol(n, &end, 16);
-          if (end != n && off >= 0) {
-            /* Move past comma */
-            n = end + 1;
-            /*
-             * No 'size' as part of argument
-             * Have to infer from the size of the input
-             * And how much has already been read
-             *
-             * n - in_buf is how much has already been read
-             * -3 for end of buffer #XY crc check
-             */
-            if ((n - in_buf) < in_len) {
-              if (off != lseek(s_fd, off, SEEK_SET)) {
-                /* Error */
-                sprintf(out_buf, "F%d", -1);
-              } else {
-                size_t bytes_to_write = 0;
-                size_t bytes_written = 0;
-                bytes_to_write = in_len - (n - in_buf);
-                /* Data is binary, no need to decode */
-                bytes_written = write(s_fd, n, bytes_to_write);
-                sprintf(out_buf, "F%zx", bytes_written);
-              }
-            } else {
-              /* Error */
-              sprintf(out_buf, "F%d", -1);
-            }
-          } else {
-            /* Error */
-            sprintf(out_buf, "F%d", -1);
-          }
-        } else {
-          /* Error */
-          sprintf(out_buf, "F%d", -1);
-        }
+	/* Move past comma */
+	n = end + 1;
+	off_t off;
+	end = NULL;
+	/*
+	 * WARNING
+	 * This will only handle 31 bit offsets
+	 */
+	off = strtol(n, &end, 16);
+	if (end != n && off >= 0) {
+	  /* Move past comma */
+	  n = end + 1;
+	  /*
+	   * No 'size' as part of argument
+	   * Have to infer from the size of the input
+	   * And how much has already been read
+	   *
+	   * n - in_buf is how much has already been read
+	   * -3 for end of buffer #XY crc check
+	   */
+	  if ((n - in_buf) < in_len) {
+	    if (off != lseek(fd, off, SEEK_SET)) {
+	      /* Error */
+	      sprintf(out_buf, "F%d", -1);
+	    } else {
+	      size_t bytes_to_write = 0;
+	      size_t bytes_written = 0;
+	      bytes_to_write = in_len - (n - in_buf);
+	      /* Data is binary, no need to decode */
+	      bytes_written = write(fd, n, bytes_to_write);
+	      sprintf(out_buf, "F%zx", bytes_written);
+	    }
+	  } else {
+	    /* Error */
+	    sprintf(out_buf, "F%d", -1);
+	  }
+	} else {
+	  /* Error */
+	  sprintf(out_buf, "F%d", -1);
+	}
       } else {
-        /* Error */
-        sprintf(out_buf, "F%d", -1);
+	/* Error */
+	sprintf(out_buf, "F%d", -1);
       }
     }
     sprintf(str, "pread:");
     if (strncmp(str, n, strlen(str)) == 0) {
-      int try_fd = -1;
+      int fd = -1;
       n += strlen(str);
       handled = true;
       /*
@@ -1893,98 +1897,107 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
        * FD, SIZE, OFFSET
        */
       end = NULL;
-      try_fd = strtol(n, &end, 10);
+      fd = strtol(n, &end, 10);
       if (end != n) {
-        if (try_fd == s_fd) {
-          /* Move past comma */
-          n = end + 1;
-          size_t size;
-          end = NULL;
-          size = strtol(n, &end, 16);
-          if (end != n && size > 1) {
-            /* Move past comma */
-            n = end + 1;
-            off_t off;
-            end = NULL;
-            /*
-             * WARNING
-             * This will only handle
-             * 31 bit offsets
-             */
-            off = strtol(n, &end, 16);
-            if (end != n && off >= 0) {
-              /* Move past comma */
-              n = end + 1;
-              if (off != lseek(s_fd, off, SEEK_SET)) {
-                /* Error */
-                sprintf(out_buf, "F%d", -1);
-              } else {
-                size_t bytes_read = 0;
-                uint8_t *buf = (uint8_t *)malloc(size);
-                if (buf) {
-                  size_t preamble_size = 0;
-                  size_t escaped_size = 0;
-                  uint8_t *dst = NULL;
-                  /* The fs read */
-                  bytes_read = read(s_fd, buf, size);
-                  /* The preamble size */
-                  sprintf(out_buf, "F%zx;", bytes_read);
-                  preamble_size = strlen(out_buf);
-                  /* this is binary data, need to escape special chars */
-                  dst = (uint8_t *)out_buf + preamble_size;
-                  escaped_size = util_escape_binary(dst, buf, bytes_read);
-                  /* send packet out here because being binary, can not use
-                   * upstream packet put */
-                  ret = network_put_dbg_packet(out_buf,
-                                               escaped_size + preamble_size);
-                  /* Make sure upstream doesn't push again */
-                  out_buf[0] = 0; /* null terminated */
-                  binary_cmd = true;
-                  free(buf);
-                  buf = NULL;
-                } else {
-                  /* Error */
-                  sprintf(out_buf, "F%d", -1);
-                }
-              }
-            } else {
-              /* Error */
-              sprintf(out_buf, "F%d", -1);
-            }
-          } else {
-            /* Error */
-            sprintf(out_buf, "F%d", -1);
-          }
-        } else {
-          /* Error */
-          sprintf(out_buf, "F%d", -1);
-        }
+	/* Move past comma */
+	n = end + 1;
+	size_t size;
+	end = NULL;
+	size = strtol(n, &end, 16);
+	if (end != n && size > 1) {
+	  /* Move past comma */
+	  n = end + 1;
+	  off_t off;
+	  end = NULL;
+	  /*
+	   * WARNING
+	   * This will only handle
+	   * 31 bit offsets
+	   */
+	  off = strtol(n, &end, 16);
+	  if (end != n && off >= 0) {
+	    /* Move past comma */
+	    n = end + 1;
+	    if (off != lseek(fd, off, SEEK_SET)) {
+	      /* Error */
+	      sprintf(out_buf, "F%d", -1);
+	    } else {
+	      size_t bytes_read = 0;
+	      uint8_t *buf = (uint8_t *)malloc(size);
+	      if (buf) {
+		size_t preamble_size = 0;
+		size_t escaped_size = 0;
+		uint8_t *dst = NULL;
+		/* The fs read */
+		bytes_read = read(fd, buf, size);
+		/* The preamble size */
+		sprintf(out_buf, "F%zx;", bytes_read);
+		preamble_size = strlen(out_buf);
+		/* this is binary data, need to escape special chars */
+		dst = (uint8_t *)out_buf + preamble_size;
+		escaped_size = util_escape_binary(dst, buf, bytes_read);
+		/* send packet out here because being binary, can not use
+		 * upstream packet put */
+		ret = network_put_dbg_packet(out_buf,
+					     escaped_size + preamble_size);
+		/* Make sure upstream doesn't push again */
+		out_buf[0] = 0; /* null terminated */
+		binary_cmd = true;
+		free(buf);
+		buf = NULL;
+	      } else {
+		/* Error */
+		sprintf(out_buf, "F%d", -1);
+	      }
+	    }
+	  } else {
+	    /* Error */
+	    sprintf(out_buf, "F%d", -1);
+	  }
+	} else {
+	  /* Error */
+	  sprintf(out_buf, "F%d", -1);
+	}
       } else {
-        /* Error */
-        sprintf(out_buf, "F%d", -1);
+	/* Error */
+	sprintf(out_buf, "F%d", -1);
       }
     }
     sprintf(str, "close:");
     if (strncmp(str, n, strlen(str)) == 0) {
-      int try_fd = -1;
+      int fd = -1;
       n += strlen(str);
       handled = true;
       end = NULL;
-      try_fd = strtol(n, &end, 10);
+      fd = strtol(n, &end, 10);
       if (end != n) {
-        if (try_fd == s_fd) {
-          int status = close(s_fd);
-          s_fd = -1;
-          sprintf(out_buf, "F%d", status);
-          if (0 == status)
-            ret = RET_OK;
-        } else {
-          /* Error */
-          sprintf(out_buf, "F%d", -1);
-        }
+	int status = close(fd);
+	sprintf(out_buf, "F%d", status);
+	if (0 == status)
+	  ret = RET_OK;
       } else {
-        /* Error */
-        sprintf(out_buf, "F%d", -1);
+	/* Error */
+	sprintf(out_buf, "F%d", -1);
+      }
+    }
+    sprintf(str, "setfs:");
+    if (strncmp(str, n, strlen(str)) == 0) {
+      int pid;
+      n += strlen(str);
+      handled = true;
+      end = NULL;
+      pid = strtol(n, &end, 10);
+      if (end != n) {
+	if (pid == 0) {
+	  /* Handle the trivial case */
+	  sprintf(out_buf, "F0");
+	} else {
+	  /* bail */
+	  sprintf(out_buf, "F%d", -1);
+	}
+      } else {
+	/* Error */
+	sprintf(out_buf, "F%d", -1);
       }
     }
   }
