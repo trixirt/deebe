@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "macros.h"
 
 const char util_hex[] = "0123456789abcdef";
@@ -307,4 +308,12 @@ size_t util_escape_binary(uint8_t *dst, uint8_t *src, size_t size) {
     }
   }
   return j;
+}
+
+void util_usleep(unsigned int usecs)
+{
+    struct timespec t;
+    t.tv_sec = usecs / (1000000);
+    t.tv_nsec = (usecs % (1000000)) * 1000;
+    nanosleep(&t, NULL);
 }

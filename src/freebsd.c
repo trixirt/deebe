@@ -507,7 +507,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
           goto end;
         }
         /* Sleep for a a msec */
-        usleep(1000);
+        util_usleep(1000);
         wait_ret = ptrace_wait(str, 0, true);
         if (wait_ret == RET_OK) {
           DBG_PRINT("%s hard case %s\n", __func__, str);

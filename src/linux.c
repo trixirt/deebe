@@ -112,7 +112,7 @@ bool ptrace_os_wait_new_thread(pid_t *out_pid, int *out_status) {
       int errs = 0;
       for (errs = 0; errs < errs_max; errs++) {
         /* Sleep for a 1 msec */
-        usleep(1000);
+        util_usleep(1000);
         tid2 = waitpid(tid, &thread_status, WNOHANG | __WCLONE);
         if (tid2 == tid) {
           break;
@@ -193,7 +193,7 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
 				int errs = 0;
 				for (errs = 0; errs < errs_max; errs++) {
 					/* Sleep for a 1 msec */
-					usleep(1000);
+					util_usleep(1000);
 					pid = waitpid(new_tid, &thread_status, WNOHANG | __WCLONE);
 					if (pid == new_tid) {
 						break;
@@ -402,7 +402,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
         }
 
         /* Sleep for a a msec */
-        usleep(1000);
+        util_usleep(1000);
 
         wait_ret = ptrace_wait(str, 0, true);
         if (wait_ret == RET_OK) {

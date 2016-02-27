@@ -1038,7 +1038,7 @@ int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig,
 void ptrace_quick_kill(pid_t pid, pid_t tid) {
   DBG_PRINT("%s %x %x\n", __func__, pid, tid);
   kill(pid, SIGKILL); /* XXX change to pid */
-  usleep(1000);
+  util_usleep(1000);
   exit(0);
 }
 
@@ -1072,7 +1072,7 @@ void ptrace_kill(pid_t pid, pid_t tid) {
     int max_tries = 20;
     int g = ptrace_arch_signal_to_gdb(SIGKILL);
     do {
-      usleep(1000);
+      util_usleep(1000);
       wait_ret = ptrace_wait(str, 0, true);
       if (!gDebugeeRunning) {
         DBG_PRINT("Success in kill the debugee\n");
@@ -1314,7 +1314,7 @@ static void _deliver_sig() {
 			int errs = 0;
 			for (errs = 0; errs < errs_max; errs++) {
 				/* Sleep for a msec */
-				usleep(100);
+				util_usleep(100);
 				wait_tid = waitpid(tid, &wait_status, __WALL | WNOHANG);
 				if (tid == wait_tid) {
 					PROCESS_WAIT_STATUS(index) = wait_status;
@@ -1323,7 +1323,7 @@ static void _deliver_sig() {
 				} else {
 					/* failure, try resending */
 					os_thread_kill(tid, sig);
-					usleep(100);
+					util_usleep(100);
 				}
 			}
 		}
