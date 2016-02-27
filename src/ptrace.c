@@ -50,6 +50,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "breakpoint.h"
+#include "delf.h"
 #include "dptrace.h"
 #include "dsignal.h"
 #include "gdb_interface.h"
@@ -638,6 +639,9 @@ int ptrace_restart(void) {
                 fprintf(stdout, "Process %s created; pid = %d\n",
                         cmdline_argv[0], CURRENT_PROCESS_PID);
                 fflush(stdout);
+		/* DEBUGGING CODE START */
+		/* elf_dump_symbol_table(try_child); */
+		/* DEBUGGING CODE END */
                 ret = RET_OK;
               }
             } else {
