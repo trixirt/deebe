@@ -67,6 +67,10 @@ int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf) {
 static int ptrace_support_multiprocess() { return _target.multiprocess; }
 
 int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id) {
+  if (process_id == -1) {
+    /* Every thread can be the control thread, so nothing to do here.. */
+    return RET_OK;
+  }
   /* Nothing here yet */
   return RET_NOSUPP;
 }
