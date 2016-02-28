@@ -1586,9 +1586,57 @@ static void handle_breakpoint_command(char *const in_buf, char *out_buf,
 #define GDB_OPEN_IWOTH 02
 #define GDB_OPEN_IXOTH 01
 
-#define GDB_OPEN_MODE(m, g, N)                                                 \
-  if (GDB_OPEN_##N == ((g) & (GDB_OPEN_##N)))                                  \
+#define GDB_MODE(m, g, N)                      \
+  if (GDB_OPEN_##N == ((g) & (GDB_OPEN_##N)))  \
   m |= S_##N
+
+#define GDB_MODES(m, g) \
+  GDB_MODE(m, g, IXOTH); \
+  GDB_MODE(m, g, IWOTH); \
+  GDB_MODE(m, g, IROTH); \
+  GDB_MODE(m, g, IXGRP); \
+  GDB_MODE(m, g, IWGRP); \
+  GDB_MODE(m, g, IRGRP); \
+  GDB_MODE(m, g, IXUSR); \
+  GDB_MODE(m, g, IWUSR); \
+  GDB_MODE(m, g, IRUSR); \
+  GDB_MODE(m, g, IFDIR); \
+  GDB_MODE(m, g, IFREG);
+
+
+#define POSIX_MODE(m, g, N)       \
+  if (S_##N == ((m) & (S_##N)))   \
+  g |= GDB_OPEN_##N
+
+#define POSIX_MODES(m, g) \
+  POSIX_MODE(m, g, IXOTH); \
+  POSIX_MODE(m, g, IWOTH); \
+  POSIX_MODE(m, g, IROTH); \
+  POSIX_MODE(m, g, IXGRP); \
+  POSIX_MODE(m, g, IWGRP); \
+  POSIX_MODE(m, g, IRGRP); \
+  POSIX_MODE(m, g, IXUSR); \
+  POSIX_MODE(m, g, IWUSR); \
+  POSIX_MODE(m, g, IRUSR); \
+  POSIX_MODE(m, g, IFDIR); \
+  POSIX_MODE(m, g, IFREG);
+
+#pragma pack(1)
+struct gdb_stat {
+  uint32_t st_dev;
+  uint32_t st_ino;
+  uint32_t st_mode;
+  uint32_t st_nlink;
+  uint32_t st_uid;
+  uint32_t st_gid;
+  uint32_t st_rdev;
+  uint64_t st_size;
+  uint64_t st_blksize;
+  uint64_t st_blocks;
+  uint32_t st_a;
+  uint32_t st_m;
+  uint32_t st_c;
+};
 
 static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
                             gdb_target *target) {
@@ -1729,17 +1777,7 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
                     GDB_OPEN_FLAG(flag, gdb_flag, TRUNC);
                     GDB_OPEN_FLAG(flag, gdb_flag, EXCL);
                   }
-                  GDB_OPEN_MODE(mode, gdb_mode, IXOTH);
-                  GDB_OPEN_MODE(mode, gdb_mode, IWOTH);
-                  GDB_OPEN_MODE(mode, gdb_mode, IROTH);
-                  GDB_OPEN_MODE(mode, gdb_mode, IXGRP);
-                  GDB_OPEN_MODE(mode, gdb_mode, IWGRP);
-                  GDB_OPEN_MODE(mode, gdb_mode, IRGRP);
-                  GDB_OPEN_MODE(mode, gdb_mode, IXUSR);
-                  GDB_OPEN_MODE(mode, gdb_mode, IWUSR);
-                  GDB_OPEN_MODE(mode, gdb_mode, IRUSR);
-                  GDB_OPEN_MODE(mode, gdb_mode, IFDIR);
-                  GDB_OPEN_MODE(mode, gdb_mode, IFREG);
+                  GDB_MODES(mode, gdb_mode);
 		  rpath = realpath(filepath, NULL);
 		  errno = 0;
 		  if (rpath) {
@@ -1931,8 +1969,7 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
 		/* The fs read */
 		bytes_read = read(fd, buf, size);
 		/* The preamble size */
-		sprintf(out_buf, "F%zx;", bytes_read);
-		preamble_size = strlen(out_buf);
+		preamble_size = sprintf(out_buf, "F%zx;", bytes_read);
 		/* this is binary data, need to escape special chars */
 		dst = (uint8_t *)out_buf + preamble_size;
 		escaped_size = util_escape_binary(dst, buf, bytes_read);
@@ -1994,6 +2031,48 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
 	} else {
 	  /* bail */
 	  sprintf(out_buf, "F%d", -1);
+	}
+      } else {
+	/* Error */
+	sprintf(out_buf, "F%d", -1);
+      }
+    }
+    sprintf(str, "fstat:");
+    if (strncmp(str, n, strlen(str)) == 0) {
+      int fd = -1;
+      n += strlen(str);
+      handled = true;
+      end = NULL;
+      fd = strtol(n, &end, 10);
+      if (end != n) {
+	struct stat buf = { 0 };
+	errno = 0;
+	if (fstat(fd, &buf) == 0) {
+	  struct gdb_stat g = { 0 };
+	  size_t preamble_size = 0;
+	  size_t escaped_size = 0;
+	  uint8_t *dst = NULL;
+	  g.st_dev = 0;
+	  g.st_ino = buf.st_ino;
+	  POSIX_MODES(buf.st_mode, g.st_mode);
+	  g.st_nlink = buf.st_nlink;
+	  g.st_uid = buf.st_uid;
+	  g.st_gid = buf.st_gid;
+	  g.st_rdev = buf.st_rdev;
+	  g.st_size = buf.st_size;
+	  g.st_blksize = buf.st_blksize;
+	  g.st_blocks = buf.st_blocks;
+	  g.st_a = buf.st_atim.tv_sec;
+	  g.st_m = buf.st_mtim.tv_sec;
+	  g.st_c = buf.st_ctim.tv_sec;
+	  preamble_size = sprintf(out_buf, "F%zx;", sizeof(struct gdb_stat));
+	  dst = (uint8_t *)out_buf + preamble_size;
+	  escaped_size = util_escape_binary(dst, (uint8_t *)&g, sizeof(struct gdb_stat));
+	  ret = network_put_dbg_packet(out_buf, escaped_size + preamble_size);
+	  out_buf[0] = 0; /* null terminated */
+	  binary_cmd = true;
+	} else {
+	  sprintf(out_buf, "F%d,%d", -1, errno);
 	}
       } else {
 	/* Error */
