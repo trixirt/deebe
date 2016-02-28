@@ -102,11 +102,11 @@ static bool get_ostype(char **ptr) {
     *ptr = (char *)malloc(1 + strlen(&name.sysname[0]));
     if (*ptr != NULL) {
       if (strncmp(&name.sysname[0], "Linux", 5) == 0)
-        sprintf(*ptr, "linux");
+        snprintf(*ptr, 5, "linux");
       else if (strncmp(&name.sysname[0], "FreeBSD", 7) == 0)
-        sprintf(*ptr, "freebsd");
+        snprintf(*ptr, 7, "freebsd");
       else
-        sprintf(*ptr, "%s", &name.machine[0]);
+        snprintf(*ptr, strlen(&name.machine[0]), "%s", &name.machine[0]);
       ret = true;
     }
   }
@@ -117,14 +117,14 @@ static bool get_osversion(char **ptr) {
   bool ret = false;
   struct utsname name;
   if (uname(&name) == 0) {
-    *ptr = (char *)malloc(1 + strlen(&name.release[0]));
+    size_t len = strlen(&name.release[0]);
+    *ptr = (char *)malloc(1 + len);
     if (*ptr != NULL) {
-      size_t i, max;
+      size_t i;
       char *str = *ptr;
-      sprintf(str, "%s", &name.release[0]);
-      max = strlen(str);
+      snprintf(str, "%s", len, &name.release[0]);
       /* Truncate string when we don't see something looking like 123. */
-      for (i = 0; i < max; i++) {
+      for (i = 0; i < len; i++) {
         if (!((isdigit(str[i]) || str[i] == '.'))) {
           str[i] = '\0';
           break;
