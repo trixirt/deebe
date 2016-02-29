@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -67,4 +67,5 @@ bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
 			       size_t out_buf_size);
 bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                          size_t *size);
+pid_t ptrace_os_get_wait_tid(pid_t pid);
 #endif

@@ -2598,8 +2598,8 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
   char tstr[32] = "";
   char wstr[32] = "";
   size_t len = INOUTBUF_SIZE;
-  if (_target.lldb && target_number_threads() > 0)
-    snprintf(&tstr[0], 32, "thread:%x;", tid);
+  if (_target.lldb || target_number_threads() > 1)
+      snprintf(&tstr[0], 32, "thread:%x;", tid);
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
   snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);

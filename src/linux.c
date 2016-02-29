@@ -659,3 +659,16 @@ int elf_os_image(pid_t pid) {
   ret = open(n, O_RDONLY);
   return ret;
 }
+
+pid_t ptrace_os_get_wait_tid(pid_t pid) {
+    pid_t ret = -1;
+#ifdef PTRACE_GETEVENTMSG
+    int status;
+    unsigned long new_tid = 0;
+    status = ptrace(PTRACE_GETEVENTMSG, pid, 0, &new_tid);
+    if (0 == status) {
+	ret = new_tid;
+    }
+#endif
+    return ret;
+}

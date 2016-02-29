@@ -513,8 +513,11 @@ int ptrace_attach(pid_t process_id) {
       } else {
         /* Check that process stopped because of implied SIGSTOP */
         if (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGSTOP)) {
-
-          if (target_new_thread(process_id, process_id, status, true,
+	    pid_t tid = ptrace_os_get_wait_tid(process_id);
+	    if (tid < 0) {
+	        tid = process_id;
+	    }
+          if (target_new_thread(process_id, tid, status, true,
                                 SIGSTOP)) {
             ptrace_arch_option_set_thread(process_id);
             target_attached(true);
@@ -632,8 +635,12 @@ int ptrace_restart(void) {
              * SIGTRAP from execv
              */
             if (WIFSTOPPED(status) && (WSTOPSIG(status) == SIGTRAP)) {
+	      pid_t tid = ptrace_os_get_wait_tid(try_child);
+	      if (tid < 0) {
+	        tid = try_child;
+	      }
               if (target_new_thread(
-                      try_child, try_child, status, true,
+                      try_child, tid, status, true,
                       SIGSTOP /* lie, this is really SIGTRAP */)) {
                 ptrace_arch_option_set_thread(try_child);
                 fprintf(stdout, "Process %s created; pid = %d\n",

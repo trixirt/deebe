@@ -62,7 +62,7 @@ void ptrace_os_clear_singlestep(pid_t pid) { ptrace(PT_CLEARSTEP, pid, 0, 0); }
 
 void ptrace_os_option_set_syscall(pid_t pid) {}
 
-bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
+bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_tid) {
   /* deault to 'not handled' */
   bool ret = false;
   /*
@@ -70,8 +70,8 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
    * This sets up the default 'handled' behaviour to
    * ignore the event and try again
    */
-  if (out_pid)
-    *out_pid = -1;
+  if (out_tid)
+    *out_tid = -1;
 
 #ifdef PT_LWPINFO
   struct ptrace_lwpinfo lwpinfo = {0};
@@ -115,8 +115,8 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
          */
         target_dead_thread(pid);
         _target.current_process = 0; /* parent process index */
-        if (out_pid)
-          *out_pid = CURRENT_PROCESS_TID;
+        if (out_tid)
+          *out_tid = CURRENT_PROCESS_TID;
         DBG_PRINT("Dead %x switch to %x\n", pid, CURRENT_PROCESS_TID);
 
         /*
@@ -153,8 +153,8 @@ bool ptrace_os_check_new_thread(pid_t pid, int status, pid_t *out_pid) {
                   if (!target_is_tid(lwpid_list[i])) {
                     if (target_new_thread(parent, lwpid_list[i], 0, false,
                                           SIGSTOP)) {
-                      if (out_pid)
-                        *out_pid = lwpid_list[i];
+                      if (out_tid)
+                        *out_tid = lwpid_list[i];
                     }
                     break;
                   }
@@ -781,4 +781,17 @@ int elf_os_image(pid_t pid) {
     ret = open(filepath, O_RDONLY);
   }
   return ret;
+}
+
+pid_t ptrace_os_get_wait_tid(pid_t pid) {
+    pid_t ret = -1;
+#ifdef PT_LWPINFO
+    int status;
+    struct ptrace_lwpinfo lwpinfo = {0};
+    status = PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+    if (0 == status) {
+	ret = lwpinfo.pl_lwpid;
+    }
+#endif
+    return ret;
 }
