@@ -42,11 +42,6 @@
 #include "target.h"
 #include "macros.h"
 
-/* Table of commands */
-static const RCMD_TABLE ptrace_remote_commands[] = {
-    {0, 0, 0} /* sentinel, end of table marker */
-};
-
 int ptrace_threadextrainfo_query(int64_t thread_id, char *out_buf) {
   int ret = RET_ERR;
   int index;
@@ -130,7 +125,6 @@ gdb_target ptrace_target = {
     .next = NULL,
     .name = "ptrace",
     .desc = "native ptrace target",
-    .remote_commands = ptrace_remote_commands,
     .help = ptrace_help,
     .open = ptrace_open,
     .attach = ptrace_attach,

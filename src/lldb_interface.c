@@ -122,7 +122,7 @@ static bool get_osversion(char **ptr) {
     if (*ptr != NULL) {
       size_t i;
       char *str = *ptr;
-      snprintf(str, "%s", len, &name.release[0]);
+      snprintf(str, len, "%s", &name.release[0]);
       /* Truncate string when we don't see something looking like 123. */
       for (i = 0; i < len; i++) {
         if (!((isdigit(str[i]) || str[i] == '.'))) {

@@ -1,7 +1,7 @@
 /*
   This file is derrived from the gdbproxy project's gdbproxy.h
   The changes to this file are
-  Copyright (C) 2012-2015 Juniper Networks, Inc
+  Copyright (C) 2012-2016 Juniper Networks, Inc
 
   The original copyright is
 
@@ -119,9 +119,6 @@ struct gdb_target_s {
   const char *name; /* Unique ASCII name of the target */
 
   const char *desc; /* Short description */
-
-  /* Table of remote commands */
-  const RCMD_TABLE *remote_commands;
 
   /*======================   Help/Debug  =======================*/
 

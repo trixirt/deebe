@@ -47,8 +47,6 @@
    Global Functions:
 
    Static Functions:
-     rp_console_output  - send output to debugger console
-     rp_data_output     - send data to debugger (used remcmd)
      rp_decode_xxxxx    - various decode functions
      rp_encode_xxxxx    - various encode functions
      rp_write_xxxxx     - encode result of operation
@@ -109,10 +107,6 @@ static uint16_t dbg_sock_readchar() {
 
 /* Flag to catch unexpected output from target */
 static int rp_target_out_valid = FALSE;
-
-/* Connection to debugger */
-static void rp_console_output(const char *buf);
-static void rp_data_output(const char *buf);
 
 /* Decode/encode functions */
 
@@ -1317,10 +1311,7 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
   case 'R':
     if (strncmp(n, "Rcmd,", 5) == 0) {
       /* Remote command */
-      rp_target_out_valid = TRUE;
-      status =
-          handle_rcmd_command(&in_buf[6], rp_console_output, rp_data_output, t);
-      rp_target_out_valid = FALSE;
+      status = RET_NOSUPP;
       gdb_interface_write_retval(status, out_buf);
       req_handled = true;
       goto end;
@@ -2123,69 +2114,6 @@ end:
   gdb_interface_write_retval(ret, out_buf);
 }
 
-/* Send an 'O' packet (console output) to GDB */
-static void rp_console_output(const char *s) {
-  int ret;
-  char *d;
-  size_t count;
-  size_t lim;
-  static char buf[RP_VAL_DBG_PBUFSIZ - 6];
-
-#if RP_VAL_DBG_PBUFSIZ < 10
-#error "Unexpected value of RP_VAL_DBG_PBUFSIZ"
-#endif /* RP_VAL_DBG_PBUFSIZ < 10 */
-
-  if (!rp_target_out_valid) {
-    return;
-  }
-
-  lim = sizeof(buf) - 1;
-  if ((lim & 1) == 0) {
-    /* We can split on any byte boundary */
-    lim--;
-  }
-
-  do {
-    d = buf;
-    *d++ = 'O';
-    for (count = 1; *s && count < lim; s++, d++, count++)
-      *d = *s;
-    *d = '\0';
-    ret = network_put_dbg_packet(buf, 0);
-  } while (*s && ret);
-}
-
-/* Send hex data to GDB */
-static void rp_data_output(const char *s) {
-  int ret;
-  char *d;
-  size_t count;
-  size_t lim;
-  static char buf[RP_VAL_DBG_PBUFSIZ - 6];
-
-#if RP_VAL_DBG_PBUFSIZ < 10
-#error "Unexpected value for RP_VAL_DBG_PBUFSIZ"
-#endif /* RP_VAL_DBG_PBUFSIZ < 10 */
-
-  if (!rp_target_out_valid) {
-    return;
-  }
-
-  lim = sizeof(buf) - 1;
-
-  if ((lim & 1)) {
-    /* We can split on any byte boundary */
-    lim--;
-  }
-
-  do {
-    for (d = buf, count = 0; *s != 0 && count < lim; s++, d++, count++)
-      *d = *s;
-    *d = '\0';
-    ret = network_put_dbg_packet(buf, 0);
-  } while (*s && ret);
-}
-
 /* Decode reg_no=XXXXXX */
 static int gdb_decode_reg_assignment(char *in, unsigned int *reg_no,
                                      unsigned char *out, size_t out_size,
@@ -2340,11 +2268,6 @@ void gdb_interface_write_retval(int ret, char *b) {
     ASSERT(0);
     break;
   }
-}
-
-int handle_rcmd_command(char *in_buf, out_func of, data_func df,
-                        gdb_target *t) {
-  return RET_NOSUPP;
 }
 
 void gdb_interface_cleanup() {
