@@ -48,7 +48,144 @@
 #include "os.h"
 #include "target.h"
 
-static bool _lwpinfo_verbose = true;
+static bool _lwpinfo_verbose = false;
+static bool _threadstate_verbose = false;
+
+static void fbsd_dump_thread_state() {
+    if (_threadstate_verbose) {
+	struct procstat *prstat;
+	/* See FreeBSD usr.bin/procstat/procstat_threads.c */
+	prstat = procstat_open_sysctl();
+	if (prstat != NULL) {
+	    pid_t pid = CURRENT_PROCESS_PID;
+	    struct kinfo_proc *kp;
+	    unsigned int count = 0;
+	    kp = procstat_getprocs(prstat,
+				   KERN_PROC_PID | KERN_PROC_INC_THREAD,
+				   pid, &count);
+	    if (kp != NULL) {
+		int i;
+		DBG_PRINT("Thread state\n");
+		for (i = 0; i < count; i++) {
+		    struct kinfo_proc *kpp = &kp[i];
+		    const char *str;
+		    DBG_PRINT("\tpid %x tid %x ",
+			      kpp->ki_pid, kpp->ki_tid);
+
+		    switch (kpp->ki_stat) {
+		    case SRUN:
+			str = "run";
+			break;
+
+		    case SSTOP:
+			str = "stop";
+			break;
+
+		    case SSLEEP:
+			str = "sleep";
+			break;
+
+		    case SLOCK:
+			str = "lock";
+			break;
+
+		    case SWAIT:
+			str = "wait";
+			break;
+
+		    case SZOMB:
+			str = "zomb";
+			break;
+
+		    case SIDL:
+			str = "idle";
+			break;
+
+		    default:
+			str = "??";
+			break;
+		    }
+		    DBG_PRINT("%s\n", str);
+		}
+		procstat_freeprocs(prstat, kp);
+		kp = NULL;
+	    }
+	    procstat_close(prstat);
+	    prstat = NULL;
+	}
+    }
+}
+
+static void fbsd_update_thread_state() {
+    struct procstat *prstat;
+    /* See FreeBSD usr.bin/procstat/procstat_threads.c */
+    prstat = procstat_open_sysctl();
+    if (prstat != NULL) {
+	pid_t pid = CURRENT_PROCESS_PID;
+	struct kinfo_proc *kp;
+	unsigned int k_count = 0;
+	kp = procstat_getprocs(prstat,
+			       KERN_PROC_PID | KERN_PROC_INC_THREAD,
+			       pid, &k_count);
+	if (kp != NULL) {
+	    int k_index, d_index;
+	    struct kinfo_proc *kpp;
+
+	    for (d_index = 0; d_index < _target.number_processes; d_index++) {
+		bool found = false;
+		for (k_index = 0; k_index < k_count; k_index++) {
+		    kpp = &kp[k_index];
+
+		    if ((PROCESS_PID(d_index) == kpp->ki_pid) &&
+			(PROCESS_TID(d_index) == kpp->ki_tid)) {
+			found = true;
+
+			/*
+			 * Mapping from kernel to deebe state isn't great.
+			 * At this point everyone should be stopped, but
+			 * check to be sure.
+			 */
+			if (SSTOP != kpp->ki_stat) {
+			    DBG_PRINT("Unexpected run state for %x %x %d\n",
+				      kpp->ki_pid, kpp->ki_tid, kpp->ki_stat);
+			}
+			PROCESS_STATE(d_index) = PS_STOP;
+			break;
+		    }
+		}
+		/* Thread died */
+		if (found == false) {
+		    PROCESS_STATE(d_index) = PS_EXIT;
+		}
+	    }
+
+	    /* Double check that all our threads are accounted for */
+	    for (k_index = 0; k_index < k_count; k_index++) {
+		bool found = false;
+		for (d_index = 0; d_index < _target.number_processes;
+		     d_index++) {
+		    kpp = &kp[k_index];
+
+		    if ((PROCESS_PID(d_index) == kpp->ki_pid) &&
+			(PROCESS_TID(d_index) == kpp->ki_tid)) {
+			found = true;
+			break;
+		    }
+		}
+		/* Unaccounded for k_thread */
+		if (found == false) {
+		    DBG_PRINT("Unexpected kernel thread %x %x %d\n",
+			      kpp->ki_pid, kpp->ki_tid, kpp->ki_stat);
+		    PROCESS_STATE(d_index) = PS_EXIT;
+		}
+	    }
+	    procstat_freeprocs(prstat, kp);
+	    kp = NULL;
+	}
+	procstat_close(prstat);
+	prstat = NULL;
+    }
+}
 
 void ptrace_os_set_singlestep(pid_t pid, long *request) {
   /*
@@ -340,20 +477,10 @@ static int check_lwpinfo(pid_t pid) {
      */
     tid = lwpinfo.pl_lwpid;
     if (!target_is_tid(tid)) {
-      /*
-       * The first time this is hit, it is the main thread of
-       * the parent process.  Set the parent process tid to
-       * this value so the first and second threads will be
-       * handled the same.
-       */
-      if (PROCESS_TID(0) == PROCESS_PID(0)) {
-        PROCESS_TID(0) = tid;
-      } else {
         if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT,
                                false, SIGSTOP)) {
-          DBG_PRINT("%s error allocating new thread\n", __func__);
+	    DBG_PRINT("%s error allocating new thread\n", __func__);
         }
-      }
     }
     index = target_index(tid);
     if (index >= 0) {
@@ -397,6 +524,7 @@ void ptrace_os_wait(pid_t t) {
      * caused the event.
      */
     wait_index = check_lwpinfo(wait_tid);
+    fbsd_dump_thread_state();
     /* check_lwpinfo can fail */
     if (wait_index >= 0) {
       PROCESS_WAIT(wait_index) = true;
@@ -461,6 +589,11 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
 int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
   int ret = RET_ERR;
   int index;
+  /*
+   * Double check on the thread state to avoid running an
+   * exited thread
+   */
+  fbsd_update_thread_state();
   if ((pid < 0) || (tid < 0))
     goto end;
   index = target_index(tid);
