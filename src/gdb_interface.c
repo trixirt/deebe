@@ -99,6 +99,7 @@ static uint16_t dbg_sock_readchar() {
     ret = (uint16_t)network_in_buffer[network_in_buffer_current];
     network_in_buffer_current++;
   } else {
+      /* underflow is the most likely possiblity */
     DBG_PRINT("gdb_interface : error out underflow read %zu\n",
               network_in_buffer_current);
   }
@@ -175,6 +176,7 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
   pkt_len = 0;
   state = STATE_INIT;
   esc_found = false;
+  bool binary = false;
 
   for (;;) {
     uint16_t sc = dbg_sock_readchar();
@@ -290,6 +292,7 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
              * it looks like a non-binary
              * format memory write command.
              */
+	      binary = true;
             buf[0] = 'M';
             esc_found = false;
             /* Have to save extra space */
@@ -302,6 +305,7 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
              * file write. Go directly
              * to binary data state
              */
+	      binary = true;
             state = STATE_BINARY_RAW;
           } else {
             state = STATE_TEXT;
@@ -420,8 +424,21 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
       }
 
     } else {
-      /* Failure */
-      DBG_PRINT("gdb_interface : error in underflow\n");
+	/*
+	 * In some cases, vFile:pwrite, no #XX is given
+	 * In some cases it is, vFile:open.
+	 * This shows up as an underlow.
+	 * Check if we are handling a binary packet, if we are
+	 * then assume the packet is ok and don't report the
+	 * underflow
+	 */
+	if (binary) {
+	    *len = pkt_len;
+	    ret = 0;
+	} else {
+	    /* Failure */
+	    DBG_PRINT("gdb_interface : error in underflow\n");
+	}
       break;
     }
   }
@@ -1889,7 +1906,6 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
 	   * And how much has already been read
 	   *
 	   * n - in_buf is how much has already been read
-	   * -3 for end of buffer #XY crc check
 	   */
 	  if ((n - in_buf) < in_len) {
 	    if (off != lseek(fd, off, SEEK_SET)) {
@@ -2402,10 +2418,7 @@ int gdb_interface_packet() {
        */
       gdb_interface_write_retval(RET_NOSUPP, out_buf);
       rp_target_out_valid = FALSE;
-
-      DBG_PRINT("%s %s\n", __func__, in_buf);
       switch (in_buf[0]) {
-	      
 
       case '!':
         /* Set extended operation */
