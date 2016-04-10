@@ -1238,7 +1238,8 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         if (_target.lldb) {
           sprintf(out_buf, "QC%" PRIx64, thread);
         } else {
-	  sprintf(out_buf, "QCp%" PRIx64 ".%" PRIx64, process, thread);
+	  /* For gdb, return .-1 to indicate this is the main pid/thread */
+	  sprintf(out_buf, "QCp%" PRIx64 ".-1", process);
         }
       } else {
         gdb_interface_write_retval(status, out_buf);
@@ -1709,6 +1710,10 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
           }
         }
       }
+      /*
+       * Gdb can pass a list of continue/step commands for more than
+       * one thread.  We ignore all but the first
+       */
       if (!err) {
         ret = target->resume_from_current(CURRENT_PROCESS_PID,
                                           CURRENT_PROCESS_TID, step, sig);
@@ -2611,7 +2616,12 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
   char tstr[32] = "";
   char wstr[32] = "";
   size_t len = INOUTBUF_SIZE;
-  if (_target.lldb || target_number_threads() > 1)
+  /*
+   * lldb always wants the thread id
+   * gdb only wants it if isn't the main pid/thread's
+   */
+  if (_target.lldb ||
+      (target_number_threads() > 1 && tid != PROCESS_TID(0)))
       snprintf(&tstr[0], 32, "thread:%x;", tid);
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
