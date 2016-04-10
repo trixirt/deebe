@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Tom Rix
+ * Copyright (c) 2014-2016 Tom Rix
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -152,6 +152,8 @@ static bool get_hostname(char **ptr) {
         ret = true;
       }
     }
+    free (str);
+    str = NULL;
   }
   return ret;
 }
