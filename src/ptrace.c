@@ -257,7 +257,7 @@ bool _read_reg(pid_t tid, int GET, int SET, void **reg, uint8_t **reg_rw,
         if (_read_reg_verbose) {
           char str[128];
           memset(&str[0], 0, 128);
-          DBG_PRINT("Error reading registers %d, status is %d\n", GET,
+          DBG_PRINT("Error reading registers %d for %x, status is %d\n", GET, tid,
                     ptrace_status);
           if (0 == strerror_r(errno, &str[0], 128)) {
             DBG_PRINT("Error %d %s\n", errno, str);
@@ -1043,7 +1043,6 @@ int ptrace_resume_from_addr(pid_t pid, pid_t tid, int step, int gdb_sig,
 }
 
 void ptrace_quick_kill(pid_t pid, pid_t tid) {
-  DBG_PRINT("%s %x %x\n", __func__, pid, tid);
   kill(pid, SIGKILL); /* XXX change to pid */
   util_usleep(1000);
   exit(0);
@@ -1051,11 +1050,11 @@ void ptrace_quick_kill(pid_t pid, pid_t tid) {
 
 void ptrace_quick_signal(pid_t pid, pid_t tid, int gdb_sig) {
 #if 0
-	/* This is how the routine should work */
-	int sig;
-	sig = ptrace_arch_signal_from_gdb(gdb_sig);
-	if (sig > 0)
-		kill(pid, sig);
+  /* This is how the routine should work */
+  int sig;
+  sig = ptrace_arch_signal_from_gdb(gdb_sig);
+  if (sig > 0)
+    kill(pid, sig);
 #endif
   /* But be blunt */
   kill(pid, SIGTRAP);
@@ -1658,7 +1657,10 @@ void ptrace_threadinfo_query(int first, char *out_buf) {
     pid_t p = PROCESS_PID(0);
     if (n < _target.number_processes) {
       t = PROCESS_TID(n);
-      sprintf(out_buf, "mp%x.%x", p, t);
+      if (n > 0)
+	sprintf(out_buf, "mp%x.%x", p, t);
+      else
+	sprintf(out_buf, "m%x", p);
     } else {
       sprintf(out_buf, "l");
     }
