@@ -49,71 +49,75 @@
 #include "target.h"
 
 static bool _lwpinfo_verbose = false;
-static bool _threadstate_verbose = false;
+static bool _threadstate_verbose = true;
 
-static void fbsd_dump_thread_state() {
-    if (_threadstate_verbose) {
-	struct procstat *prstat;
-	/* See FreeBSD usr.bin/procstat/procstat_threads.c */
-	prstat = procstat_open_sysctl();
-	if (prstat != NULL) {
-	    pid_t pid = CURRENT_PROCESS_PID;
-	    struct kinfo_proc *kp;
-	    unsigned int count = 0;
-	    kp = procstat_getprocs(prstat,
-				   KERN_PROC_PID | KERN_PROC_INC_THREAD,
-				   pid, &count);
-	    if (kp != NULL) {
-		int i;
-		DBG_PRINT("Thread state\n");
-		for (i = 0; i < count; i++) {
-		    struct kinfo_proc *kpp = &kp[i];
-		    const char *str;
-		    DBG_PRINT("\tpid %x tid %x ",
-			      kpp->ki_pid, kpp->ki_tid);
-
-		    switch (kpp->ki_stat) {
-		    case SRUN:
-			str = "run";
-			break;
-
-		    case SSTOP:
-			str = "stop";
-			break;
-
-		    case SSLEEP:
-			str = "sleep";
-			break;
-
-		    case SLOCK:
-			str = "lock";
-			break;
-
-		    case SWAIT:
-			str = "wait";
-			break;
-
-		    case SZOMB:
-			str = "zomb";
-			break;
-
-		    case SIDL:
-			str = "idle";
-			break;
-
-		    default:
-			str = "??";
-			break;
-		    }
-		    DBG_PRINT("%s\n", str);
-		}
-		procstat_freeprocs(prstat, kp);
-		kp = NULL;
-	    }
-	    procstat_close(prstat);
-	    prstat = NULL;
+bool fbsd_thread_state() {
+  bool ret = true;
+  struct procstat *prstat;
+  /* See FreeBSD usr.bin/procstat/procstat_threads.c */
+  prstat = procstat_open_sysctl();
+  if (prstat != NULL) {
+    pid_t pid = CURRENT_PROCESS_PID;
+    struct kinfo_proc *kp;
+    unsigned int count = 0;
+    kp = procstat_getprocs(prstat,
+			   KERN_PROC_PID | KERN_PROC_INC_THREAD,
+			   pid, &count);
+    if (kp != NULL) {
+      int i;
+      if (_threadstate_verbose) {
+	DBG_PRINT("Thread state\n");
+      }
+      for (i = 0; i < count; i++) {
+	struct kinfo_proc *kpp = &kp[i];
+	const char *str;
+	if (_threadstate_verbose) {
+	  DBG_PRINT("\tpid %x tid %x ", kpp->ki_pid, kpp->ki_tid);
 	}
+	switch (kpp->ki_stat) {
+	case SRUN:
+	  ret = false;
+	  str = "run";
+	  break;
+	case SSTOP:
+	  str = "stop";
+	  break;
+	case SSLEEP:
+	  ret = false;
+	  str = "sleep";
+	  break;
+	case SLOCK:
+	  ret = false;
+	  str = "lock";
+	  break;
+	case SWAIT:
+	  ret = false;
+	  str = "wait";
+	  break;
+	case SZOMB:
+	  ret = false;
+	  str = "zomb";
+	  break;
+	case SIDL:
+	  ret = false;
+	  str = "idle";
+	  break;
+	default:
+	  ret = false;
+	  str = "??";
+	  break;
+	}
+	if (_threadstate_verbose) {
+	  DBG_PRINT("%s\n", str);
+	}
+      }
+      procstat_freeprocs(prstat, kp);
+      kp = NULL;
     }
+    procstat_close(prstat);
+    prstat = NULL;
+  }
+  return ret;
 }
 
 static void fbsd_update_thread_state() {
@@ -434,77 +438,7 @@ void ptrace_os_option_set_thread(pid_t pid) {
    * be accounted for so check for them now.
    */
   check_lwplist_for_new_threads(pid);
-}
-
-static int check_lwpinfo(pid_t pid) {
-  int ret = 0; /* Index */
-#ifdef PT_LWPINFO
-  int index;
-  pid_t tid;
-  int ptrace_status;
-  /*
-   * Use PT_LWPINFO to get a fine grained reason for the wait
-   */
-  struct ptrace_lwpinfo lwpinfo = {0};
-  ptrace_status = PTRACE(PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
-  if (0 == ptrace_status) {
-
-    if (_lwpinfo_verbose) {
-      DBG_PRINT("lwpinfo.pl_lwpid %x \n", lwpinfo.pl_lwpid);
-      DBG_PRINT("lwpinfo.pl_event %x \n", lwpinfo.pl_event);
-      DBG_PRINT("lwpinfo.pl_flags %x \n", lwpinfo.pl_flags);
-      DBG_PRINT("lwpinfo.pl_tdname %s \n", lwpinfo.pl_tdname);
-      DBG_PRINT("lwpinfo.pl_child_pid %x \n", lwpinfo.pl_child_pid);
-      if (lwpinfo.pl_flags & PL_FLAG_SI) {
-        DBG_PRINT("lwpinfo.pl_siginfo\n");
-        DBG_PRINT("\t si_signo %d\n", lwpinfo.pl_siginfo.si_signo);
-        DBG_PRINT("\t si_errno %d\n", lwpinfo.pl_siginfo.si_errno);
-        DBG_PRINT("\t si_code  %d\n", lwpinfo.pl_siginfo.si_code);
-        DBG_PRINT("\t si_pid   %x\n", lwpinfo.pl_siginfo.si_pid);
-        DBG_PRINT("\t si_addr  %p\n", lwpinfo.pl_siginfo.si_addr);
-      }
-      if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-        unsigned long id, arg1, arg2, arg3, arg4, r;
-        id = -1; /* only initiaze id, because it is the only used variable */
-        ptrace_arch_get_syscall(pid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-        DBG_PRINT("syscall enter %d\n", id);
-      }
-    }
-    /*
-     * wait works on the pid
-     * This does not tell us which lwp caused the event
-     * To find this, look in the lwpinfo.pl_lwpid
-     */
-    tid = lwpinfo.pl_lwpid;
-    if (!target_is_tid(tid)) {
-        if (!target_new_thread(PROCESS_PID(0), tid, PROCESS_WAIT_STATUS_DEFAULT,
-                               false, SIGSTOP)) {
-	    DBG_PRINT("%s error allocating new thread\n", __func__);
-        }
-    }
-    index = target_index(tid);
-    if (index >= 0) {
-      if (lwpinfo.pl_flags & PL_FLAG_SCE) {
-        unsigned long id, arg1, arg2, arg3, arg4, r;
-        id = -1; /* only initiaze id, because it is the only used variable */
-        ptrace_arch_get_syscall(tid, &id, &arg1, &arg2, &arg3, &arg4, &r);
-        PROCESS_SYSCALL(index) = id;
-        PROCESS_STATE(index) = PS_SYSCALL_ENTER;
-      } else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
-        PROCESS_STATE(index) = PS_SYSCALL_EXIT;
-      }
-      ret = index;
-    }
-  } else {
-    char str[128];
-    DBG_PRINT("Error get lwpinfo, status is %d\n", ptrace_status);
-    if (0 == strerror_r(errno, &str[0], 128)) {
-      DBG_PRINT("Error %d %s\n", errno, str);
-    }
-  }
-#endif
-  return ret;
-}
+ }
 
 void ptrace_os_wait(pid_t t) {
   /*
@@ -515,39 +449,44 @@ void ptrace_os_wait(pid_t t) {
   pid_t pid = PROCESS_PID(0);
   int wait_status = -1;
   pid_t wait_tid = 0;
+  bool stopped = false;
+  int index;
+
+  /* Reset the thread wait state */
+  for (index = 0; index < _target.number_processes; index++) {
+    PROCESS_WAIT(index) = false;
+    PROCESS_WAIT_STATUS(index) = -1;
+  }
   wait_tid = waitpid(pid, &wait_status, WNOHANG);
-  if ((wait_tid == pid) && (-1 != wait_status)) {
-    int wait_index;
-    int index;
-    /*
-     * check_lwpinfo returns the index to the tid that
-     * caused the event.
-     */
-    wait_index = check_lwpinfo(wait_tid);
-    fbsd_dump_thread_state();
-    /* check_lwpinfo can fail */
-    if (wait_index >= 0) {
-      PROCESS_WAIT(wait_index) = true;
-      PROCESS_WAIT_STATUS(wait_index) = wait_status;
-      /* Since we waited on the pid, everyone is stopped */
-      for (index = 0; index < _target.number_processes; index++) {
-        if (PROCESS_STATE(index) != PS_EXIT) {
-          PROCESS_STATE(index) = PS_STOP;
-        }
-      }
-      /*
-       * Need to keep track of new threads being created
-       * Without this check only those that hit a breakpoint
-       * would be reported.
-       *
-       * This call can change the number of threads in the thread
-       * list but it will not change the order.
-       */
-      check_lwplist_for_new_threads(pid);
-    } else {
-      DBG_PRINT("ERROR %s lwpinfo failed %x %x %x\n", __func__, pid, wait_tid,
-                wait_status);
+  /*
+   * Waiting on the pid doesn't mean everyone is stopped
+   * Look closer to make sure
+   */
+  stopped = fbsd_thread_state();
+  if ((wait_tid == pid) && (-1 != wait_status) && stopped) {
+    /* Not single stepping so the current thread isn't always going to be valid */
+    if (t == -1) {
+      t = ptrace_os_get_wait_tid(pid);
     }
+    for (index = 0; index < _target.number_processes; index++) {
+      if (PROCESS_STATE(index) != PS_EXIT) {
+	PROCESS_STATE(index) = PS_STOP;
+	/* Expecting everyone to stop or current tid*/
+	if (t == PROCESS_TID(index)) {
+	  PROCESS_WAIT(index) = true;
+	  PROCESS_WAIT_STATUS(index) = wait_status;
+	}
+      }
+    }
+    /*
+     * Need to keep track of new threads being created
+     * Without this check only those that hit a breakpoint
+     * would be reported.
+     *
+     * This call can change the number of threads in the thread
+     * list but it will not change the order.
+     */
+    check_lwplist_for_new_threads(pid);
   }
 }
 
@@ -562,6 +501,7 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
   long ret;
   long request = PT_CONTINUE;
   int index;
+  DBG_PRINT("%s %x %x %d %d\n", __func__, pid, tid, step, sig);
   /*
    * FreeBSD does not notify when a thread exits
    * So if we continue a thread continues until it ends, we are stuck.
@@ -583,6 +523,7 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
     }
   }
   ret = PTRACE(request, pid, 1, sig);
+  DBG_PRINT("%s %x %x %d : %d\n", __func__, request, pid, sig, ret);
   return ret;
 }
 
@@ -693,90 +634,77 @@ end:
  * current thread is set to signalling thread.
  */
 void ptrace_os_stopped_single(char *str, bool debug) {
-  int index;
-  for (index = 0; index < _target.number_processes; index++) {
-    if (PROCESS_WAIT(index))
-      break;
-  }
-  if (index < _target.number_processes) {
-    pid_t tid = PROCESS_TID(index);
-    int wait_status = PROCESS_WAIT_STATUS(index);
-    if (WIFSTOPPED(wait_status)) {
-      int s = WSTOPSIG(wait_status);
-      int g = ptrace_arch_signal_to_gdb(s);
-      if (s == SIGTRAP) {
-        unsigned long pc = 0;
-        unsigned long watch_addr = 0;
-        ptrace_arch_get_pc(tid, &pc);
-        if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
-          target_thread_make_current(tid);
-          gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
-          CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
-          /*
-           * process stat points to the true thread to continue
-           * Not that it matter on FreeBSD as they all go at once
-           */
-          PROCESS_STATE(index) = PS_CONT;
-        } else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
-          /* A watchpoint was hit */
-          target_thread_make_current(tid);
-          gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
-          CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
-          /*
-           * process stat points to the true thread to continue
-           * Not that it matters on FreeBSD as they all go at once
-           */
-          PROCESS_STATE(index) = PS_CONT;
-        } else {
-          int reason;
-          /*
-           * Map all tid's to the current tid
-           *
-           * Either a normal breakpoint or a step, it doesn't matter
-           */
-          target_thread_make_current(tid);
-
-          if (_target.step) {
-            /* stepping can run over a normal breakpoint so precidence is for
-             * stepping */
-            reason = LLDB_STOP_REASON_TRACE;
-          } else {
-            /*
-             * XXX A real trap and a breakpoint could be at the same location
-             *
-             * lldb checks if the pc matches what was used to set the
-             *breakpoint.
-             * At this point the pc can advanced (at least on x86).
-             * If the pc and the breakpoint don't match, lldb puts itself in a
-             *bad
-             * state.  So check if we are on lldb and roll back the pc one sw
-             *break's
-             * worth.
-             *
-             * On freebsd arm, the pc isn't advanced so use the arch dependent
-             *function
-             * ptrace_arch_swbreak_rollback
-             */
-            if (_target.lldb)
-              ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
-
-            reason = LLDB_STOP_REASON_BREAKPOINT;
-          }
-          gdb_stop_string(str, g, tid, 0, reason);
-          CURRENT_PROCESS_STOP = reason;
-
-          /*
-           * process stat points to the true thread to continue
-           * Not that it matter on FreeBSD as they all go at once
-           */
-          PROCESS_STATE(index) = PS_CONT;
-        }
+  int index = _target.current_process;
+  pid_t tid = CURRENT_PROCESS_TID;
+  int wait_status = PROCESS_WAIT_STATUS(index);
+  if (WIFSTOPPED(wait_status)) {
+    int s = WSTOPSIG(wait_status);
+    int g = ptrace_arch_signal_to_gdb(s);
+    if (s == SIGTRAP) {
+      unsigned long pc = 0;
+      unsigned long watch_addr = 0;
+      ptrace_arch_get_pc(tid, &pc);
+      if (ptrace_arch_hit_hardware_breakpoint(tid, pc)) {
+	gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_BREAKPOINT);
+	CURRENT_PROCESS_STOP = LLDB_STOP_REASON_BREAKPOINT;
+	/*
+	 * process stat points to the true thread to continue
+	 * Not that it matter on FreeBSD as they all go at once
+	 */
+	PROCESS_STATE(index) = PS_CONT;
+      } else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
+	/* A watchpoint was hit */
+	gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
+	CURRENT_PROCESS_STOP = LLDB_STOP_REASON_WATCHPOINT;
+	/*
+	 * process stat points to the true thread to continue
+	 * Not that it matters on FreeBSD as they all go at once
+	 */
+	PROCESS_STATE(index) = PS_CONT;
       } else {
-        /* A non trap signal, report the true thread */
-        target_thread_make_current(tid);
-        gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
-        CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
+	int reason;
+	/*
+	 * Map all tid's to the current tid
+	 *
+	 * Either a normal breakpoint or a step, it doesn't matter
+	 */
+	if (_target.step) {
+	  /* stepping can run over a normal breakpoint so precidence is for
+	   * stepping */
+	  reason = LLDB_STOP_REASON_TRACE;
+	} else {
+	  /*
+	   * XXX A real trap and a breakpoint could be at the same location
+	   *
+	   * lldb checks if the pc matches what was used to set the
+	   *breakpoint.
+	   * At this point the pc can advanced (at least on x86).
+	   * If the pc and the breakpoint don't match, lldb puts itself in a
+	   *bad
+	   * state.  So check if we are on lldb and roll back the pc one sw
+	   *break's
+	   * worth.
+	   *
+	   * On freebsd arm, the pc isn't advanced so use the arch dependent
+	   *function
+	   * ptrace_arch_swbreak_rollback
+	   */
+	  if (_target.lldb)
+	    ptrace_arch_set_pc(tid, pc - ptrace_arch_swbrk_rollback());
+	  reason = LLDB_STOP_REASON_BREAKPOINT;
+	}
+	gdb_stop_string(str, g, tid, 0, reason);
+	CURRENT_PROCESS_STOP = reason;
+	/*
+	 * process stat points to the true thread to continue
+	 * Not that it matter on FreeBSD as they all go at once
+	 */
+	PROCESS_STATE(index) = PS_CONT;
       }
+    } else {
+      /* A non trap signal, report the true thread */
+      gdb_stop_string(str, g, tid, 0, LLDB_STOP_REASON_SIGNAL);
+      CURRENT_PROCESS_STOP = LLDB_STOP_REASON_SIGNAL;
     }
   }
 }
@@ -917,7 +845,7 @@ int elf_os_image(pid_t pid) {
 }
 
 pid_t ptrace_os_get_wait_tid(pid_t pid) {
-    pid_t ret = -1;
+  pid_t ret = -1;
 #ifdef PT_LWPINFO
     int status;
     struct ptrace_lwpinfo lwpinfo = {0};
