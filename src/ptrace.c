@@ -74,7 +74,7 @@ static bool _add_break_verbose = false;
 static bool _remove_break_verbose = false;
 static bool _read_single_reg_verbose = false;
 static bool _write_single_reg_verbose = false;
-static bool _stop_verbose = true;
+static bool _stop_verbose = false;
 static bool _restart_verbose = false;
 static bool _detach_verbose = false;
 
@@ -539,22 +539,22 @@ int ptrace_attach(pid_t process_id) {
   return ret;
 }
 
-static int _ptrace_detach(pid_t pid, pid_t tid, int gdb_sig) {
+static int _ptrace_detach(int gdb_sig) {
   int ret = RET_ERR;
-
+  pid_t pid = CURRENT_PROCESS_PID;
   int sig;
   sig = ptrace_arch_signal_from_gdb(gdb_sig);
   if (sig < 0)
     sig = 0;
   if (cmdline_pid > 0) {
-    if (0 != ptrace(PT_DETACH, tid, 0, sig)) { /* XXX convert to pid */
+    if (0 != ptrace(PT_DETACH, pid, 0, sig)) { /* XXX convert to pid */
       /* Failure */
       if (_detach_verbose) {
-        DBG_PRINT("Error detaching from tid %d\n", tid);
+        DBG_PRINT("Error detaching from pid %d\n", pid);
       }
     } else {
       if (_detach_verbose) {
-        DBG_PRINT("OK detaching from tid %d\n", tid);
+        DBG_PRINT("OK detaching from pid %d\n", pid);
       }
       ret = RET_OK;
     }
@@ -562,8 +562,8 @@ static int _ptrace_detach(pid_t pid, pid_t tid, int gdb_sig) {
   return ret;
 }
 
-int ptrace_detach(pid_t pid, pid_t tid) {
-  int ret = _ptrace_detach(pid, tid, 0);
+int ptrace_detach() {
+  int ret = _ptrace_detach(0);
   return ret;
 }
 

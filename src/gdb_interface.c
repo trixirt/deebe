@@ -952,12 +952,14 @@ int handle_restart_target_command(char *const in_buf, char *out_buf,
 void handle_detach_command(char *const in_buf, char *out_buf, gdb_target *t) {
   int ret = RET_NOSUPP;
   if (t->detach)
-    ret = t->detach(CURRENT_PROCESS_TID);
+    ret = t->detach();
   else
     t->disconnect();
   gdb_interface_write_retval(ret, out_buf);
   /* Note: The current GDB does not expect a reply */
   network_put_dbg_packet(out_buf, 0);
+  /* Exit now or we will appear to be wedged */
+  exit(0);
 }
 
 static bool gdb_handle_qxfer_command(char *const in_buf, char *out_buf,
