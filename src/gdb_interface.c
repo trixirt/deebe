@@ -1018,101 +1018,84 @@ static int rp_encode_process_query_response(unsigned int mask,
                                             const gdb_thread_ref *ref,
                                             const rp_thread_info *info,
                                             char *out) {
-  size_t len;
-  unsigned int tag;
-  int i;
-
-  ASSERT(ref != NULL);
-  ASSERT(info != NULL);
-  ASSERT(out != NULL);
-
-  /* Encode header */
-  *out++ = 'q';
-  *out++ = 'Q';
-
-  /* Encode mask */
-  sprintf(out, "%08x", mask);
-  out += 8;
-
-  /* Encode reference thread */
-  sprintf(out, "%016" PRIu64 "x", ref->val);
-
-  out += 16;
-
-  for (i = 0, tag = 0; i < 32; i++, tag <<= 1) {
-    if ((mask & tag) == 0)
-      continue;
-
-    /* Encode tag */
-    sprintf(out, "%08x", tag);
+  int ret = 0;
+  if ((ref != NULL) &&
+      (info != NULL) &&
+      (out != NULL)) {
+    size_t len;
+    unsigned int tag;
+    int i;
+    /* Encode header */
+    *out++ = 'q';
+    *out++ = 'Q';
+    /* Encode mask */
+    sprintf(out, "%08x", mask);
     out += 8;
-
-    switch (tag) {
-    case RP_BIT_PROCQMASK_THREADID:
-
-      /* Encode length - it is 16 */
-      util_encode_byte(16, out);
-      out += 2;
-
-      /* Encode value */
-      sprintf(out, "%016" PRIu64 "x", info->thread_id.val);
-
-      out += 16;
-      break;
-    case RP_BIT_PROCQMASK_EXISTS:
-
-      /* Encode Length */
-      util_encode_byte(1, out);
-      out += 2;
-
-      /* Encode value */
-      *out++ = (info->exists) ? '1' : '0';
-      *out = 0;
-      break;
-    case RP_BIT_PROCQMASK_DISPLAY:
-      /* Encode length */
-      len = strlen(info->display);
-      ASSERT(len <= 255);
-
-      util_encode_byte(len, out);
-      out += 2;
-
-      /* Encode value */
-      strcpy(out, info->display);
-      out += len;
-      break;
-    case RP_BIT_PROCQMASK_THREADNAME:
-      /* Encode length */
-      len = strlen(info->thread_name);
-      ASSERT(len <= 255);
-
-      util_encode_byte(len, out);
-      out += 2;
-
-      /* Encode value */
-      strcpy(out, info->thread_name);
-      out += len;
-      break;
-    case RP_BIT_PROCQMASK_MOREDISPLAY:
-      /* Encode length */
-      len = strlen(info->more_display);
-      ASSERT(len <= 255);
-
-      util_encode_byte(len, out);
-      out += 2;
-
-      /* Encode value */
-      strcpy(out, info->more_display);
-      out += len;
-      break;
-    default:
-      /* Unexpected tag value */
-      ASSERT(0);
-      return 0;
+    /* Encode reference thread */
+    sprintf(out, "%016" PRIu64 "x", ref->val);
+    out += 16;
+    for (i = 0, tag = 0; i < 32; i++, tag <<= 1) {
+      if ((mask & tag) == 0)
+	continue;
+      /* Encode tag */
+      sprintf(out, "%08x", tag);
+      out += 8;
+      switch (tag) {
+      case RP_BIT_PROCQMASK_THREADID:
+	/* Encode length - it is 16 */
+	util_encode_byte(16, out);
+	out += 2;
+	/* Encode value */
+	sprintf(out, "%016" PRIu64 "x", info->thread_id.val);
+	out += 16;
+	break;
+      case RP_BIT_PROCQMASK_EXISTS:
+	/* Encode Length */
+	util_encode_byte(1, out);
+	out += 2;
+	/* Encode value */
+	*out++ = (info->exists) ? '1' : '0';
+	*out = 0;
+	break;
+      case RP_BIT_PROCQMASK_DISPLAY:
+	/* Encode length */
+	len = strlen(info->display);
+	ASSERT(len <= 255);
+	util_encode_byte(len, out);
+	out += 2;
+	/* Encode value */
+	strcpy(out, info->display);
+	out += len;
+	break;
+      case RP_BIT_PROCQMASK_THREADNAME:
+	/* Encode length */
+	len = strlen(info->thread_name);
+	ASSERT(len <= 255);
+	util_encode_byte(len, out);
+	out += 2;
+	/* Encode value */
+	strcpy(out, info->thread_name);
+	out += len;
+	break;
+      case RP_BIT_PROCQMASK_MOREDISPLAY:
+	/* Encode length */
+	len = strlen(info->more_display);
+	ASSERT(len <= 255);
+	util_encode_byte(len, out);
+	out += 2;
+	/* Encode value */
+	strcpy(out, info->more_display);
+	out += len;
+	break;
+      default:
+	/* Unexpected tag value */
+	goto end;
+      }
     }
+    ret = 1;
   }
-
-  return 1;
+ end:
+  return ret;
 }
 
 static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *out_buf,
