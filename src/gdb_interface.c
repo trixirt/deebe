@@ -2158,19 +2158,17 @@ static int gdb_decode_reg_assignment(char *in, unsigned int *reg_no,
 /* Decode memory transfer parameter in the form of AA..A,LL..L */
 static int gdb_decode_mem(char *in, uint64_t *addr, size_t *len) {
   int ret = FALSE;
-  ASSERT(in != NULL);
-  ASSERT(addr != NULL);
-  ASSERT(len != 0);
-
-  *len = 0;
-
-  if (util_decode_uint64(&in, addr, ',')) {
-    /* On 64 bit, size_t != uint32_t */
-    uint32_t l = 0;
-
-    if (util_decode_uint32(&in, &l, '\0')) {
-      *len = l;
-      ret = TRUE;
+  if ((in != NULL) &&
+      (addr != NULL) &&
+      (len != NULL)) {
+    *len = 0;
+    if (util_decode_uint64(&in, addr, ',')) {
+      /* On 64 bit, size_t != uint32_t */
+      uint32_t l = 0;
+      if (util_decode_uint32(&in, &l, '\0')) {
+	*len = l;
+	ret = TRUE;
+      }
     }
   }
   return ret;
@@ -2184,22 +2182,20 @@ static int rp_decode_process_query(const char *in, unsigned int *mask,
                                    gdb_thread_ref *ref) {
   unsigned int tmp_mask;
   uint64_t tmp_val;
-
-  ASSERT(in != NULL);
-  ASSERT(mask != NULL);
-  ASSERT(ref != NULL);
-
-  if (!rp_decode_4bytes(in, &tmp_mask))
-    return FALSE;
-  in += 8;
-
-  if (!rp_decode_8bytes(in, &tmp_val))
-    return FALSE;
-
-  *mask = tmp_mask;
-  ref->val = tmp_val;
-
-  return TRUE;
+  int ret = FALSE;
+  if ((in != NULL) &&
+      (mask != NULL) &&
+      (ref != NULL)) {
+    if (rp_decode_4bytes(in, &tmp_mask)) {
+      in += 8;
+      if (rp_decode_8bytes(in, &tmp_val)) {
+	*mask = tmp_mask;
+	ref->val = tmp_val;
+	ret = TRUE;
+      }
+    }
+  }
+  return ret;
 }
 
 /* Decode thread list list query. Format 'FMMAAAAAAAAAAAAAAAA'
@@ -2212,28 +2208,25 @@ static int rp_decode_list_query(const char *in, int *first, size_t *max,
   uint8_t first_flag;
   uint8_t tmp_max;
   uint64_t tmp_val;
-
-  ASSERT(in != NULL);
-  ASSERT(first != NULL);
-  ASSERT(max != NULL);
-  ASSERT(arg != NULL);
-
-  if (!util_decode_nibble(in, &first_flag))
-    return FALSE;
-  in++;
-
-  if (!util_decode_byte(in, &tmp_max))
-    return FALSE;
-  in += 2;
-
-  if (!rp_decode_8bytes(in, &tmp_val))
-    return FALSE;
-
-  *first = (first_flag) ? TRUE : FALSE;
-  *max = tmp_max;
-  arg->val = tmp_val;
-
-  return TRUE;
+  int ret = FALSE;
+  if ((in != NULL) &&
+      (first != NULL) &&
+      (max != NULL) &&
+      (arg != NULL)) {
+    if (util_decode_nibble(in, &first_flag)) {
+      in++;
+      if (util_decode_byte(in, &tmp_max)) {
+	in += 2;
+	if (rp_decode_8bytes(in, &tmp_val)) {
+	  *first = (first_flag) ? TRUE : FALSE;
+	  *max = tmp_max;
+	  arg->val = tmp_val;
+	  ret = true;
+	}
+      }
+    }
+  }
+  return ret;
 }
 
 /* Decode exactly 4 bytes of hex from a longer string, and return the result
