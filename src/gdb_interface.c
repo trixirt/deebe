@@ -154,276 +154,254 @@ static char *in_buf_quick = NULL;
    and store it in buf. */
 static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
   int ret = -1;
-  char seq[2];
-  bool seq_valid = false;
-  unsigned char rx_csum;
-  unsigned char calc_csum;
-  int nib;
-  size_t pkt_len;
-  bool esc_found = false;
-  int state;
   size_t buf_len = INOUTBUF_SIZE;
-
-  ASSERT(buf != NULL);
-  ASSERT(buf_len > 6);
-  ASSERT(len != NULL);
-
-  seq[0] = 0;
-  seq[1] = 0;
-  seq_valid = false;
-  rx_csum = 0;
-  calc_csum = 0;
-  pkt_len = 0;
-  state = STATE_INIT;
-  esc_found = false;
-  bool binary = false;
-
-  for (;;) {
-    uint16_t sc = dbg_sock_readchar();
-    /* Check for underflow */
-    if (!(sc & 0xff00)) {
-      uint8_t c = (uint8_t)sc;
-
-      if (c == '$' && state != STATE_INIT) {
-        /*
-         * Unexpected start of packet marker
-         * in mid-packet.
-         */
-        seq[0] = 0;
-        seq[1] = 0;
-        seq_valid = false;
-        rx_csum = 0;
-        calc_csum = 0;
-        pkt_len = 0;
-        state = 1;
-      }
-
-      if (state == STATE_INIT) {
-
-        /* Waiting for a start of packet marker */
-        if (c == '$') {
-          /* Start of packet */
-          seq[0] = 0;
-          seq[1] = 0;
-          seq_valid = false;
-          rx_csum = 0;
-          calc_csum = 0;
-          pkt_len = 0;
-          state = 1;
-        } else if (c == '\3') {
-
-          /* A control C */
-          ret = '\3';
-          break;
-        } else if (c == '+') {
-          /* An ACK to one of our packets */
-          /*
-           * We don't use sequence numbers,
-           * so we shouldn't expect a
-           * sequence number after this
-           * character.
-           */
-          ret = ACK;
-          break;
-        } else if (c == '-') {
-          /* A NAK to one of our packets */
-          /*
-           * We don't use sequence numbers,
-           * so we shouldn't expect a
-           * sequence number after this
-           character.
-          */
-          ret = NAK;
-          break;
-        } else {
-        }
-      } else if ((state == 1) || (state == 2)) {
-        /*
-         * We might be in the two character
-         * sequence number preceeding a ':'.
-         * Then again, we might not!
-         */
-        if (c == '#') {
-          state = STATE_HASHMARK;
-        } else {
-          buf[pkt_len++] = c;
-          rx_csum += c;
-          state++;
-        }
-      } else if (state == 3) {
-
-        if (c == '#') {
-          state = STATE_HASHMARK;
-        } else {
-          if (c == ':') {
-            /*
-             * A ':' at this position
-             * means the previous 2
-             * characters form a sequence
-             * number for the packet.
-             * This must be saved,
-             * and used when
-             * ack'ing the packet
-             */
-            seq[0] = buf[0];
-            seq[1] = buf[1];
-            seq_valid = true;
-            pkt_len = 0;
-          } else {
-            buf[pkt_len++] = c;
-            rx_csum += c;
-          }
-          state = STATE_CMD;
-        }
-      } else if (state == STATE_CMD) {
-        if (c == '#') {
-          state = STATE_HASHMARK;
-        } else {
-          buf[pkt_len++] = c;
-          rx_csum += c;
-          if (buf[0] == 'X') {
-            /*
-             * Special case: binary data.
-             * Format X<addr>,<len>:<data>.
-             * Note: we have not reached
-             * the ':' yet.
-             *
-             * Translate this packet, so
-             * it looks like a non-binary
-             * format memory write command.
-             */
+  if ((buf != NULL) &&
+      (buf_len > 6) &&
+      (len != NULL)) {
+    char seq[2] = { 0, 0 };
+    bool seq_valid = false;
+    unsigned char rx_csum = 0;
+    unsigned char calc_csum = 0;
+    size_t pkt_len = 0;
+    int state = STATE_INIT;
+    bool esc_found = false;
+    bool binary = false;
+    int nib;
+    for (;;) {
+      uint16_t sc = dbg_sock_readchar();
+      /* Check for underflow */
+      if (!(sc & 0xff00)) {
+	uint8_t c = (uint8_t)sc;
+	if (c == '$' && state != STATE_INIT) {
+	  /*
+	   * Unexpected start of packet marker
+	   * in mid-packet.
+	   */
+	  seq[0] = 0;
+	  seq[1] = 0;
+	  seq_valid = false;
+	  rx_csum = 0;
+	  calc_csum = 0;
+	  pkt_len = 0;
+	  state = 1;
+	}
+	if (state == STATE_INIT) {
+	  /* Waiting for a start of packet marker */
+	  if (c == '$') {
+	    /* Start of packet */
+	    seq[0] = 0;
+	    seq[1] = 0;
+	    seq_valid = false;
+	    rx_csum = 0;
+	    calc_csum = 0;
+	    pkt_len = 0;
+	    state = 1;
+	  } else if (c == '\3') {
+	    /* A control C */
+	    ret = '\3';
+	    break;
+	  } else if (c == '+') {
+	    /* An ACK to one of our packets */
+	    /*
+	     * We don't use sequence numbers,
+	     * so we shouldn't expect a
+	     * sequence number after this
+	     * character.
+	     */
+	    ret = ACK;
+	    break;
+	  } else if (c == '-') {
+	    /* A NAK to one of our packets */
+	    /*
+	     * We don't use sequence numbers,
+	     * so we shouldn't expect a
+	     * sequence number after this
+	     character.
+	    */
+	    ret = NAK;
+	    break;
+	  }
+	} else if ((state == 1) || (state == 2)) {
+	  /*
+	   * We might be in the two character
+	   * sequence number preceeding a ':'.
+	   * Then again, we might not!
+	   */
+	  if (c == '#') {
+	    state = STATE_HASHMARK;
+	  } else {
+	    buf[pkt_len++] = c;
+	    rx_csum += c;
+	    state++;
+	  }
+	} else if (state == 3) {
+	  if (c == '#') {
+	    state = STATE_HASHMARK;
+	  } else {
+	    if (c == ':') {
+	      /*
+	       * A ':' at this position
+	       * means the previous 2
+	       * characters form a sequence
+	       * number for the packet.
+	       * This must be saved,
+	       * and used when
+	       * ack'ing the packet
+	       */
+	      seq[0] = buf[0];
+	      seq[1] = buf[1];
+	      seq_valid = true;
+	      pkt_len = 0;
+	    } else {
+	      buf[pkt_len++] = c;
+	      rx_csum += c;
+	    }
+	    state = STATE_CMD;
+	  }
+	} else if (state == STATE_CMD) {
+	  if (c == '#') {
+	    state = STATE_HASHMARK;
+	  } else {
+	    buf[pkt_len++] = c;
+	    rx_csum += c;
+	    if (buf[0] == 'X') {
+	      /*
+	       * Special case: binary data.
+	       * Format X<addr>,<len>:<data>.
+	       * Note: we have not reached
+	       * the ':' yet.
+	       *
+	       * Translate this packet, so
+	       * it looks like a non-binary
+	       * format memory write command.
+	       */
 	      binary = true;
-            buf[0] = 'M';
-            esc_found = false;
-            /* Have to save extra space */
-            buf_len--;
-            state = STATE_PRE_BINARY_ENCODED;
-          } else if (buf[0] == 'v') {
-            /*
-             * This case can have binary
-             * data as part of a
-             * file write. Go directly
-             * to binary data state
-             */
+	      buf[0] = 'M';
+	      esc_found = false;
+	      /* Have to save extra space */
+	      buf_len--;
+	      state = STATE_PRE_BINARY_ENCODED;
+	    } else if (buf[0] == 'v') {
+	      /*
+	       * This case can have binary
+	       * data as part of a
+	       * file write. Go directly
+	       * to binary data state
+	       */
 	      binary = true;
-            state = STATE_BINARY_RAW;
-          } else {
-            state = STATE_TEXT;
-          }
-        }
-      } else if (state == STATE_TEXT) {
-        /* Normal, non-binary mode */
-        if (c == '#') {
-          state = STATE_HASHMARK;
-        } else {
-          if (pkt_len >= buf_len) {
-            break;
-          }
-          buf[pkt_len++] = c;
-          rx_csum += c;
-        }
-      } else if (state == STATE_BINARY_RAW) {
-        if (pkt_len >= buf_len) {
-          break;
-        }
-        if (esc_found) {
-          rx_csum += c;
-          esc_found = false;
-          c |= 0x20;
-          buf[pkt_len++] = c;
-          continue;
-        }
-
-        if (c == 0x7D) {
-          rx_csum += c;
-          esc_found = true;
-          continue;
-        } else if (c == '#') {
-          /* Unescaped '#' means end of packet */
-          state = STATE_HASHMARK;
-        } else {
-          rx_csum += c;
-          buf[pkt_len++] = c;
-        }
-      } else if (state == STATE_PRE_BINARY_ENCODED) {
-        /* Escaped binary data mode - pre ':' */
-        buf[pkt_len++] = c;
-        rx_csum += c;
-        if (c == ':') {
-          /*
-           * From now on the packet will
-           * be in escaped binary.
-           */
-          state = STATE_BINARY_ENCODED;
-        }
-      } else if (state == STATE_BINARY_ENCODED) {
-        /* Escaped binary data mode - post ':' */
-        if (pkt_len >= buf_len) {
-          break;
-        }
-        if (esc_found) {
-          rx_csum += c;
-          esc_found = false;
-          c ^= 0x20;
-          buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
-          buf[pkt_len++] = util_hex[c & 0xf];
-          continue;
-        }
-
-        if (c == 0x7D) {
-          rx_csum += c;
-          esc_found = true;
-          continue;
-        } else if (c == '#') {
-          /* Unescaped '#' means end of packet */
-          state = STATE_HASHMARK;
-        } else {
-          rx_csum += c;
-          buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
-          buf[pkt_len++] = util_hex[c & 0xf];
-        }
-      } else if (state == STATE_HASHMARK) {
-        /*
-         * Now get the first byte of the two
-         * byte checksum
-         */
-        nib = util_hex_nibble(c);
-        if (nib < 0) {
-          break;
-        }
-        calc_csum = (calc_csum << 4) | nib;
-        state = STATE_CSUM;
-      } else if (state == STATE_CSUM) {
-        /* Now get the second byte of the checksum, and
-           check it. */
-        nib = util_hex_nibble(c);
-        if (nib < 0) {
-          break;
-        }
-        calc_csum = (calc_csum << 4) | nib;
-        if (rx_csum == calc_csum) {
-          buf[pkt_len] = '\0';
-          *len = pkt_len;
-
-          /*
-           * Normally, we want to ack
-           * But in 'quick' mode, all the
-           * packets but ^C are dropped.
-           */
-          if (ret_ack)
-            dbg_ack_packet_received(seq_valid, seq);
-
-          ret = 0;
-          break;
-        }
-        break;
+	      state = STATE_BINARY_RAW;
+	    } else {
+	      state = STATE_TEXT;
+	    }
+	  }
+	} else if (state == STATE_TEXT) {
+	  /* Normal, non-binary mode */
+	  if (c == '#') {
+	    state = STATE_HASHMARK;
+	  } else {
+	    if (pkt_len >= buf_len) {
+	      break;
+	    }
+	    buf[pkt_len++] = c;
+	    rx_csum += c;
+	  }
+	} else if (state == STATE_BINARY_RAW) {
+	  if (pkt_len >= buf_len) {
+	    break;
+	  }
+	  if (esc_found) {
+	    rx_csum += c;
+	    esc_found = false;
+	    c |= 0x20;
+	    buf[pkt_len++] = c;
+	    continue;
+	  }
+	  if (c == 0x7D) {
+	    rx_csum += c;
+	    esc_found = true;
+	    continue;
+	  } else if (c == '#') {
+	    /* Unescaped '#' means end of packet */
+	    state = STATE_HASHMARK;
+	  } else {
+	    rx_csum += c;
+	    buf[pkt_len++] = c;
+	  }
+	} else if (state == STATE_PRE_BINARY_ENCODED) {
+	  /* Escaped binary data mode - pre ':' */
+	  buf[pkt_len++] = c;
+	  rx_csum += c;
+	  if (c == ':') {
+	    /*
+	     * From now on the packet will
+	     * be in escaped binary.
+	     */
+	    state = STATE_BINARY_ENCODED;
+	  }
+	} else if (state == STATE_BINARY_ENCODED) {
+	  /* Escaped binary data mode - post ':' */
+	  if (pkt_len >= buf_len) {
+	    break;
+	  }
+	  if (esc_found) {
+	    rx_csum += c;
+	    esc_found = false;
+	    c ^= 0x20;
+	    buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
+	    buf[pkt_len++] = util_hex[c & 0xf];
+	    continue;
+	  }
+	  if (c == 0x7D) {
+	    rx_csum += c;
+	    esc_found = true;
+	    continue;
+	  } else if (c == '#') {
+	    /* Unescaped '#' means end of packet */
+	    state = STATE_HASHMARK;
+	  } else {
+	    rx_csum += c;
+	    buf[pkt_len++] = util_hex[(c >> 4) & 0xf];
+	    buf[pkt_len++] = util_hex[c & 0xf];
+	  }
+	} else if (state == STATE_HASHMARK) {
+	  /*
+	   * Now get the first byte of the two
+	   * byte checksum
+	   */
+	  nib = util_hex_nibble(c);
+	  if (nib < 0) {
+	    break;
+	  }
+	  calc_csum = (calc_csum << 4) | nib;
+	  state = STATE_CSUM;
+	} else if (state == STATE_CSUM) {
+	  /* Now get the second byte of the checksum, and
+	     check it. */
+	  nib = util_hex_nibble(c);
+	  if (nib < 0) {
+	    break;
+	  }
+	  calc_csum = (calc_csum << 4) | nib;
+	  if (rx_csum == calc_csum) {
+	    buf[pkt_len] = '\0';
+	    *len = pkt_len;
+	    /*
+	     * Normally, we want to ack
+	     * But in 'quick' mode, all the
+	     * packets but ^C are dropped.
+	     */
+	    if (ret_ack)
+	      dbg_ack_packet_received(seq_valid, seq);
+	    ret = 0;
+	    break;
+	  }
+	  break;
+	} else {
+	  /* Unreachable */
+	  DBG_PRINT("gdb_interface : error scanner state\n");
+	  break;
+	}
       } else {
-        /* Unreachable */
-        DBG_PRINT("gdb_interface : error scanner state\n");
-        break;
-      }
-
-    } else {
 	/*
 	 * In some cases, vFile:pwrite, no #XX is given
 	 * In some cases it is, vFile:open.
@@ -433,13 +411,14 @@ static int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack) {
 	 * underflow
 	 */
 	if (binary) {
-	    *len = pkt_len;
-	    ret = 0;
+	  *len = pkt_len;
+	  ret = 0;
 	} else {
-	    /* Failure */
-	    DBG_PRINT("gdb_interface : error in underflow\n");
+	  /* Failure */
+	  DBG_PRINT("gdb_interface : error in underflow\n");
 	}
-      break;
+	break;
+      }
     }
   }
   return ret;
@@ -595,35 +574,31 @@ static int gdb_decode_data(const char *in, unsigned char *out, size_t out_size,
                            size_t *len) {
   size_t count;
   uint8_t bytex;
-
-  ASSERT(in != NULL);
-  ASSERT(out != NULL);
-  ASSERT(out_size > 0);
-  ASSERT(len != NULL);
-
-  for (count = 0; *in && count < out_size; count++, in += 2, out++) {
-    if (*(in + 1) == '\0') {
-      /* Odd number of nibbles. Discard the last one */
-      if (count == 0)
-        return FALSE;
-      *len = count;
-      return TRUE;
+  if ((in != NULL) &&
+      (out != NULL) &&
+      (out_size > 0) &&
+      (len != NULL)) {
+    for (count = 0; *in && count < out_size; count++, in += 2, out++) {
+      if (*(in + 1) == '\0') {
+	/* Odd number of nibbles. Discard the last one */
+	if (count == 0)
+	  return FALSE;
+	*len = count;
+	return TRUE;
+      }
+      if (!util_decode_byte(in, &bytex))
+	return FALSE;
+      *out = bytex & 0xff;
     }
-
-    if (!util_decode_byte(in, &bytex))
+    if (*in) {
+      /* Input too long */
       return FALSE;
-
-    *out = bytex & 0xff;
-  }
-
-  if (*in) {
-    /* Input too long */
+    }
+    *len = count;
+    return TRUE;
+  } else {
     return FALSE;
   }
-
-  *len = count;
-
-  return TRUE;
 }
 
 void handle_write_registers_command(char *const in_buf, char *out_buf,
@@ -1010,30 +985,25 @@ static int rp_encode_list_query_response(size_t count, int done,
                                          const gdb_thread_ref *found,
                                          char *out) {
   size_t i;
-
-  ASSERT(arg != NULL);
-  ASSERT(found != NULL || count == 0);
-  ASSERT(count <= 255);
-
-  *out++ = 'q';
-  *out++ = 'M';
-
-  util_encode_byte(count, out);
-  out += 2;
-
-  *out++ = (done) ? '1' : '0';
-
-  sprintf(out, "%016" PRIu64 "x", arg->val);
-
-  out += 16;
-
-  /* Encode found */
-  for (i = 0; i < count; i++, found++) {
-    sprintf(out, "%016" PRIu64 "x", found->val);
+  int ret = FALSE;
+  if ((arg != NULL) &&
+      (found != NULL || count == 0) &&
+      (count <= 255)) {
+    *out++ = 'q';
+    *out++ = 'M';
+    util_encode_byte(count, out);
+    out += 2;
+    *out++ = (done) ? '1' : '0';
+    sprintf(out, "%016" PRIu64 "x", arg->val);
     out += 16;
+    /* Encode found */
+    for (i = 0; i < count; i++, found++) {
+      sprintf(out, "%016" PRIu64 "x", found->val);
+      out += 16;
+    }
+    ret = TRUE;
   }
-
-  return TRUE;
+  return ret;
 }
 
 /* Encode result of process query:
