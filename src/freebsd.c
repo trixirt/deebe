@@ -149,10 +149,6 @@ static void fbsd_update_thread_state() {
 			 * At this point everyone should be stopped, but
 			 * check to be sure.
 			 */
-			if (SSTOP != kpp->ki_stat) {
-			    DBG_PRINT("Unexpected run state for %x %x %d\n",
-				      kpp->ki_pid, kpp->ki_tid, kpp->ki_stat);
-			}
 			PROCESS_STATE(d_index) = PS_STOP;
 			break;
 		    }
@@ -178,8 +174,6 @@ static void fbsd_update_thread_state() {
 		}
 		/* Unaccounded for k_thread */
 		if (found == false) {
-		    DBG_PRINT("Unexpected kernel thread %x %x %d\n",
-			      kpp->ki_pid, kpp->ki_tid, kpp->ki_stat);
 		    PROCESS_STATE(d_index) = PS_EXIT;
 		}
 	    }
@@ -501,7 +495,6 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
   long ret;
   long request = PT_CONTINUE;
   int index;
-  DBG_PRINT("%s %x %x %d %d\n", __func__, pid, tid, step, sig);
   /*
    * FreeBSD does not notify when a thread exits
    * So if we continue a thread continues until it ends, we are stuck.
@@ -523,7 +516,6 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
     }
   }
   ret = PTRACE(request, pid, 1, sig);
-  DBG_PRINT("%s %x %x %d : %d\n", __func__, request, pid, sig, ret);
   return ret;
 }
 
@@ -542,13 +534,10 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
     /* Not a valid thread */
   } else if (!target_is_alive_thread(tid)) {
     /* dead thread */
-    DBG_PRINT("%s dead %d\n", __func__, index);
   } else if (_target.current_process == index) {
     /* The trival case */
-    DBG_PRINT("%s trivial %d\n", __func__, index);
     ret = RET_OK;
   } else if (PROCESS_STATE(index) == PS_RUN) {
-    DBG_PRINT("%s hard case %x %d\n", __func__, tid, index);
     /*
      * The current thread is not the one that is being switched to.
      * So stop the needed thread, and continue the now old current thread
@@ -576,7 +565,6 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
          */
         tries++;
         if (tries > max_tries) {
-          DBG_PRINT("Exceeded maximume retries to switch threads\n");
           /* Some thread is waiting.. so goto end and return an error */
           goto end;
         }
@@ -584,7 +572,6 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
         util_usleep(1000);
         wait_ret = ptrace_wait(str, 0, true);
         if (wait_ret == RET_OK) {
-          DBG_PRINT("%s hard case %s\n", __func__, str);
           /*
            * When an RET_OK was hit, we have something to report
            * However the thread handling the event may not be
