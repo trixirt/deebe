@@ -49,7 +49,7 @@
 #include "target.h"
 
 static bool _lwpinfo_verbose = false;
-static bool _threadstate_verbose = true;
+static bool _threadstate_verbose = false;
 
 bool fbsd_thread_state() {
   bool ret = true;
