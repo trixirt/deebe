@@ -933,6 +933,8 @@ void handle_detach_command(char *const in_buf, char *out_buf, gdb_target *t) {
   gdb_interface_write_retval(ret, out_buf);
   /* Note: The current GDB does not expect a reply */
   network_put_dbg_packet(out_buf, 0);
+  /* lldb does expect a reply, so flush */
+  network_write();
   /* Exit now or we will appear to be wedged */
   exit(0);
 }
