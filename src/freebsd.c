@@ -452,6 +452,22 @@ void ptrace_os_wait(pid_t t) {
     PROCESS_WAIT_STATUS(index) = -1;
   }
   wait_tid = waitpid(pid, &wait_status, WNOHANG);
+
+  /* 
+   * If the process exited, save the status and bail: no need to go over
+   * thread info 
+   */
+  if (WIFEXITED(wait_status)) {
+    for (index = 0; index < _target.number_processes; index++) {
+      if (PROCESS_PID(index) == pid) {
+	PROCESS_STATE(index) = PS_EXIT;
+	PROCESS_WAIT(index) = true;
+	PROCESS_WAIT_STATUS(index) = wait_status;
+	return;
+      }
+    }
+  }
+
   /*
    * Waiting on the pid doesn't mean everyone is stopped
    * Look closer to make sure
