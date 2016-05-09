@@ -129,6 +129,7 @@ gdb_target ptrace_target = {
     .open = ptrace_open,
     .attach = ptrace_attach,
     .detach = ptrace_detach,
+    .detach_wait = ptrace_detach_wait,
     .close = ptrace_close,
     .connect = ptrace_connect,
     .disconnect = ptrace_disconnect,
