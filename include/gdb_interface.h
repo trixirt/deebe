@@ -136,6 +136,8 @@ struct gdb_target_s {
   int (*attach)(pid_t pid);
   /* Detach from a process that had been running */
   int (*detach)();
+  /* Wait for detached process to finish, if we are the parent */
+  void (*detach_wait)();
 
   /* Close target stub: if target is still connected disconnect and
      leave it running */

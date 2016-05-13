@@ -434,6 +434,51 @@ void ptrace_os_option_set_thread(pid_t pid) {
   check_lwplist_for_new_threads(pid);
  }
 
+
+#if 0
+const char *
+decode_wait_status(int status)
+{
+	static char c[128];
+	char b[32];
+	int first;
+
+	c[0] = '\0';
+	first = 1;
+	if (WIFCONTINUED(status)) {
+		first = 0;
+		strlcat(c, "CONT", sizeof(c));
+	}
+	if (WIFEXITED(status)) {
+		if (first)
+			first = 0;
+		else
+			strlcat(c, ",", sizeof(c));
+		snprintf(b, sizeof(b), "EXIT(%d)", WEXITSTATUS(status));
+		strlcat(c, b, sizeof(c));
+	}
+	if (WIFSIGNALED(status)) {
+		if (first)
+			first = 0;
+		else
+			strlcat(c, ",", sizeof(c));
+		snprintf(b, sizeof(b), "SIG(%s)", strsignal(WTERMSIG(status)));
+		strlcat(c, b, sizeof(c));
+		if (WCOREDUMP(status))
+			strlcat(c, ",CORE", sizeof(c));
+	}
+	if (WIFSTOPPED(status)) {
+		if (first)
+			first = 0;
+		else
+			strlcat(c, ",", sizeof(c));
+		snprintf(b, sizeof(b), "SIG(%s)", strsignal(WSTOPSIG(status)));
+		strlcat(c, b, sizeof(c));
+	}
+	return (c);
+}
+#endif
+
 void ptrace_os_wait(pid_t t) {
   /*
    * FreeBSD wait only works on the process id
@@ -451,13 +496,35 @@ void ptrace_os_wait(pid_t t) {
     PROCESS_WAIT(index) = false;
     PROCESS_WAIT_STATUS(index) = -1;
   }
-  wait_tid = waitpid(pid, &wait_status, WNOHANG);
+  errno = 0;
+  while (1) {
+    wait_tid = waitpid(pid, &wait_status, WNOHANG);
+    if (wait_tid == -1)
+	{
+	  if (errno != ECHILD)
+	    perror ("waitpid");
+	}
+      else if (wait_tid > 0)
+	break;
+
+      usleep (1000);
+    }
+
+  /*
+   * Need to keep track of new threads being created
+   * Without this check only those that hit a breakpoint
+   * would be reported.
+   *
+   * This call can change the number of threads in the thread
+   * list but it will not change the order.
+   */
+  check_lwplist_for_new_threads(pid);
 
   /* 
    * If the process exited, save the status and bail: no need to go over
    * thread info 
    */
-  if (WIFEXITED(wait_status)) {
+  if (WIFEXITED(wait_status) && wait_tid != 0) {
     for (index = 0; index < _target.number_processes; index++) {
       if (PROCESS_PID(index) == pid) {
 	PROCESS_STATE(index) = PS_EXIT;
@@ -488,15 +555,6 @@ void ptrace_os_wait(pid_t t) {
 	}
       }
     }
-    /*
-     * Need to keep track of new threads being created
-     * Without this check only those that hit a breakpoint
-     * would be reported.
-     *
-     * This call can change the number of threads in the thread
-     * list but it will not change the order.
-     */
-    check_lwplist_for_new_threads(pid);
   }
 }
 

@@ -124,6 +124,7 @@ extern void ptrace_close(void);
 extern int ptrace_connect(char *status_string, size_t status_string_len,
                           int *can_restart);
 extern int ptrace_detach();
+extern void ptrace_detach_wait();
 extern int ptrace_crc_query(uint64_t addr, size_t len, uint32_t *val);
 extern int ptrace_disconnect(void);
 extern enum process_state ptrace_get_process_state(void);

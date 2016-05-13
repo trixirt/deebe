@@ -935,6 +935,13 @@ void handle_detach_command(char *const in_buf, char *out_buf, gdb_target *t) {
   network_put_dbg_packet(out_buf, 0);
   /* lldb does expect a reply, so flush */
   network_write();
+
+  /* If we created the target process (not attached to it), wait for the
+     process to finish on detach */
+  if (!target_is_attached() && t->detach_wait) {
+    t->detach_wait();
+  }
+
   /* Exit now or we will appear to be wedged */
   exit(0);
 }

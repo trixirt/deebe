@@ -546,7 +546,7 @@ static int _ptrace_detach(int gdb_sig) {
   sig = ptrace_arch_signal_from_gdb(gdb_sig);
   if (sig < 0)
     sig = 0;
-  if (cmdline_pid > 0) {
+  if (pid > 0) {
     if (0 != ptrace(PT_DETACH, pid, 0, sig)) { /* XXX convert to pid */
       /* Failure */
       if (_detach_verbose) {
@@ -567,6 +567,17 @@ int ptrace_detach() {
   return ret;
 }
 
+void ptrace_detach_wait() {
+  int status, ret;
+  pid_t pid = CURRENT_PROCESS_PID;
+
+  do {
+    ret = waitpid (pid, &status, 0);
+    if (WIFEXITED (status) || WIFSIGNALED (status))
+      break;
+  } while (ret != -1 || errno != ECHILD);
+}
+
 void ptrace_close(void) {}
 
 int ptrace_connect(char *status_string, size_t status_string_len,
@@ -583,11 +594,18 @@ int ptrace_restart(void) {
     pid_t try_child;
     /* The pipes that will be used to redirect the debugee's stdout and stderr
      */
+#if 0
+    /*
+     * Disable it for now as it does not appear to work. Running a simple
+     * program which does a printf() in a loop does not produce any output
+     * on either side, deebe or gdb.
+     */
     if (0 == pipe(gPipeStdout)) {
       /* Non blocking please.. */
       fcntl(gPipeStdout[0], F_SETFL, O_NONBLOCK);
       fcntl(gPipeStdout[1], F_SETFL, O_NONBLOCK);
     }
+#endif
     try_child = fork();
     if (try_child == 0) {
       /* The child */
@@ -1061,45 +1079,14 @@ void ptrace_quick_signal(pid_t pid, pid_t tid, int gdb_sig) {
 }
 
 void ptrace_kill(pid_t pid, pid_t tid) {
-  if (kill(pid, SIGINT)) {
-    /* Failure */
-    if (_stop_verbose) {
-      DBG_PRINT("ERROR sending SIGKILL to %x\n", tid);
-    }
-  } else {
-    /*
-     * Now wait..
-     * Ripped off logic from normal wait.
-     * TBD : Clean up.
-     */
-    int wait_ret;
-    char str[128];
-    int tries = 0;
-    int max_tries = 20;
-    int g = ptrace_arch_signal_to_gdb(SIGKILL);
-    do {
-      util_usleep(1000);
-      wait_ret = ptrace_wait(str, 0, true);
-      if (!gDebugeeRunning) {
-        DBG_PRINT("Success in kill the debugee\n");
-        break;
-      }
-      /*
-       * Keep track of the number of tries
-       * Don't get stuck in an infinite loop here.
-       */
-      tries++;
-      if (tries > max_tries) {
-        DBG_PRINT("Exceeded maximume tries to kill\n");
-        goto end;
-      }
-      if (wait_ret == RET_IGNORE || wait_ret == RET_OK) {
-        ptrace_resume_from_current(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID, 0,
-                                   g);
-      }
-    } while ((wait_ret == RET_IGNORE) || (wait_ret == RET_CONTINUE_WAIT));
-  }
-end:
+  int status;
+
+  /* Make sure it died. The loop is most likely unnecessary. */
+  do {
+    ptrace (PT_KILL, pid, 0, 0);
+    waitpid (pid, &status, 0);
+  } while (WIFSTOPPED (status));
+  
   exit(0);
 }
 
