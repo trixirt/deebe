@@ -78,7 +78,8 @@ void ptrace_os_stopped_single(char *str, bool debug);
 void ptrace_os_wait(pid_t tid);
 bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
 			       size_t out_buf_size);
-
+int ptrace_os_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
+			      uintptr_t *tlsaddr);
 /* OSX ptrace returns int */
 #define ptrace_return_t int
 

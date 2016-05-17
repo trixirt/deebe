@@ -917,3 +917,9 @@ pid_t ptrace_os_get_wait_tid(pid_t pid) {
 #endif
     return ret;
 }
+
+int ptrace_os_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
+			      uintptr_t *tlsaddr)
+{
+  return RET_OK;
+}

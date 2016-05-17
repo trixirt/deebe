@@ -170,5 +170,6 @@ extern bool ptrace_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                              size_t *size);
 extern int ptrace_set_ctrl_thread(int64_t process_id, int64_t thread_id);
 extern int ptrace_set_gen_thread(int64_t process_id, int64_t thread_id);
-
+extern int ptrace_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
+				  uintptr_t *tlsaddr);
 #endif

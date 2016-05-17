@@ -1212,6 +1212,39 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
       }
     }
     break;
+  case 'G':
+    if (strncmp(n, "GetTLSAddr:", 11) == 0) {
+      int64_t thread_id;
+      uint64_t lm;
+      uintptr_t tlsaddr;
+      char *cp = &in_buf[12];
+      if (!util_decode_int64(&cp, &thread_id, ',')) {
+        gdb_interface_write_retval(RET_ERR, out_buf);
+        req_handled = true;
+        goto end;
+      }
+      if (!util_decode_uint64(&cp, &addr, ',')) {
+        gdb_interface_write_retval(RET_ERR, out_buf);
+        req_handled = true;
+        goto end;
+      }
+      if (!util_decode_uint64(&cp, &lm, '\0')) {
+        gdb_interface_write_retval(RET_ERR, out_buf);
+        req_handled = true;
+        goto end;
+      }
+      if (t->get_tls_address) {
+	if (t->get_tls_address(thread_id, addr, lm, &tlsaddr) == RET_OK) {
+	  sprintf(out_buf, "%" PRIxPTR, tlsaddr);
+	  req_handled = true;
+	}
+	else {
+	  gdb_interface_write_retval(RET_ERR, out_buf);
+	  req_handled = true;
+	}
+      }
+    }
+    break;
   case 'L': {
     int done, first;
     size_t count, max_found;
@@ -1588,7 +1621,7 @@ static void handle_breakpoint_command(char *const in_buf, char *out_buf,
   POSIX_MODE(m, g, IXGRP); \
   POSIX_MODE(m, g, IWGRP); \
   POSIX_MODE(m, g, IRGRP); \
-  POSIX_MODE(m, g, IXUSR); \
+ POSIX_MODE(m, g, IXUSR); \
   POSIX_MODE(m, g, IWUSR); \
   POSIX_MODE(m, g, IRUSR); \
   POSIX_MODE(m, g, IFDIR); \
