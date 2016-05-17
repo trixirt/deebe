@@ -75,6 +75,8 @@ bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                          size_t *size);
 int elf_os_image(pid_t pid);
 pid_t ptrace_os_get_wait_tid(pid_t pid);
+int ptrace_os_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
+			      uintptr_t *tlsaddr);
 
 #ifndef PT_GETREGS
 #ifndef PTRACE_GETREGS

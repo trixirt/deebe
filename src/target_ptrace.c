@@ -156,6 +156,7 @@ gdb_target ptrace_target = {
     .current_thread_query = ptrace_current_thread_query,
     .offsets_query = ptrace_offsets_query,
     .crc_query = ptrace_crc_query,
+    .get_tls_address = ptrace_get_tls_address,
     .add_break = ptrace_add_break,
     .remove_break = ptrace_remove_break,
     .threadinfo_query = ptrace_threadinfo_query,
