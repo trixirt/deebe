@@ -32,12 +32,12 @@ AC_PROG_INSTALL
 AM_PROG_CC_C_O
 
 # Checks for libraries.
-AC_CHECK_LIB(rt)
+AC_CHECK_LIB(rt, main)
 
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h unistd.h sys/param.h libgen.h])
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h unistd.h sys/param.h libgen.h thread_db.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -149,7 +149,7 @@ AC_SUBST([TD_SRC])
 case ${target} in
 
 *freebsd*)
-	TD_LIBS='-lutil -lprocstat'
+	TD_LIBS='-lutil -lprocstat -lthread_db'
 	;;
 
 powerpc-*-linux*)

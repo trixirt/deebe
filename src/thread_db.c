@@ -32,24 +32,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEEBE_NETWORK_H
-#define DEEBE_NETWORK_H
 
-#include <stdbool.h>
+#include <config.h>
+#include "global.h"
+#include "target.h"
+#include "thread_db_priv.h"
 
-void network_print();
-void network_cleanup();
-bool network_init();
-bool network_accept();
-bool network_connect();
-int network_read();
-int network_read_fwd();
-int network_quick_read();
-int network_write();
-int network_write_fwd();
-int network_quick_write();
-void network_clear_read();
-void network_clear_write();
-int network_put_dbg_packet(const char *buf, size_t size);
+int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
+{
+  int ret;
+  ret = td_init ();
+  if (ret != TD_OK)
+    return RET_ERR;
 
-#endif /* DEEBE_NETWORK_H */
+  _target.ph.pid = pid;
+  _target.ph.target = t;
+  ret = td_ta_new (&_target.ph, &_target.thread_agent);
+  switch (ret)
+    {
+    case TD_NOLIBTHREAD:
+      /* Thread library not detected */
+      return RET_ERR;
+      
+    case TD_OK:
+      /* Thread library detected */
+      return RET_OK;
+
+    default:
+      fprintf(stderr, "Error initializing thread_db library\n");
+      return RET_ERR;
+    }
+  return RET_OK;
+}

@@ -368,6 +368,7 @@ void gdb_interface_put_console(char *b);
 void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
                      int lldb_reason);
 void gdb_interface_write_retval(int ret, char *buf);
+int symbol_lookup(const char *name, uintptr_t *addr);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);

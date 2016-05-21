@@ -984,17 +984,17 @@ int _ptrace_resume(pid_t pid, pid_t tid, int step, int gdb_sig) {
     /*
      * Manage the process state
      * Since we are going from stopped to running,
-     * set the state to PS_RUN.
+     * set the state to PRS_RUN.
      * Also clear the wait flag and reset the wait status
      */
-    PROCESS_STATE(index) = PS_RUN;
+    PROCESS_STATE(index) = PRS_RUN;
     PROCESS_WAIT(index) = false;
     PROCESS_WAIT_STATUS(index) = PROCESS_WAIT_STATUS_DEFAULT;
     PROCESS_SIG(index) = 0;
     if (sig) {
-      PROCESS_STATE(index) = PS_SIG_PENDING;
+      PROCESS_STATE(index) = PRS_SIG_PENDING;
     } else {
-      PROCESS_STATE(index) = PS_RUN;
+      PROCESS_STATE(index) = PRS_RUN;
     }
     if (step == 0)
       _target.step = false;
@@ -1004,7 +1004,7 @@ int _ptrace_resume(pid_t pid, pid_t tid, int step, int gdb_sig) {
     if (0 == ptrace_os_continue(pid, tid, step, sig)) {
       ret = RET_OK;
     } else {
-      PROCESS_STATE(index) = PS_ERR;
+      PROCESS_STATE(index) = PRS_ERR;
       /* Failure */
       if (_resume_current_verbose) {
         DBG_PRINT("%s Error tid %x index %d step %d sig %d : %s\n", __func__,
@@ -1024,7 +1024,7 @@ int ptrace_resume_with_syscall(pid_t tid) {
   errno = 0;
   if (0 == PTRACE(PT_SYSCALL, tid, PT_SYSCALL_ARG3, 0)) {
     /* Success */
-    CURRENT_PROCESS_STATE = PS_RUN;
+    CURRENT_PROCESS_STATE = PRS_RUN;
     ret = RET_OK;
   } else {
     /* Failure */
@@ -1298,7 +1298,7 @@ static void _deliver_sig() {
 #if 0
 	int index;
 	for (index = 0; index < _target.number_processes; index++) {
-		if (PROCESS_STATE(index) == PS_SIG_PENDING) {
+		if (PROCESS_STATE(index) == PRS_SIG_PENDING) {
 			int wait_status;
 			int wait_tid;
 			pid_t tid = PROCESS_TID(index);
@@ -1353,7 +1353,7 @@ bool __exited(char *str, int index, int wait_status) {
         int g = ptrace_arch_signal_to_gdb(s);
         sprintf(str, "X%02x", g);
       }
-      PROCESS_STATE(index) = PS_EXIT;
+      PROCESS_STATE(index) = PRS_EXIT;
       /* Set the main thread to the current so this event is reported */
       _target.current_process = 0;
       /* For main */
@@ -1364,7 +1364,7 @@ bool __exited(char *str, int index, int wait_status) {
        * A thread has exited, set it's alive state to false
        * and switch to the parent process
        */
-      PROCESS_STATE(index) = PS_EXIT;
+      PROCESS_STATE(index) = PRS_EXIT;
       PROCESS_WAIT(index) = false;
       /* Need to find a replacement for current thread, use the parent */
       if (index == target_current_index())
@@ -1401,7 +1401,7 @@ static bool _exited_all(char *str) {
 static void __continued(int index, int wait_status) {
 #ifdef WIFCONTINUED
   if (WIFCONTINUED(wait_status)) {
-    PROCESS_STATE(index) = PS_CONT;
+    PROCESS_STATE(index) = PRS_CONT;
   }
 #endif
 }
@@ -1511,7 +1511,7 @@ static void _stopped_all(char *str) {
           /*
            * On linux, thread indicates it has been started
            * by starting with a STOP signal.  When this is
-           * seen when the process state is at PS_START and
+           * seen when the process state is at PRS_START and
            * running in NonStop, ignore.
            * The enumeration of the new thread has already happended.
            *
@@ -1519,7 +1519,7 @@ static void _stopped_all(char *str) {
            * process is in the start state
            *
            */
-          if (PS_START == PROCESS_STATE(index)) {
+          if (PRS_START == PROCESS_STATE(index)) {
             if (NS_OFF == _target.nonstop) {
               /* Remap signal to SIGTRAP */
               g = ptrace_arch_signal_to_gdb(SIGTRAP);
@@ -1547,11 +1547,11 @@ static void _stopped_all(char *str) {
             }
           }
         }
-        PROCESS_STATE(index) = PS_CONT;
+        PROCESS_STATE(index) = PRS_CONT;
       }
 #ifdef WIFCONTINUED
       else if (WIFCONTINUED(wait_status)) {
-        CURRENT_PROCESS_STATE = PS_CONT;
+        CURRENT_PROCESS_STATE = PRS_CONT;
       }
 #endif
     } /* Waiting */

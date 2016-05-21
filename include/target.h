@@ -40,21 +40,24 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#ifdef HAVE_THREAD_DB_H
+#include "thread_db_priv.h"
+#endif
 
 enum process_state {
-  PS_NULL = 0,
-  PS_PRE_START, /* The parent has created, but it has not shown up */
-  PS_START,     /* Initial state, process is just starting */
-  PS_RUN,       /* process is running */
-  PS_EXIT,      /* process has exited */
-  PS_SIG,
-  PS_SIG_PENDING,
-  PS_INTERNAL_SIG_PENDING,
-  PS_ERR,
-  PS_CONT, /* process needs to continue */
-  PS_STOP,
-  PS_SYSCALL_ENTER,
-  PS_SYSCALL_EXIT,
+  PRS_NULL = 0,
+  PRS_PRE_START, /* The parent has created, but it has not shown up */
+  PRS_START,     /* Initial state, process is just starting */
+  PRS_RUN,       /* process is running */
+  PRS_EXIT,      /* process has exited */
+  PRS_SIG,
+  PRS_SIG_PENDING,
+  PRS_INTERNAL_SIG_PENDING,
+  PRS_ERR,
+  PRS_CONT, /* process needs to continue */
+  PRS_STOP,
+  PRS_SYSCALL_ENTER,
+  PRS_SYSCALL_EXIT,
 };
 
 enum nonstop_state {
@@ -99,6 +102,10 @@ typedef struct target_state_rec {
   size_t current_process;
   target_process *process;
   struct breakpoint *bpl;
+#ifdef HAVE_THREAD_DB_H
+  struct ps_prochandle ph;
+  td_thragent_t *thread_agent;
+#endif
 } target_state;
 
 #define PROCESS_PID(n) _target.process[n].pid
@@ -118,7 +125,7 @@ typedef struct target_state_rec {
 #define CURRENT_PROCESS_SIG PROCESS_SIG(_target.current_process)
 #define CURRENT_PROCESS_SYSCALL PROCESS_SYSCALL(_target.current_process)
 #define CURRENT_PROCESS_STOP PROCESS_STOP(_target.current_process)
-
+  
 #define PROCESS_WAIT_STATUS_DEFAULT -1
 
 extern target_state _target;
