@@ -1110,7 +1110,7 @@ static int rp_encode_process_query_response(unsigned int mask,
 
 int symbol_lookup(const char *name, uintptr_t *addr)
 {
-  int s, ret = RET_ERR;
+  int ret = RET_ERR;
   uint64_t sym_addr;
   size_t in_len = 0;
   char *in;
@@ -1120,7 +1120,7 @@ int symbol_lookup(const char *name, uintptr_t *addr)
   network_put_dbg_packet(out_buf, 0);
   network_write();
   while (network_read() != 0) {}
-  s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
+  gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
   network_clear_read();
   if (strncmp(in_buf, "qSymbol:", 8) == 0) {
     in = in_buf + 8;
