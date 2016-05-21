@@ -12,8 +12,10 @@ deebe_SOURCES = \
 	main.c \
 	network.c \
 	ptrace.c \
+	proc.c \
 	signal.c \
 	target.c \
+	thread_db.c \
 	util.c \
 	version.c \
 	watchdog.c

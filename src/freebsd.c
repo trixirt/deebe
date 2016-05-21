@@ -149,13 +149,13 @@ static void fbsd_update_thread_state() {
 			 * At this point everyone should be stopped, but
 			 * check to be sure.
 			 */
-			PROCESS_STATE(d_index) = PS_STOP;
+			PROCESS_STATE(d_index) = PRS_STOP;
 			break;
 		    }
 		}
 		/* Thread died */
 		if (found == false) {
-		    PROCESS_STATE(d_index) = PS_EXIT;
+		    PROCESS_STATE(d_index) = PRS_EXIT;
 		}
 	    }
 
@@ -174,7 +174,7 @@ static void fbsd_update_thread_state() {
 		}
 		/* Unaccounded for k_thread */
 		if (found == false) {
-		    PROCESS_STATE(d_index) = PS_EXIT;
+		    PROCESS_STATE(d_index) = PRS_EXIT;
 		}
 	    }
 	    procstat_freeprocs(prstat, kp);
@@ -343,8 +343,8 @@ bool ptrace_os_new_thread(pid_t tid, int status) {
   bool ret = false;
   int index = target_index(tid);
   if (index >= 0) {
-    if ((PS_SYSCALL_ENTER == PROCESS_STATE(index)) ||
-        (PS_SYSCALL_EXIT == PROCESS_STATE(index))) {
+    if ((PRS_SYSCALL_ENTER == PROCESS_STATE(index)) ||
+        (PRS_SYSCALL_EXIT == PROCESS_STATE(index))) {
       ret = true;
     }
   }
@@ -394,7 +394,7 @@ static void check_lwplist_for_new_threads(pid_t pid) {
             DBG_PRINT("%s error allocating new thread\n", __func__);
           } else {
             int index = target_index(new_tid);
-            PROCESS_STATE(index) = PS_PRE_START;
+            PROCESS_STATE(index) = PRS_PRE_START;
           }
           /*
            * If we were adding threads one at a time, it would be safe to break
@@ -527,7 +527,7 @@ void ptrace_os_wait(pid_t t) {
   if (WIFEXITED(wait_status) && wait_tid != 0) {
     for (index = 0; index < _target.number_processes; index++) {
       if (PROCESS_PID(index) == pid) {
-	PROCESS_STATE(index) = PS_EXIT;
+	PROCESS_STATE(index) = PRS_EXIT;
 	PROCESS_WAIT(index) = true;
 	PROCESS_WAIT_STATUS(index) = wait_status;
 	return;
@@ -546,8 +546,8 @@ void ptrace_os_wait(pid_t t) {
       t = ptrace_os_get_wait_tid(pid);
     }
     for (index = 0; index < _target.number_processes; index++) {
-      if (PROCESS_STATE(index) != PS_EXIT) {
-	PROCESS_STATE(index) = PS_STOP;
+      if (PROCESS_STATE(index) != PRS_EXIT) {
+	PROCESS_STATE(index) = PRS_STOP;
 	/* Expecting everyone to stop or current tid*/
 	if (t == PROCESS_TID(index)) {
 	  PROCESS_WAIT(index) = true;
@@ -585,8 +585,8 @@ long ptrace_os_continue(pid_t pid, pid_t tid, int step, int sig) {
    * XXX out of order, does not handle the error
    */
   for (index = 0; index < _target.number_processes; index++) {
-    if (PROCESS_STATE(index) != PS_EXIT) {
-      PROCESS_STATE(index) = PS_RUN;
+    if (PROCESS_STATE(index) != PRS_EXIT) {
+      PROCESS_STATE(index) = PRS_RUN;
     }
   }
   ret = PTRACE(request, pid, 1, sig);
@@ -611,7 +611,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
   } else if (_target.current_process == index) {
     /* The trival case */
     ret = RET_OK;
-  } else if (PROCESS_STATE(index) == PS_RUN) {
+  } else if (PROCESS_STATE(index) == PRS_RUN) {
     /*
      * The current thread is not the one that is being switched to.
      * So stop the needed thread, and continue the now old current thread
@@ -621,7 +621,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
      * ptrace_stop send a SIG_INT to the tid
      * To seperate this signal from a normal signal, flag it as 'internal'
      */
-    PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+    PROCESS_STATE(index) = PRS_INTERNAL_SIG_PENDING;
     /*
      * Now wait..
      * Ripped off logic from normal wait.
@@ -712,7 +712,7 @@ void ptrace_os_stopped_single(char *str, bool debug) {
 	 * process stat points to the true thread to continue
 	 * Not that it matter on FreeBSD as they all go at once
 	 */
-	PROCESS_STATE(index) = PS_CONT;
+	PROCESS_STATE(index) = PRS_CONT;
       } else if (ptrace_arch_hit_watchpoint(tid, &watch_addr)) {
 	/* A watchpoint was hit */
 	gdb_stop_string(str, g, tid, watch_addr, LLDB_STOP_REASON_WATCHPOINT);
@@ -721,7 +721,7 @@ void ptrace_os_stopped_single(char *str, bool debug) {
 	 * process stat points to the true thread to continue
 	 * Not that it matters on FreeBSD as they all go at once
 	 */
-	PROCESS_STATE(index) = PS_CONT;
+	PROCESS_STATE(index) = PRS_CONT;
       } else {
 	int reason;
 	/*
@@ -760,7 +760,7 @@ void ptrace_os_stopped_single(char *str, bool debug) {
 	 * process stat points to the true thread to continue
 	 * Not that it matter on FreeBSD as they all go at once
 	 */
-	PROCESS_STATE(index) = PS_CONT;
+	PROCESS_STATE(index) = PRS_CONT;
       }
     } else {
       /* A non trap signal, report the true thread */

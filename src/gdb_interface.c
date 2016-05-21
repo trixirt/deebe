@@ -82,6 +82,7 @@
 #include "network.h"
 #include "target.h"
 #include "util.h"
+#include "thread_db_priv.h"
 
 static void dbg_sock_putchar(int c) {
   if (network_out_buffer_total < network_out_buffer_size) {
@@ -1107,6 +1108,45 @@ static int rp_encode_process_query_response(unsigned int mask,
   return ret;
 }
 
+int symbol_lookup(const char *name, uintptr_t *addr)
+{
+  int s, ret = RET_ERR;
+  uint64_t sym_addr;
+  size_t in_len = 0;
+  char *in;
+
+  sprintf(out_buf, "qSymbol:");
+  util_encode_string(name, out_buf + 8, strlen(name) * 2 + 1);
+  network_put_dbg_packet(out_buf, 0);
+  network_write();
+  while (network_read() != 0) {}
+  s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
+  network_clear_read();
+  if (strncmp(in_buf, "qSymbol:", 8) == 0) {
+    in = in_buf + 8;
+    if (util_decode_uint64(&in, &sym_addr, ':') && sym_addr) {
+      *addr = (uintptr_t) sym_addr;
+      ret = RET_OK;
+    }
+    else {
+      *addr = 0;
+    }
+	
+  }
+  return ret;
+}
+
+static void handle_qsymbol_command(char *out_buf, gdb_target *t)
+{
+#ifdef HAVE_THREAD_DB_H
+  static int threads_initialized = RET_ERR;
+  if (threads_initialized == RET_OK)
+    return;
+  else
+    threads_initialized = initialize_thread_db (CURRENT_PROCESS_PID, t);
+#endif
+}
+
 static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *out_buf,
                                      gdb_target *t) {
   int status;
@@ -1388,7 +1428,8 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
       req_handled = true;
       goto end;
     } else if (strncmp(n, "Symbol::", 8) == 0) {
-      gdb_interface_write_retval(RET_NOSUPP, out_buf);
+      handle_qsymbol_command(out_buf, t);
+      gdb_interface_write_retval(RET_OK, out_buf);
       req_handled = true;
       goto end;
     } else if (strncmp(n, "Symbol:", 7) == 0) {
@@ -2634,7 +2675,7 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
     bool first = true;
     strncat(str, "threads:", len);
     for (index = 0; index < _target.number_processes; index++) {
-      if (PROCESS_STATE(index) != PS_EXIT) {
+      if (PROCESS_STATE(index) != PRS_EXIT) {
         pid_t tid = PROCESS_TID(index);
         if (first) {
           snprintf(&tstr[0], 32, "%x", tid);
