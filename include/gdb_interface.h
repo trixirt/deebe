@@ -285,7 +285,7 @@ struct gdb_target_s {
   int (*crc_query)(uint64_t addr, size_t len, uint32_t *val);
 
   /* Query TLS address of a variable */
-  int (*get_tls_address)(int64_t thread, uint64_t offset, uint64_t lm,
+  int (*get_tls_address)(int64_t thread, uint64_t lm, uint64_t offset,
 			 uintptr_t *tlsaddr);
 
   /*============ Breakpoints ===========================*/

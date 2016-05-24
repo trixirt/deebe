@@ -35,6 +35,7 @@
 #ifndef DEEBE_TARGET_H
 #define DEEBE_TARGET_H
 
+#include <config.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdbool.h>

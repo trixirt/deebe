@@ -47,6 +47,7 @@
 #include "global.h"
 #include "os.h"
 #include "target.h"
+#include "thread_db_priv.h"
 
 static bool _lwpinfo_verbose = false;
 static bool _threadstate_verbose = false;
@@ -918,8 +919,8 @@ pid_t ptrace_os_get_wait_tid(pid_t pid) {
     return ret;
 }
 
-int ptrace_os_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
+int ptrace_os_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
 			      uintptr_t *tlsaddr)
 {
-  return RET_OK;
+  return thread_db_get_tls_address (thread, lm, offset, tlsaddr);
 }
