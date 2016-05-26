@@ -1270,7 +1270,7 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         req_handled = true;
         goto end;
       }
-      if (thread_id == 0)
+      if (thread_id == 0 || thread_id == CURRENT_PROCESS_PID)
 	thread_id = CURRENT_PROCESS_TID;
       if (!util_decode_uint64(&cp, &addr, ',')) {
         gdb_interface_write_retval(RET_ERR, out_buf);
