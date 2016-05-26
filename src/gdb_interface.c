@@ -101,8 +101,8 @@ static uint16_t dbg_sock_readchar() {
     network_in_buffer_current++;
   } else {
       /* underflow is the most likely possiblity */
-    DBG_PRINT("gdb_interface : error out underflow read %zu\n",
-              network_in_buffer_current);
+    DBG_PRINT("gdb_interface : error out underflow read %zu:%zu\n",
+              network_in_buffer_current, network_in_buffer_total);
   }
   return ret;
 }
@@ -1110,26 +1110,25 @@ static int rp_encode_process_query_response(unsigned int mask,
 
 int symbol_lookup(const char *name, uintptr_t *addr)
 {
-
-  int r, ret = RET_ERR;
+  int ret = RET_ERR;
   uint64_t sym_addr;
-  size_t in_len = 0;
   char *in;
 
+  /* Construct qSymbol request to gdb. */
   sprintf(out_buf, "qSymbol:");
   util_encode_string(name, out_buf + 8, strlen(name) * 2 + 1);
   if (!network_put_dbg_packet(out_buf, 0))
     return ret;
-  if (network_write() != 0)
+
+  /* Send it over the wire. */
+  if (gdb_packet_send() != 0)
     return ret;
-  
-  do {
-    r = network_read();
-    if (r > 0)
-      return ret;
-  } while (r != 0);
-  gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
-  network_clear_read();
+
+  /* Read gdb response */
+  if (gdb_packet_read (in_buf))
+    return ret;
+
+  /* Extract symbol address and set the return argument. */
   if (strncmp(in_buf, "qSymbol:", 8) == 0) {
     in = in_buf + 8;
     if (util_decode_uint64(&in, &sym_addr, ':') && sym_addr) {
@@ -1271,7 +1270,7 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         req_handled = true;
         goto end;
       }
-      if (thread_id == 0)
+      if (thread_id == 0 || thread_id == CURRENT_PROCESS_PID)
 	thread_id = CURRENT_PROCESS_TID;
       if (!util_decode_uint64(&cp, &addr, ',')) {
         gdb_interface_write_retval(RET_ERR, out_buf);
@@ -2367,276 +2366,6 @@ void gdb_interface_init() {
   target_init(&gdb_interface_target);
 }
 
-int gdb_interface_quick_packet() {
-  int ret = 1;
-  size_t in_len = 0;
-  int s;
-
-  /*
-   * Because no implicit ack's while reading the
-   * ack's must be explicitly done for each handled packet.
-   */
-  s = gdb_interface_getpacket(in_buf_quick, &in_len, false /* no acks */);
-  if (s == '\3') {
-    if (gdb_interface_target->stop) {
-      dbg_ack_packet_received(false, NULL);
-      gdb_interface_target->stop(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
-    } else {
-      DBG_PRINT("TBD : Handle ctrl-c\n");
-    }
-  } else {
-
-    switch (in_buf_quick[0]) {
-    case 'k':
-      if (gdb_interface_target->quick_kill) {
-        dbg_ack_packet_received(false, NULL);
-        gdb_interface_target->quick_kill(CURRENT_PROCESS_PID,
-                                         CURRENT_PROCESS_TID);
-        ret = 0;
-      }
-      break;
-
-    case 'C':
-      if (gdb_interface_target->quick_signal) {
-        uint32_t sig;
-        char *in;
-        in = &in_buf_quick[1];
-        if (util_decode_uint32(&in, &sig, '\0')) {
-          dbg_ack_packet_received(false, NULL);
-          gdb_interface_target->quick_signal(CURRENT_PROCESS_PID,
-                                             CURRENT_PROCESS_TID, sig);
-          ret = 0;
-        }
-      }
-      break;
-
-    case 'c':
-      if (gdb_interface_target->quick_signal) {
-        dbg_ack_packet_received(false, NULL);
-        gdb_interface_target->quick_signal(CURRENT_PROCESS_PID,
-                                           CURRENT_PROCESS_TID, SIGTRAP);
-        ret = 0;
-      }
-      break;
-
-    case 'v':
-      if (0 == strncmp(in_buf_quick, "vCont;c", 7)) {
-        dbg_ack_packet_received(false, NULL);
-        ret = 0;
-      } else {
-        /* Ignore */
-        DBG_PRINT("quick packet : ignoring %s ", in_buf_quick);
-      }
-      break;
-
-    default:
-      /* Ignore */
-      DBG_PRINT("quick packet : ignoring %s ", in_buf_quick);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-int gdb_interface_packet() {
-  int ret = 1;
-  size_t in_len = 0;
-  int s;
-  bool binary_cmd = false;
-
-  s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
-
-  if (s >= 0) {
-    if (s == NAK) {
-      /* Ignore */
-      ret = 0;
-    } else if (s == ACK) {
-      /* Ignore */
-      ret = 0;
-    } else if (s == '\3') {
-      DBG_PRINT("TBD : Handle ctrl-c\n");
-    } else {
-
-      /*
-       * If we cannot process this command,
-       * it is not supported
-       */
-      gdb_interface_write_retval(RET_NOSUPP, out_buf);
-      rp_target_out_valid = FALSE;
-      switch (in_buf[0]) {
-
-      case '!':
-        /* Set extended operation */
-        /* Not supported */
-        break;
-
-      case '?':
-        gdb_stop_string(out_buf, CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0,
-                        CURRENT_PROCESS_STOP);
-        break;
-
-      case 'A':
-        /* Set the argv[] array of the target */
-        /* Not supported */
-        break;
-
-      case 'C':
-      case 'S':
-      case 'W':
-      case 'c':
-      case 's':
-      case 'w':
-        handle_running_commands(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'D':
-        handle_detach_command(in_buf, out_buf, gdb_interface_target);
-        /* Semi Supported */
-        ret = 0;
-        break;
-
-      case 'g':
-        handle_read_registers_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'G':
-        handle_write_registers_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'H':
-        handle_thread_commands(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 'j':
-        if (!lldb_handle_json_command(in_buf, out_buf, gdb_interface_target)) {
-          /* Not supported */
-        } else {
-          ret = 0;
-        }
-        break;
-      case 'k':
-        handle_kill_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'm':
-        handle_read_memory_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'M':
-        handle_write_memory_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'p':
-        handle_read_single_register_command(in_buf, out_buf,
-                                            gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-
-      case 'P':
-        handle_write_single_register_command(in_buf, out_buf,
-                                             gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 'q':
-        /* qXfer */
-        if (strncmp(in_buf, "qXfer", 5) == 0) {
-          if (gdb_handle_qxfer_command(in_buf, out_buf, &binary_cmd,
-                                       gdb_interface_target))
-            ret = 0;
-        } else {
-          if (!lldb_handle_query_command(in_buf, out_buf,
-                                         gdb_interface_target) &&
-              !gdb_handle_query_command(in_buf, in_len, out_buf,
-                                        gdb_interface_target)) {
-            /* Not supported */
-          } else {
-            /* Supported */
-            ret = 0;
-          }
-        }
-        break;
-      case 'Q':
-        if (!lldb_handle_general_set_command(in_buf, out_buf,
-                                             gdb_interface_target)) {
-          gdb_handle_general_set_command(in_buf, out_buf, gdb_interface_target);
-        }
-        /* Supported */
-        ret = 0;
-        break;
-      case 'R':
-        handle_restart_target_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 't':
-        handle_search_memory_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 'T':
-        handle_thread_alive_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 'x':
-        if (!lldb_handle_binary_read_command(in_buf, out_buf, &binary_cmd,
-                                             gdb_interface_target)) {
-          /* Not handled */
-        } else {
-          ret = 0;
-        }
-        break;
-      case 'Z':
-      case 'z':
-        handle_breakpoint_command(in_buf, out_buf, gdb_interface_target);
-        /* Supported */
-        ret = 0;
-        break;
-      case 'v':
-        binary_cmd = true;
-        /* Handled below */
-        break;
-      default:
-        DBG_PRINT("gdb_interface : unhandle command\n");
-        break;
-      }
-      if (!binary_cmd) {
-        network_put_dbg_packet(out_buf, 0);
-      } else {
-        /* Now the binary command */
-        switch (in_buf[0]) {
-        case 'v':
-	  handle_v_command(in_buf, in_len, out_buf, gdb_interface_target);
-          break;
-        default:
-          break;
-        }
-      }
-    }
-  } else {
-    if (_target.ack)
-      dbg_sock_putchar('-');
-    DBG_PRINT("gdb_interface : error getting a packet\n");
-  }
-  return ret;
-}
-
 /* b can be no more than 1024 and must be null terminated */
 void gdb_interface_put_console(char *b) {
   int esize;
@@ -2730,4 +2459,329 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
       strncat(str, reasons[reason], len);
     }
   }
+}
+
+int gdb_packet_handle (char* in_buf, char* out_buf)
+{
+  int ret = 1;
+  size_t in_len = 0;
+  bool binary_cmd = false;
+
+  /*
+   * If we cannot process this command,
+   * it is not supported
+   */
+  gdb_interface_write_retval(RET_NOSUPP, out_buf);
+  rp_target_out_valid = FALSE;
+  switch (in_buf[0]) {
+
+  case '!':
+    /* Set extended operation */
+    /* Not supported */
+    break;
+
+  case '?':
+    gdb_stop_string(out_buf, CURRENT_PROCESS_SIG, CURRENT_PROCESS_TID, 0,
+		    CURRENT_PROCESS_STOP);
+    break;
+
+  case 'A':
+      /* Set the argv[] array of the target */
+      /* Not supported */
+      break;
+
+  case 'C':
+  case 'S':
+  case 'W':
+  case 'c':
+  case 's':
+  case 'w':
+    handle_running_commands(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'D':
+    handle_detach_command(in_buf, out_buf, gdb_interface_target);
+    /* Semi Supported */
+    ret = 0;
+    break;
+
+  case 'g':
+    handle_read_registers_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'G':
+    handle_write_registers_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'H':
+    handle_thread_commands(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'j':
+    if (!lldb_handle_json_command(in_buf, out_buf, gdb_interface_target)) {
+      /* Not supported */
+    } else {
+      ret = 0;
+    }
+    break;
+
+  case 'k':
+    handle_kill_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'm':
+    handle_read_memory_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'M':
+    handle_write_memory_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'p':
+    handle_read_single_register_command(in_buf, out_buf,
+					gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'P':
+    handle_write_single_register_command(in_buf, out_buf,
+					 gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'q':
+    /* qXfer */
+    if (strncmp(in_buf, "qXfer", 5) == 0) {
+      if (gdb_handle_qxfer_command(in_buf, out_buf, &binary_cmd,
+				   gdb_interface_target))
+	ret = 0;
+    } else {
+      if (!lldb_handle_query_command(in_buf, out_buf,
+				     gdb_interface_target) &&
+	  !gdb_handle_query_command(in_buf, in_len, out_buf,
+				    gdb_interface_target)) {
+	/* Not supported */
+      } else {
+	/* Supported */
+	ret = 0;
+      }
+    }
+    break;
+
+  case 'Q':
+    if (!lldb_handle_general_set_command(in_buf, out_buf,
+					 gdb_interface_target)) {
+      gdb_handle_general_set_command(in_buf, out_buf, gdb_interface_target);
+    }
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'R':
+    handle_restart_target_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 't':
+    handle_search_memory_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'T':
+    handle_thread_alive_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'x':
+    if (!lldb_handle_binary_read_command(in_buf, out_buf, &binary_cmd,
+					 gdb_interface_target)) {
+      /* Not handled */
+    } else {
+      ret = 0;
+    }
+    break;
+
+  case 'Z':
+  case 'z':
+    handle_breakpoint_command(in_buf, out_buf, gdb_interface_target);
+    /* Supported */
+    ret = 0;
+    break;
+
+  case 'v':
+    binary_cmd = true;
+    /* Handled below */
+    break;
+
+  default:
+    DBG_PRINT("gdb_interface : unhandle command\n");
+    break;
+  }
+
+  if (!binary_cmd) {
+    network_put_dbg_packet(out_buf, 0);
+  } else {
+    /* Now the binary command */
+    switch (in_buf[0]) {
+    case 'v':
+      handle_v_command(in_buf, in_len, out_buf, gdb_interface_target);
+      break;
+    default:
+      break;
+    }
+  }
+  return ret;
+}
+
+int gdb_quick_packet_handle (char* in_buf)
+{
+  int ret = 1;
+
+  switch (in_buf[0]) {
+  case 'k':
+    if (gdb_interface_target->quick_kill) {
+      dbg_ack_packet_received(false, NULL);
+      gdb_interface_target->quick_kill(CURRENT_PROCESS_PID,
+				       CURRENT_PROCESS_TID);
+      ret = 0;
+    }
+    break;
+
+  case 'C':
+    if (gdb_interface_target->quick_signal) {
+      uint32_t sig;
+      char *in;
+      in = &in_buf[1];
+      if (util_decode_uint32(&in, &sig, '\0')) {
+	dbg_ack_packet_received(false, NULL);
+	gdb_interface_target->quick_signal(CURRENT_PROCESS_PID,
+					   CURRENT_PROCESS_TID, sig);
+	ret = 0;
+      }
+    }
+    break;
+
+  case 'c':
+    if (gdb_interface_target->quick_signal) {
+      dbg_ack_packet_received(false, NULL);
+      gdb_interface_target->quick_signal(CURRENT_PROCESS_PID,
+					 CURRENT_PROCESS_TID, SIGTRAP);
+      ret = 0;
+    }
+    break;
+
+  case 'v':
+    if (0 == strncmp(in_buf, "vCont;c", 7)) {
+      dbg_ack_packet_received(false, NULL);
+      ret = 0;
+    } else {
+      /* Ignore */
+      DBG_PRINT("quick packet : ignoring %s ", in_buf);
+    }
+    break;
+
+  default:
+    /* Ignore */
+    DBG_PRINT("quick packet : ignoring %s ", in_buf);
+    break;
+  }
+  return ret;
+}
+
+static int _gdb_packet_read (char* in_buf, int is_quick)
+{
+  int s;
+  size_t in_len = 0;
+
+  /* Ignore all ACKs/NAKs */
+  do {
+    /* Keep reading the network until we get a message */
+    if (is_quick) {
+      while ((s = network_quick_read ()) != 0);
+    }
+    else {
+      while ((s = network_read ()) != 0);
+    }
+
+    s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
+  } while (s == ACK || s == NAK);
+
+  if (s == '\3') {
+    DBG_PRINT("TBD : Handle ctrl-c\n");
+    return 1;
+  }
+  else if (s < 0) {
+    if (_target.ack) {
+      dbg_sock_putchar('-');
+    }
+    DBG_PRINT("gdb_interface : error getting a packet\n");
+    return 1;
+  }
+
+  return 0;
+}
+
+int gdb_packet_read (char* in_buf)
+{
+  return _gdb_packet_read (in_buf, 0);
+}
+
+int gdb_quick_packet_read (char* in_buf)
+{
+  return _gdb_packet_read (in_buf, 1);
+}
+
+static int _gdb_packet_send (int is_quick)
+{
+  if (is_quick)
+    return network_quick_write();
+  else
+    return network_write();
+}
+
+int gdb_packet_send ()
+{
+  return _gdb_packet_send (0);
+}
+
+int gdb_quick_packet_send ()
+{
+  return _gdb_packet_send (1);
+}
+
+int gdb_packet_exchange (void)
+{
+  if (gdb_packet_read (in_buf))
+    return 1;
+
+  gdb_packet_handle (in_buf, out_buf);
+  return gdb_packet_send ();
+}
+
+int gdb_quick_packet_exchange (void)
+{
+  if (gdb_quick_packet_read (in_buf_quick))
+    return 1;
+
+  gdb_quick_packet_handle (in_buf_quick);
+  return gdb_quick_packet_send ();
 }

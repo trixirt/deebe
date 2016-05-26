@@ -471,7 +471,7 @@ bool network_connect() {
 int _network_read(int sd, int sec, int usec) {
   int ret = 1;
 #ifdef NETWORK_INPUT_PLAYBACK
-  if (network_in_buffer_current > network_in_buffer_total) {
+  if (network_in_buffer_current < network_in_buffer_total) {
     /* Ok, still some packet to read. */
     ret = 0;
   } else {
@@ -529,7 +529,7 @@ int _network_read(int sd, int sec, int usec) {
   }
 #else
   if (sd > 0) {
-    if (network_in_buffer_current > network_in_buffer_total) {
+    if (network_in_buffer_current < network_in_buffer_total) {
       /* Ok, still some packet to read. */
       ret = 0;
     } else {

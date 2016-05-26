@@ -70,6 +70,7 @@ int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
 {
   td_err_e err;
   td_thrhandle_t th;
+  psaddr_t addr;
 
   if (_target.thread_agent == NULL)
     return RET_ERR;
@@ -78,9 +79,10 @@ int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
   if (err)
     return RET_ERR;
 
-  err = td_thr_tls_get_addr(&th, lm, offset, tlsaddr);
+  err = td_thr_tls_get_addr(&th, lm, offset, &addr);
   if (err)
     return RET_ERR;
+  *tlsaddr = (uintptr_t) addr;
 
   return RET_OK;
 }
