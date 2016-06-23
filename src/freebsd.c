@@ -524,7 +524,7 @@ void ptrace_os_wait(pid_t t) {
    * If the process exited, save the status and bail: no need to go over
    * thread info 
    */
-  if (WIFEXITED(wait_status) && wait_tid != 0) {
+  if (wait_tid != 0 && (WIFEXITED(wait_status) || WIFSIGNALED(wait_status))) {
     for (index = 0; index < _target.number_processes; index++) {
       if (PROCESS_PID(index) == pid) {
 	PROCESS_STATE(index) = PS_EXIT;
