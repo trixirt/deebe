@@ -1615,11 +1615,7 @@ int ptrace_wait(char *str, int step, bool skip_continue_others) {
      * Check if gdb has sent something important, like a ^C
      * that we should respond to.
      */
-    int read_status;
-    read_status = network_read();
-    if (0 == read_status)
-      gdb_interface_quick_packet();
-    network_write();
+    gdb_quick_packet_exchange ();
     return RET_CONTINUE_WAIT;
   }
 }
