@@ -1112,6 +1112,7 @@ int symbol_lookup(const char *name, uintptr_t *addr)
 {
   int ret = RET_ERR;
   uint64_t sym_addr;
+  size_t in_len = 0;
   char *in;
 
   /* Construct qSymbol request to gdb. */
@@ -1125,7 +1126,7 @@ int symbol_lookup(const char *name, uintptr_t *addr)
     return ret;
 
   /* Read gdb response */
-  if (gdb_packet_read (in_buf))
+  if (gdb_packet_read (in_buf, &in_len))
     return ret;
 
   /* Extract symbol address and set the return argument. */
@@ -2461,10 +2462,9 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
   }
 }
 
-int gdb_packet_handle (char* in_buf, char* out_buf)
+int gdb_packet_handle (char* in_buf, size_t in_len, char* out_buf)
 {
   int ret = 1;
-  size_t in_len = 0;
   bool binary_cmd = false;
 
   /*
@@ -2707,10 +2707,9 @@ int gdb_quick_packet_handle (char* in_buf)
   return ret;
 }
 
-static int _gdb_packet_read (char* in_buf, int is_quick)
+static int _gdb_packet_read (char* in_buf, size_t* in_len, int is_quick)
 {
   int s;
-  size_t in_len = 0;
 
   /* Ignore all ACKs/NAKs */
   do {
@@ -2722,12 +2721,17 @@ static int _gdb_packet_read (char* in_buf, int is_quick)
       while ((s = network_read ()) != 0);
     }
 
-    s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
+    s = gdb_interface_getpacket(in_buf, in_len, true /* do acks */);
   } while (s == ACK || s == NAK);
 
   if (s == '\3') {
-    DBG_PRINT("TBD : Handle ctrl-c\n");
-    return 1;
+    if (gdb_interface_target->stop) {
+      dbg_ack_packet_received(false, NULL);
+      gdb_interface_target->stop(CURRENT_PROCESS_PID, CURRENT_PROCESS_TID);
+    } else {
+      DBG_PRINT("TBD : Handle ctrl-c\n");
+    }
+    return 0;
   }
   else if (s < 0) {
     if (_target.ack) {
@@ -2740,14 +2744,14 @@ static int _gdb_packet_read (char* in_buf, int is_quick)
   return 0;
 }
 
-int gdb_packet_read (char* in_buf)
+int gdb_packet_read (char* in_buf, size_t* in_len)
 {
-  return _gdb_packet_read (in_buf, 0);
+  return _gdb_packet_read (in_buf, in_len, 0);
 }
 
-int gdb_quick_packet_read (char* in_buf)
+int gdb_quick_packet_read (char* in_buf, size_t* in_len)
 {
-  return _gdb_packet_read (in_buf, 1);
+  return _gdb_packet_read (in_buf, in_len, 1);
 }
 
 static int _gdb_packet_send (int is_quick)
@@ -2770,16 +2774,18 @@ int gdb_quick_packet_send ()
 
 int gdb_packet_exchange (void)
 {
-  if (gdb_packet_read (in_buf))
+  size_t in_len = 0;
+  if (gdb_packet_read (in_buf, &in_len))
     return 1;
 
-  gdb_packet_handle (in_buf, out_buf);
+  gdb_packet_handle (in_buf, in_len, out_buf);
   return gdb_packet_send ();
 }
 
 int gdb_quick_packet_exchange (void)
 {
-  if (gdb_quick_packet_read (in_buf_quick))
+  size_t in_len = 0;
+  if (gdb_quick_packet_read (in_buf_quick, &in_len))
     return 1;
 
   gdb_quick_packet_handle (in_buf_quick);
