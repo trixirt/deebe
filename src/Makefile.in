@@ -105,9 +105,9 @@ PROGRAMS = $(bin_PROGRAMS)
 am_deebe_OBJECTS = breakpoint.$(OBJEXT) cmdline.$(OBJEXT) \
 	gdb_interface.$(OBJEXT) elf.$(OBJEXT) lldb_interface.$(OBJEXT) \
 	memory.$(OBJEXT) main.$(OBJEXT) network.$(OBJEXT) \
-	ptrace.$(OBJEXT) proc.$(OBJEXT) signal.$(OBJEXT) \
-	target.$(OBJEXT) thread_db.$(OBJEXT) util.$(OBJEXT) \
-	version.$(OBJEXT) watchdog.$(OBJEXT)
+	packet.$(OBJEXT) ptrace.$(OBJEXT) proc.$(OBJEXT) \
+	signal.$(OBJEXT) target.$(OBJEXT) thread_db.$(OBJEXT) \
+	util.$(OBJEXT) version.$(OBJEXT) watchdog.$(OBJEXT)
 deebe_OBJECTS = $(am_deebe_OBJECTS)
 am__DEPENDENCIES_1 =
 AM_V_P = $(am__v_P_@AM_V@)
@@ -278,6 +278,7 @@ deebe_SOURCES = \
 	memory.c \
 	main.c \
 	network.c \
+	packet.c \
 	ptrace.c \
 	proc.c \
 	signal.c \
@@ -393,6 +394,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memory.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/network.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/osx-x86_64.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/packet.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/proc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ptrace.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signal.Po@am__quote@

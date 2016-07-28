@@ -11,6 +11,7 @@ deebe_SOURCES = \
 	memory.c \
 	main.c \
 	network.c \
+	packet.c \
 	ptrace.c \
 	proc.c \
 	signal.c \

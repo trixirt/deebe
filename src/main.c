@@ -44,6 +44,7 @@
 #include "global.h"
 #include "macros.h"
 #include "network.h"
+#include "packet.h"
 #include "watchdog.h"
 
 #define LOG_FILENAME "/tmp/deebe.log"
@@ -62,7 +63,7 @@ void main_sigio(/*@unused@*/ int sig) {
    */
   network_clear_write();
 
-  gdb_quick_packet_exchange ();
+  packet_quick_exchange ();
 }
 
 void main_sigrtmin(int sig) {
@@ -167,7 +168,7 @@ int main_debug() {
 
         if (network_accept()) {
           do {
-	    if (gdb_packet_exchange ()) {
+	    if (packet_exchange ()) {
               break;
             }
           } while (gDebugeeRunning);

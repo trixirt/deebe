@@ -33,67 +33,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#ifndef DEEBE_PACKET_H
+#define DEEBE_PACKET_H
 
-#ifdef HAVE_THREAD_DB_H
+int packet_exchange (void);
+int packet_quick_exchange (void);
+int packet_read (char* in_buf, size_t* in_len);
+int packet_quick_read (char* in_buf, size_t* in_len);
+int packet_send ();
+int packet_quick_send ();
 
-#include "global.h"
-#include "target.h"
-#include "thread_db_priv.h"
+void dbg_ack_packet_received(bool seq_valid, char *seq);
 
-int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
-{
-  int ret;
-  ret = td_init ();
-  if (ret != TD_OK)
-    return RET_ERR;
-
-  _target.ph.pid = pid;
-  _target.ph.target = t;
-  ret = td_ta_new (&_target.ph, &_target.thread_agent);
-  switch (ret)
-    {
-    case TD_NOLIBTHREAD:
-      /* Thread library not detected */
-      _target.ph.pid = 0;
-      _target.ph.target = NULL;
-      return RET_ERR;
-      
-    case TD_OK:
-      /* Thread library detected */
-      return RET_OK;
-
-    default:
-      fprintf(stderr, "Error initializing thread_db library\n");
-      _target.ph.pid = 0;
-      _target.ph.target = NULL;
-      return RET_ERR;
-    }
-  return RET_OK;
-}
-
-int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
-			      uintptr_t *tlsaddr)
-{
-  td_err_e err;
-  td_thrhandle_t th;
-  psaddr_t addr = 0;
-
-  if (_target.thread_agent == NULL)
-    return RET_ERR;
-  
-  err = td_ta_map_id2thr(_target.thread_agent, thread, &th);
-  if (err)
-    return RET_ERR;
-
-  err = td_thr_tls_get_addr(&th, lm, offset, &addr);
-  if (err)
-    return RET_ERR;
-  *tlsaddr = (uintptr_t) addr;
-
-  return RET_OK;
-}
-
-#endif /* HAVE_THREAD_DB_H */
+#endif /* DEEBE_PACKET_H */

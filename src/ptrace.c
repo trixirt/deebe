@@ -59,6 +59,7 @@
 #include "memory.h"
 #include "network.h"
 #include "os.h"
+#include "packet.h"
 #include "target.h"
 #include "util.h"
 
@@ -1615,7 +1616,7 @@ int ptrace_wait(char *str, int step, bool skip_continue_others) {
      * Check if gdb has sent something important, like a ^C
      * that we should respond to.
      */
-    gdb_quick_packet_exchange ();
+    packet_quick_exchange ();
     return RET_CONTINUE_WAIT;
   }
 }

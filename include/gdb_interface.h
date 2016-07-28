@@ -369,12 +369,9 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
                      int lldb_reason);
 void gdb_interface_write_retval(int ret, char *buf);
 int symbol_lookup(const char *name, uintptr_t *addr);
-int gdb_packet_exchange (void);
-int gdb_quick_packet_exchange (void);
-int gdb_packet_read (char* in_buf, size_t* in_len);
-int gdb_quick_packet_read (char* in_buf, size_t* in_len);
-int gdb_packet_send ();
-int gdb_quick_packet_send ();
+int gdb_interface_getpacket(char *buf, size_t *len, bool ret_ack);
+int gdb_quick_packet_handle (char* in_buf);
+int gdb_packet_handle (char* in_buf, size_t in_len, char* out_buf);
 
 /* Defined by the target to initalize and cleanup its support */
 void target_init(struct gdb_target_s **target);
