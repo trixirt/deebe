@@ -64,3 +64,23 @@ int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
     }
   return RET_OK;
 }
+
+int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
+			      uintptr_t *tlsaddr)
+{
+  td_err_e err;
+  td_thrhandle_t th;
+
+  if (_target.thread_agent == NULL)
+    return RET_ERR;
+  
+  err = td_ta_map_id2thr(_target.thread_agent, thread, &th);
+  if (err)
+    return RET_ERR;
+
+  err = td_thr_tls_get_addr(&th, lm, offset, tlsaddr);
+  if (err)
+    return RET_ERR;
+
+  return RET_OK;
+}

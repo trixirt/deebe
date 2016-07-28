@@ -1825,5 +1825,5 @@ bool ptrace_read_auxv(char *out_buf, size_t out_buf_size, size_t offset,
 int ptrace_get_tls_address(int64_t thread, uint64_t offset, uint64_t lm,
 			   uintptr_t *tlsaddr)
 {
-  return ptrace_os_get_tls_address(thread, offset, lm, tlsaddr);
+  return ptrace_os_get_tls_address(thread, lm, offset, tlsaddr);
 }

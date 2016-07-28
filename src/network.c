@@ -910,7 +910,6 @@ bool network_put_dbg_packet(const char *buf, size_t size) {
       network_out_buffer_total += size;
       network_out_buffer_total += 4;
       ret = true;
-      ;
     }
   }
   return ret;

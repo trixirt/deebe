@@ -68,6 +68,11 @@ target_state _target = {
     .number_processes = 0,
     .current_process = 0,
     .process = NULL, /* TODO : FREE THIS */
+#ifdef HAVE_THREAD_DB_H
+    .ph.pid = 0,
+    .ph.target = NULL,
+    .thread_agent = NULL,
+#endif
 };
 
 bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting,

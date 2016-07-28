@@ -1110,17 +1110,25 @@ static int rp_encode_process_query_response(unsigned int mask,
 
 int symbol_lookup(const char *name, uintptr_t *addr)
 {
-  int s, ret = RET_ERR;
+
+  int r, ret = RET_ERR;
   uint64_t sym_addr;
   size_t in_len = 0;
   char *in;
 
   sprintf(out_buf, "qSymbol:");
   util_encode_string(name, out_buf + 8, strlen(name) * 2 + 1);
-  network_put_dbg_packet(out_buf, 0);
-  network_write();
-  while (network_read() != 0) {}
-  s = gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
+  if (!network_put_dbg_packet(out_buf, 0))
+    return ret;
+  if (network_write() != 0)
+    return ret;
+  
+  do {
+    r = network_read();
+    if (r > 0)
+      return ret;
+  } while (r != 0);
+  gdb_interface_getpacket(in_buf, &in_len, true /* do acks */);
   network_clear_read();
   if (strncmp(in_buf, "qSymbol:", 8) == 0) {
     in = in_buf + 8;
@@ -1263,6 +1271,8 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         req_handled = true;
         goto end;
       }
+      if (thread_id == 0)
+	thread_id = CURRENT_PROCESS_TID;
       if (!util_decode_uint64(&cp, &addr, ',')) {
         gdb_interface_write_retval(RET_ERR, out_buf);
         req_handled = true;
