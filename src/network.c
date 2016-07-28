@@ -869,7 +869,7 @@ void network_clear_write() {
 void network_clear_read() {
   if (network_in_buffer_total > 0) {
     if (network_verbose) {
-      DBG_PRINT("Clearing write buffer <-----\n");
+      DBG_PRINT("Clearing read buffer <-----\n");
       util_print_buffer(fp_log, network_out_buffer_current,
                         network_out_buffer_total, &network_out_buffer[0]);
     }
