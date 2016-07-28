@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -34,6 +34,8 @@
  */
 
 #include <config.h>
+#ifdef HAVE_THREAD_DB_H
+
 #include "global.h"
 #include "target.h"
 #include "thread_db_priv.h"
@@ -52,6 +54,8 @@ int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
     {
     case TD_NOLIBTHREAD:
       /* Thread library not detected */
+      _target.ph.pid = 0;
+      _target.ph.target = NULL;
       return RET_ERR;
       
     case TD_OK:
@@ -60,6 +64,8 @@ int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
 
     default:
       fprintf(stderr, "Error initializing thread_db library\n");
+      _target.ph.pid = 0;
+      _target.ph.target = NULL;
       return RET_ERR;
     }
   return RET_OK;
@@ -70,7 +76,7 @@ int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
 {
   td_err_e err;
   td_thrhandle_t th;
-  psaddr_t addr;
+  psaddr_t addr = 0;
 
   if (_target.thread_agent == NULL)
     return RET_ERR;
@@ -86,3 +92,5 @@ int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
 
   return RET_OK;
 }
+
+#endif /* HAVE_THREAD_DB_H */

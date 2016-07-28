@@ -107,9 +107,6 @@ static uint16_t dbg_sock_readchar() {
   return ret;
 }
 
-/* Flag to catch unexpected output from target */
-static int rp_target_out_valid = FALSE;
-
 /* Decode/encode functions */
 
 static int gdb_decode_reg_assignment(char *in, unsigned int *reg_no,
@@ -1139,7 +1136,6 @@ int symbol_lookup(const char *name, uintptr_t *addr)
     else {
       *addr = 0;
     }
-	
   }
   return ret;
 }
@@ -1672,7 +1668,7 @@ static void handle_breakpoint_command(char *const in_buf, char *out_buf,
   POSIX_MODE(m, g, IXGRP); \
   POSIX_MODE(m, g, IWGRP); \
   POSIX_MODE(m, g, IRGRP); \
- POSIX_MODE(m, g, IXUSR); \
+  POSIX_MODE(m, g, IXUSR); \
   POSIX_MODE(m, g, IWUSR); \
   POSIX_MODE(m, g, IRUSR); \
   POSIX_MODE(m, g, IFDIR); \
@@ -2472,7 +2468,6 @@ int gdb_packet_handle (char* in_buf, size_t in_len, char* out_buf)
    * it is not supported
    */
   gdb_interface_write_retval(RET_NOSUPP, out_buf);
-  rp_target_out_valid = FALSE;
   switch (in_buf[0]) {
 
   case '!':

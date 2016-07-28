@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -32,6 +32,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <config.h>
+#ifdef HAVE_THREAD_DB_H
 
 #include <proc_service.h>
 #include "global.h"
@@ -147,3 +150,4 @@ ps_err_e ps_pwrite(struct ps_prochandle *ph, psaddr_t addr, const void *buf,
 
   return PS_OK;
 }
+#endif /* HAVE_THREAD_DB_H */
