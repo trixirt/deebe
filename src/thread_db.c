@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -32,24 +32,68 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEEBE_NETWORK_H
-#define DEEBE_NETWORK_H
 
-#include <stdbool.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-void network_print();
-void network_cleanup();
-bool network_init();
-bool network_accept();
-bool network_connect();
-int network_read();
-int network_read_fwd();
-int network_quick_read();
-int network_write();
-int network_write_fwd();
-int network_quick_write();
-void network_clear_read();
-void network_clear_write();
-int network_put_dbg_packet(const char *buf, size_t size);
+#ifdef HAVE_THREAD_DB_H
 
-#endif /* DEEBE_NETWORK_H */
+#include "global.h"
+#include "target.h"
+#include "thread_db_priv.h"
+
+int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
+{
+  int ret;
+  ret = td_init ();
+  if (ret != TD_OK)
+    return RET_ERR;
+
+  _target.ph.pid = pid;
+  _target.ph.target = t;
+  ret = td_ta_new (&_target.ph, &_target.thread_agent);
+  switch (ret)
+    {
+    case TD_NOLIBTHREAD:
+      /* Thread library not detected */
+      _target.ph.pid = 0;
+      _target.ph.target = NULL;
+      return RET_ERR;
+      
+    case TD_OK:
+      /* Thread library detected */
+      return RET_OK;
+
+    default:
+      fprintf(stderr, "Error initializing thread_db library\n");
+      _target.ph.pid = 0;
+      _target.ph.target = NULL;
+      return RET_ERR;
+    }
+  return RET_OK;
+}
+
+int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
+			      uintptr_t *tlsaddr)
+{
+  td_err_e err;
+  td_thrhandle_t th;
+  psaddr_t addr = 0;
+
+  if (_target.thread_agent == NULL)
+    return RET_ERR;
+  
+  err = td_ta_map_id2thr(_target.thread_agent, thread, &th);
+  if (err)
+    return RET_ERR;
+
+  err = td_thr_tls_get_addr(&th, lm, offset, &addr);
+  if (err)
+    return RET_ERR;
+  *tlsaddr = (uintptr_t) addr;
+
+  return RET_OK;
+}
+
+#endif /* HAVE_THREAD_DB_H */

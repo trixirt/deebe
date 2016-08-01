@@ -266,4 +266,10 @@ void memory_os_request_size(size_t *size)
     *size = 1;
 }
 
+int ptrace_os_get_tls_address(int64_t thread,  uint64_t lm, uint64_t offset,
+			      uintptr_t *tlsaddr)
+{
+  return RET_NOSUPP;
+}
+
 

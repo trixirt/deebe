@@ -44,6 +44,7 @@
 #include "global.h"
 #include "macros.h"
 #include "network.h"
+#include "packet.h"
 #include "watchdog.h"
 
 #define LOG_FILENAME "/tmp/deebe.log"
@@ -52,42 +53,6 @@
 extern void (*signal_handle_sigio)(int sig);
 extern void (*signal_handle_sigrtmin)(int sig);
 extern void (*signal_handle_sigchld)(int sig);
-
-static int _network_io(int (*r)(), int (*w)(), int (*pkt)()) {
-  int ret = 0;
-  int s;
-
-  s = r();
-  if (s > 0) {
-    /* Error or disconnect */
-    ret = 1;
-  } else if (s == 0) {
-    /*
-     * Normal case
-     * A packet has been received
-     */
-  } else {
-    /*
-     * Timeout
-     * Do nothing
-     */
-  }
-  if (!ret) {
-    while (network_in_buffer_current < network_in_buffer_total) {
-      /*
-       * Draining the network buffer,
-       * packets are being dropped
-       */
-      if (pkt)
-        pkt();
-
-      s = w();
-      if (s)
-        fprintf(stderr, "error writing\n");
-    }
-  }
-  return ret;
-}
 
 void main_sigchld(/*@unused@*/ int sig) {}
 
@@ -98,8 +63,7 @@ void main_sigio(/*@unused@*/ int sig) {
    */
   network_clear_write();
 
-  _network_io(network_quick_read, network_quick_write,
-              gdb_interface_quick_packet);
+  packet_quick_exchange ();
 }
 
 void main_sigrtmin(int sig) {
@@ -204,8 +168,7 @@ int main_debug() {
 
         if (network_accept()) {
           do {
-            if (_network_io(network_read, network_write,
-                            gdb_interface_packet)) {
+	    if (packet_exchange ()) {
               break;
             }
           } while (gDebugeeRunning);

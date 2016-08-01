@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2012-2016, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -32,24 +32,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEEBE_NETWORK_H
-#define DEEBE_NETWORK_H
 
-#include <stdbool.h>
+#ifndef DEEBE_PACKET_H
+#define DEEBE_PACKET_H
 
-void network_print();
-void network_cleanup();
-bool network_init();
-bool network_accept();
-bool network_connect();
-int network_read();
-int network_read_fwd();
-int network_quick_read();
-int network_write();
-int network_write_fwd();
-int network_quick_write();
-void network_clear_read();
-void network_clear_write();
-int network_put_dbg_packet(const char *buf, size_t size);
+int packet_exchange (void);
+int packet_quick_exchange (void);
+int packet_read (char* in_buf, size_t* in_len);
+int packet_quick_read (char* in_buf, size_t* in_len);
+int packet_send ();
+int packet_quick_send ();
 
-#endif /* DEEBE_NETWORK_H */
+void dbg_ack_packet_received(bool seq_valid, char *seq);
+
+#endif /* DEEBE_PACKET_H */

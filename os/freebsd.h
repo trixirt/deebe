@@ -68,4 +68,6 @@ bool memory_os_region_info_gdb(uint64_t addr, char *out_buff,
 bool ptrace_os_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
                          size_t *size);
 pid_t ptrace_os_get_wait_tid(pid_t pid);
+int ptrace_os_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
+			      uintptr_t *tlsaddr);
 #endif

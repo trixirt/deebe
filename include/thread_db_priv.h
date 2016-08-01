@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, Juniper Networks, Inc.
+ * Copyright (c) 2013-2015, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -32,24 +32,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEEBE_NETWORK_H
-#define DEEBE_NETWORK_H
+#ifndef DEEBE_THREAD_DB_PRIV_H
+#define DEEBE_THREAD_DB_PRIV_H
 
-#include <stdbool.h>
+#include <config.h>
+#ifdef HAVE_THREAD_DB_H
+#include <unistd.h>
+#include <thread_db.h>
 
-void network_print();
-void network_cleanup();
-bool network_init();
-bool network_accept();
-bool network_connect();
-int network_read();
-int network_read_fwd();
-int network_quick_read();
-int network_write();
-int network_write_fwd();
-int network_quick_write();
-void network_clear_read();
-void network_clear_write();
-int network_put_dbg_packet(const char *buf, size_t size);
+struct gdb_target_s;
+extern int initialize_thread_db(pid_t pid, struct gdb_target_s *t);
+extern int thread_db_get_tls_address(int64_t thread, uint64_t lm,
+				     uint64_t offset, uintptr_t *tlsaddr);
 
-#endif /* DEEBE_NETWORK_H */
+struct ps_prochandle
+{
+  pid_t pid;
+  struct gdb_target_s *target;
+};
+
+#endif
+#endif

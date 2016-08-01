@@ -68,6 +68,11 @@ target_state _target = {
     .number_processes = 0,
     .current_process = 0,
     .process = NULL, /* TODO : FREE THIS */
+#ifdef HAVE_THREAD_DB_H
+    .ph.pid = 0,
+    .ph.target = NULL,
+    .thread_agent = NULL,
+#endif
 };
 
 bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting,
@@ -79,7 +84,7 @@ bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting,
    * Try to reused an exited process's space
    */
   for (index = 0; index < _target.number_processes; index++) {
-    if (PROCESS_STATE(index) == PS_EXIT)
+    if (PROCESS_STATE(index) == PRS_EXIT)
       break;
   }
 
@@ -102,7 +107,7 @@ bool target_new_thread(pid_t pid, pid_t tid, int wait_status, bool waiting,
 
   PROCESS_PID(index) = pid;
   PROCESS_TID(index) = tid;
-  PROCESS_STATE(index) = PS_START;
+  PROCESS_STATE(index) = PRS_START;
   PROCESS_WAIT_STATUS(index) = wait_status;
   PROCESS_WAIT(index) = waiting;
   PROCESS_SIG(index) = sig;
@@ -121,7 +126,7 @@ int target_number_threads() {
   int index;
 
   for (index = 0; index < _target.number_processes; index++) {
-    if (PROCESS_STATE(index) != PS_EXIT)
+    if (PROCESS_STATE(index) != PRS_EXIT)
       ret++;
   }
   return ret;
@@ -140,7 +145,7 @@ bool target_dead_thread(pid_t tid) {
 
   for (index = 0; index < _target.number_processes; index++) {
     if (tid == PROCESS_TID(index)) {
-      PROCESS_STATE(index) = PS_EXIT;
+      PROCESS_STATE(index) = PRS_EXIT;
       ret = true;
       break;
     }
@@ -151,7 +156,7 @@ bool target_dead_thread(pid_t tid) {
 void target_all_dead_thread(pid_t tid) {
   int index;
   for (index = 0; index < _target.number_processes; index++) {
-    PROCESS_STATE(index) = PS_EXIT;
+    PROCESS_STATE(index) = PRS_EXIT;
   }
 }
 
@@ -161,7 +166,7 @@ bool target_is_alive_thread(pid_t tid) {
 
   for (index = 0; index < _target.number_processes; index++) {
     if (tid == PROCESS_TID(index)) {
-      if (PROCESS_STATE(index) != PS_EXIT)
+      if (PROCESS_STATE(index) != PRS_EXIT)
         ret = true;
       break;
     }
@@ -175,7 +180,7 @@ bool target_is_alive_process(pid_t pid) {
 
   for (index = 0; index < _target.number_processes; index++) {
     if (pid == PROCESS_PID(index)) {
-      if (PROCESS_STATE(index) != PS_EXIT)
+      if (PROCESS_STATE(index) != PRS_EXIT)
         ret = true;
       break;
     }

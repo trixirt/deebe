@@ -471,7 +471,7 @@ bool network_connect() {
 int _network_read(int sd, int sec, int usec) {
   int ret = 1;
 #ifdef NETWORK_INPUT_PLAYBACK
-  if (network_in_buffer_current > network_in_buffer_total) {
+  if (network_in_buffer_current < network_in_buffer_total) {
     /* Ok, still some packet to read. */
     ret = 0;
   } else {
@@ -529,7 +529,7 @@ int _network_read(int sd, int sec, int usec) {
   }
 #else
   if (sd > 0) {
-    if (network_in_buffer_current > network_in_buffer_total) {
+    if (network_in_buffer_current < network_in_buffer_total) {
       /* Ok, still some packet to read. */
       ret = 0;
     } else {
@@ -556,6 +556,7 @@ int _network_read(int sd, int sec, int usec) {
         /* Success */
         ssize_t r;
         r = recv(sd, &network_in_buffer[0], network_in_buffer_size, 0);
+        network_in_buffer[r] = '\0';
         if (r == 0) {
           /*
            * This should not have made it past the select.
@@ -865,6 +866,17 @@ void network_clear_write() {
   }
 }
 
+void network_clear_read() {
+  if (network_in_buffer_total > 0) {
+    if (network_verbose) {
+      DBG_PRINT("Clearing read buffer <-----\n");
+      util_print_buffer(fp_log, network_out_buffer_current,
+                        network_out_buffer_total, &network_out_buffer[0]);
+    }
+    network_in_buffer_total = network_in_buffer_current = 0;
+  }
+}
+
 /*
  * Send packet to debugger
  * For normal text packets, buf is null teminated and size = 0
@@ -893,11 +905,11 @@ bool network_put_dbg_packet(const char *buf, size_t size) {
       *d++ = '#';
       *d++ = util_hex[(csum >> 4) & 0xf];
       *d++ = util_hex[(csum & 0xf)];
+      *d = '\0';
 
       network_out_buffer_total += size;
       network_out_buffer_total += 4;
       ret = true;
-      ;
     }
   }
   return ret;

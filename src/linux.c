@@ -311,7 +311,7 @@ void ptrace_os_continue_others() {
       if (!wait || (tid == CURRENT_PROCESS_TID)) {
         continue;
       } else {
-        if (PS_CONT == PROCESS_STATE(index)) {
+        if (PRS_CONT == PROCESS_STATE(index)) {
           int sig = PROCESS_SIG(index);
           int g = ptrace_arch_signal_to_gdb(sig);
           ptrace_resume_from_current(pid, tid, 0, g);
@@ -376,7 +376,7 @@ int ptrace_os_gen_thread(pid_t pid, pid_t tid) {
      * ptrace_stop send a SIG_INT to the tid
      * To seperate this signal from a normal signal, flag it as 'internal'
      */
-    PROCESS_STATE(index) = PS_INTERNAL_SIG_PENDING;
+    PROCESS_STATE(index) = PRS_INTERNAL_SIG_PENDING;
 
     /*
      * Now wait..
@@ -671,4 +671,10 @@ pid_t ptrace_os_get_wait_tid(pid_t pid) {
     }
 #endif
     return ret;
+}
+
+int ptrace_os_get_tls_address(int64_t thread,  uint64_t lm, uint64_t offset,
+			      uintptr_t *tlsaddr)
+{
+  return RET_NOSUPP;
 }
