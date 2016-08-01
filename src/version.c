@@ -33,7 +33,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-static char *_version = "deebe 7.7";
+#define STRING(x) #x
+#define XSTRING(x) STRING(x)
+
+#ifdef DEEBE_RELEASE
+#define RELEASE release
+#else
+#define RELEASE dirty
+#endif
+
+#include "version.inc"
+
+static char *_version = "deebe version 7.7 ("REPO_URL" "XSTRING(BRANCH)" "\
+    XSTRING(REVISION)"."XSTRING(RELEASE)") "XSTRING(BUILD_DATE)"\n"
+    "Target: "XSTRING(DEEBE_TARGET);
 static char *_copyright = "Copyright (C) 2012-2015 Juniper Networks \n"
                           "gdb protocol interface :\n"
                           "Copyright (C) 1999-2001 Quality Quorum, Inc.\n";

@@ -165,25 +165,31 @@ case ${host} in
 *-freebsd*|*-netbsd*)
 	# freebsd
 	HD_SRC='host-freebsd.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 *-linux*)
 	# linux
 	HD_SRC='host-linux.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 x86_64-apple-darwin*)
 	# x64 osx
 	os=osx
 	HD_SRC='host-osx.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 *)
 	echo "*** Unsupported host $host." >&2
+	deebe_version=No
 	exit 1
 	;;	
 esac
 AC_SUBST([HD_SRC])
+
+AM_CONDITIONAL(OS_FOR_DEEBE_VERSION, [test x"$deebe_version" = xYes])
 
 AC_CONFIG_LINKS(os.h:os/$os.h)
 
