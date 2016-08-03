@@ -40,6 +40,7 @@
 #ifndef DEEBE_GDB_INTERFACE_H_
 #define DEEBE_GDB_INTERFACE_H_
 
+#include <stdint.h>
 #include <sys/types.h>
 
 typedef void (*log_func)(int level, const char *string, ...);
