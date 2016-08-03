@@ -627,6 +627,25 @@ uninstall-am: uninstall-binPROGRAMS
 .PRECIOUS: Makefile
 
 
+version.o: version.inc
+
+version.inc:
+@OS_FOR_DEEBE_VERSION_TRUE@	cd $(srcdir);\
+@OS_FOR_DEEBE_VERSION_TRUE@	(git describe --tags --always --abbrev=100 || echo ) | awk ' BEGIN {} {print "#define \
+@OS_FOR_DEEBE_VERSION_TRUE@	REVISION "$$0""} END {}' > $(abs_builddir)/version.inc;\
+@OS_FOR_DEEBE_VERSION_TRUE@	(git symbolic-ref HEAD || echo ) | awk ' BEGIN {} {print "#define \
+@OS_FOR_DEEBE_VERSION_TRUE@	BRANCH "$$0""} END {}' >> $(abs_builddir)/version.inc;\
+@OS_FOR_DEEBE_VERSION_TRUE@	(date +'%Y-%m-%d' || echo 1970-01-01) | awk ' BEGIN {} {print "#define \
+@OS_FOR_DEEBE_VERSION_TRUE@	BUILD_DATE "$$0""} END {}' >> $(abs_builddir)/version.inc;\
+@OS_FOR_DEEBE_VERSION_TRUE@	(git config --get remote.origin.url || echo ) | awk ' BEGIN {} {print "#define \
+@OS_FOR_DEEBE_VERSION_TRUE@	REPO_URL \""$$0"\""} END {}' >> $(abs_builddir)/version.inc;\
+@OS_FOR_DEEBE_VERSION_TRUE@	echo $(host_triplet) | awk ' BEGIN {} {print "#define DEEBE_TARGET "$$0""} END {}' >> $(abs_builddir)/version.inc
+@OS_FOR_DEEBE_VERSION_FALSE@	echo "#define REVISION"      > $(abs_builddir)/version.inc
+@OS_FOR_DEEBE_VERSION_FALSE@	echo "#define BRANCH"  	     >> $(abs_builddir)/version.inc
+@OS_FOR_DEEBE_VERSION_FALSE@	echo "#define BUILD_DATE"    >> $(abs_builddir)/version.inc
+@OS_FOR_DEEBE_VERSION_FALSE@	echo "#define REPO_URL"      >> $(abs_builddir)/version.inc
+@OS_FOR_DEEBE_VERSION_FALSE@	echo "#define DEEBE_TARGET"  >> $(abs_builddir)/version.inc
+
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

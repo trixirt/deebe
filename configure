@@ -623,6 +623,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+OS_FOR_DEEBE_VERSION_FALSE
+OS_FOR_DEEBE_VERSION_TRUE
 HD_SRC
 TD_LIBS
 TD_SRC
@@ -6113,24 +6115,37 @@ case ${host} in
 *-freebsd*|*-netbsd*)
 	# freebsd
 	HD_SRC='host-freebsd.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 *-linux*)
 	# linux
 	HD_SRC='host-linux.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 x86_64-apple-darwin*)
 	# x64 osx
 	os=osx
 	HD_SRC='host-osx.$(OBJEXT)'
+	deebe_version=Yes
 	;;
 
 *)
 	echo "*** Unsupported host $host." >&2
+	deebe_version=No
 	exit 1
 	;;
 esac
+
+
+ if test x"$deebe_version" = xYes; then
+  OS_FOR_DEEBE_VERSION_TRUE=
+  OS_FOR_DEEBE_VERSION_FALSE='#'
+else
+  OS_FOR_DEEBE_VERSION_TRUE='#'
+  OS_FOR_DEEBE_VERSION_FALSE=
+fi
 
 
 ac_config_links="$ac_config_links os.h:os/$os.h"
@@ -6275,6 +6290,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCC_TRUE}" && test -z "${am__fastdepCC_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${OS_FOR_DEEBE_VERSION_TRUE}" && test -z "${OS_FOR_DEEBE_VERSION_FALSE}"; then
+  as_fn_error $? "conditional \"OS_FOR_DEEBE_VERSION\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
