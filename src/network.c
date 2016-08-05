@@ -87,8 +87,8 @@ static bool network_verbose = false;
 /* No timeout in playback, this variable is unused */
 static bool network_verbose_timeout = false;
 #endif
-static bool network_verbose_print_read_buffer = true;
-static bool network_verbose_print_write_buffer = true;
+static bool network_verbose_print_read_buffer = false;
+static bool network_verbose_print_write_buffer = false;
 
 void network_print() {
   DBG_PRINT("network : listen sd          : %d\n", network_listen_sd);
