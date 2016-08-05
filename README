@@ -27,7 +27,7 @@ Dependencies
 
 The reference autoconf versions are
 autoconf-2.68
-automake-1.11.2
+automake-1.15
 m4-1.4.15
 
 The reference make version is
