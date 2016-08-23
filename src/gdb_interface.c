@@ -93,7 +93,7 @@ extern char *in_buf_quick;
 
 static int gdb_decode_reg_assignment(char *in, unsigned int *reg_no,
                                      unsigned char *out, size_t out_size,
-                                     size_t *len);
+                                     size_t *len, pid_t *tid);
 static int gdb_decode_mem(char *in, uint64_t *addr, size_t *len);
 static int rp_decode_process_query(const char *in, unsigned int *mask,
                                    gdb_thread_ref *ref);
@@ -226,16 +226,35 @@ static int gdb_encode_regs(const unsigned char *data,
   return TRUE;
 }
 
+static bool decode_thread_id(char **in, char brk, pid_t *tid) {
+  int64_t thread_id;
+  *in = strstr(*in, "thread:");
+  if (*in) {
+    (*in) += 7;
+    if (!util_decode_int64(in, &thread_id, brk))
+      return FALSE;
+    *tid = thread_id;
+  }
+  return TRUE;
+}
+
 void handle_read_registers_command(char *const in_buf, char *out_buf,
                                    gdb_target *t) {
   int ret;
   size_t len;
   unsigned char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
   unsigned char avail_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
+  pid_t tid = CURRENT_PROCESS_TID;
+  char *in = &in_buf[1];
 
-  /* Get all registers. Format: 'g'. Note we do not do any
-     data caching - all caching is done by the debugger */
-  ret = t->read_registers(CURRENT_PROCESS_TID, data_buf, avail_buf,
+  /* Get all registers. Format: 'g;thread:XXXX'. */
+  if (!decode_thread_id(&in, '\0', &tid)) {
+    gdb_interface_write_retval(RET_ERR, out_buf);
+    return;
+  }
+
+  /* Note we don't do any data caching - all caching is done by the debugger */
+  ret = t->read_registers(tid, data_buf, avail_buf,
                           sizeof(data_buf), &len);
   switch (ret) {
   case RET_OK:
@@ -260,8 +279,8 @@ static int gdb_decode_data(const char *in, unsigned char *out, size_t out_size,
       (out != NULL) &&
       (out_size > 0) &&
       (len != NULL)) {
-    for (count = 0; *in && count < out_size; count++, in += 2, out++) {
-      if (*(in + 1) == '\0') {
+    for (count = 0; (*in && *in != ';') && count < out_size; count++, in += 2, out++) {
+      if (*(in + 1) == '\0' || *(in + 1) == ';') {
 	/* Odd number of nibbles. Discard the last one */
 	if (count == 0)
 	  return FALSE;
@@ -272,7 +291,7 @@ static int gdb_decode_data(const char *in, unsigned char *out, size_t out_size,
 	return FALSE;
       *out = bytex & 0xff;
     }
-    if (*in) {
+    if (*in && *in != ';') {
       /* Input too long */
       return FALSE;
     }
@@ -288,15 +307,23 @@ void handle_write_registers_command(char *const in_buf, char *out_buf,
   int ret;
   size_t len;
   unsigned char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
+  pid_t tid = CURRENT_PROCESS_TID;
+  char *in = &in_buf[1];
 
-  /* Write all registers. Format: 'GXXXXXXXXXX' */
-  ret = gdb_decode_data(&in_buf[1], data_buf, sizeof(data_buf), &len);
+  /* Write all registers. Format: 'G;thread:XXXXX;XXXXXXXXXX'. 
+     thread suffix may or may not be present. */
+  if (!decode_thread_id(&in, ';', &tid)) {
+    gdb_interface_write_retval(RET_ERR, out_buf);
+    return;
+  }
+
+  ret = gdb_decode_data(in, data_buf, sizeof(data_buf), &len);
   if (!ret) {
     gdb_interface_write_retval(RET_ERR, out_buf);
     return;
   }
 
-  ret = t->write_registers(CURRENT_PROCESS_TID, data_buf, len);
+  ret = t->write_registers(tid, data_buf, len);
   gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -304,18 +331,12 @@ static bool _decode_reg_tid(char *const in_buf, uint32_t *reg, pid_t *tid) {
   bool ret = false;
   char *in = &in_buf[1];
   if (strchr(in, ';')) {
-    int64_t thread_id;
     /* The QThreadSuffixSupported option */
     ret = util_decode_uint32(&in, reg, ';');
     if (!ret)
       goto end;
-    if (strncmp(in, "thread:", 7) == 0) {
-      in += 7;
-      ret = util_decode_int64(&in, &thread_id, ';');
-      if (!ret)
-        goto end;
-      *tid = thread_id;
-    }
+    if (!decode_thread_id(&in, ';', tid))
+      goto end;
   } else {
     /* Get a single register. Format 'pNN' */
     ret = util_decode_reg(&in, reg);
@@ -353,17 +374,18 @@ void handle_write_single_register_command(char *const in_buf, char *out_buf,
   unsigned int reg_no;
   size_t len;
   unsigned char data_buf[GDB_INTERFACE_PARAM_DATABYTES_MAX];
+  pid_t tid = CURRENT_PROCESS_TID;
 
   /* Write a single register. Format: 'PNN=XXXXX' */
   ret = gdb_decode_reg_assignment(&in_buf[1], &reg_no, data_buf,
-                                  sizeof(data_buf), &len);
+                                  sizeof(data_buf), &len, &tid);
   if (!ret) {
     gdb_interface_write_retval(RET_ERR, out_buf);
     return;
   }
   ASSERT(len < GDB_INTERFACE_PARAM_DATABYTES_MAX);
 
-  ret = t->write_single_register(CURRENT_PROCESS_TID, reg_no, data_buf, len);
+  ret = t->write_single_register(tid, reg_no, data_buf, len);
   gdb_interface_write_retval(ret, out_buf);
 }
 
@@ -1863,22 +1885,31 @@ end:
   gdb_interface_write_retval(ret, out_buf);
 }
 
-/* Decode reg_no=XXXXXX */
+/* Decode reg_no=XXXXXX;thread:XXXXX */
 static int gdb_decode_reg_assignment(char *in, unsigned int *reg_no,
                                      unsigned char *out, size_t out_size,
-                                     size_t *out_len) {
+                                     size_t *out_len, pid_t *tid) {
   ASSERT(in != NULL);
   ASSERT(reg_no != NULL);
   ASSERT(out != NULL);
   ASSERT(out_size > 0);
   ASSERT(out_len != NULL);
 
+  /* Decode register number */
   if (!util_decode_uint32(&in, reg_no, '='))
     return FALSE;
 
   out_size -= 8;
 
-  return gdb_decode_data(in, out, out_size - 1, out_len);
+  /* Decode revister value */
+  if (!gdb_decode_data(in, out, out_size - 1, out_len))
+    return FALSE;
+
+  /* Decode thread ID, if present */
+  if (!decode_thread_id(&in, ';', tid))
+    return FALSE;
+
+  return TRUE;
 }
 
 /* Decode memory transfer parameter in the form of AA..A,LL..L */
