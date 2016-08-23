@@ -647,7 +647,7 @@ int _network_read(int sd, int sec, int usec) {
 int network_read() {
   int ret;
   int sec = 0;
-  int usec = 10;
+  int usec = 100;
   static long accum_timeout = 0;
 #ifndef HAVE_TIMER_CREATE
   static struct timeval old_time;
