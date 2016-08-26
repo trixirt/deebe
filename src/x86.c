@@ -225,7 +225,7 @@ bool ptrace_arch_add_hardware_breakpoint(pid_t pid, unsigned long addr,
 bool static _remove_hw_debug(pid_t pid, unsigned long addr, size_t _len,
                              bool hwbrk) {
   bool ret = false;
-  if (addr && _supported_access(addr, _len)) {
+  if (_supported_access(addr, _len)) {
     union u_drc drc;
     if (x86_read_debug_reg(pid, DEBUG_CONTROL, &drc)) {
       unsigned long r_addr = 0;
