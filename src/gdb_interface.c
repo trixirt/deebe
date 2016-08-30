@@ -952,8 +952,10 @@ static bool gdb_handle_query_command(char *const in_buf, size_t in_len, char *ou
         if (_target.lldb) {
           sprintf(out_buf, "QC%" PRIx64, thread);
         } else {
-	  /* For gdb, return .-1 to indicate this is the main pid/thread */
-	  sprintf(out_buf, "QCp%" PRIx64 ".-1", process);
+	  /* For gdb, return thread id the same as process id for the
+	     startup thread. Match it with what we return in case of
+	     "info threads" */
+	  sprintf(out_buf, "QCp%" PRIx64 ".%" PRIx64, process, process);
         }
       } else {
         gdb_interface_write_retval(status, out_buf);

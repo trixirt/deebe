@@ -1644,7 +1644,7 @@ void ptrace_threadinfo_query(int first, char *out_buf) {
       if (n > 0)
 	sprintf(out_buf, "mp%x.%x", p, t);
       else
-	sprintf(out_buf, "m%x", p);
+	sprintf(out_buf, "mp%x.%x", p, p);
     } else {
       sprintf(out_buf, "l");
     }
