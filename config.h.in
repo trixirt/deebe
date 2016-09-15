@@ -87,6 +87,9 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
 
+/* Define to 1 if you have the <thread_db.h> header file. */
+#undef HAVE_THREAD_DB_H
+
 /* Define to 1 if you have the `timer_create' function. */
 #undef HAVE_TIMER_CREATE
 
