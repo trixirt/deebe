@@ -1259,10 +1259,10 @@ int ptrace_remove_break(pid_t tid, int type, uint64_t addr, size_t len) {
     if (bp) {
       /*
        * Only really remove the breakpoint if it's reference count
-       * is one.
+       * is one. Write shadow content back anyway.
        */
+      ret = memory_write(tid, addr, bp->data, bp->len, false);
       if (1 == bp->ref_count) {
-        ret = memory_write(tid, addr, bp->data, bp->len, false);
         if (ret == RET_OK) {
           breakpoint_remove(&_target.bpl, _remove_break_verbose, kaddr);
           if (_add_break_verbose) {
@@ -1623,15 +1623,19 @@ int ptrace_wait(char *str, int step, bool skip_continue_others) {
 
 void ptrace_threadinfo_query(int first, char *out_buf) {
   static int n;
+  int i;
   pid_t t;
 
-  if (first)
-    n = 0;
-  else
-    n++;
+  /* Find next active thread */
+  for (i = first ? 0 : n + 1; i < _target.number_processes; i++) {
+    if (PROCESS_STATE(i) != PRS_EXIT) {
+      n = i;
+      break;
+    }
+  }
 
   if (_target.lldb) {
-    if (n < _target.number_processes) {
+    if (i < _target.number_processes) {
       t = PROCESS_TID(n);
       sprintf(out_buf, "m%x", t);
     } else {
@@ -1639,7 +1643,7 @@ void ptrace_threadinfo_query(int first, char *out_buf) {
     }
   } else {
     pid_t p = PROCESS_PID(0);
-    if (n < _target.number_processes) {
+    if (i < _target.number_processes) {
       t = PROCESS_TID(n);
       if (n > 0)
 	sprintf(out_buf, "mp%x.%x", p, t);
