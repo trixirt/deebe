@@ -2104,9 +2104,17 @@ void gdb_stop_string(char *str, int sig, pid_t tid, unsigned long watch_addr,
    * lldb always wants the thread id
    * gdb only wants it if isn't the main pid/thread's
    */
-  if (_target.lldb ||
-      (target_number_threads() > 1 && tid != PROCESS_TID(0)))
+  if (_target.lldb) {
       snprintf(&tstr[0], 32, "thread:%x;", tid);
+  }
+  else {
+    if (tid == PROCESS_TID(0))
+      snprintf(&tstr[0], 32, "thread:p%x.%x;",
+	       PROCESS_PID(0), PROCESS_PID(0));
+    else
+      snprintf(&tstr[0], 32, "thread:%x;", tid);
+  }
+
   if (watch_addr)
     snprintf(&wstr[0], 32, "watch:%lx;", watch_addr);
   snprintf(str, len, "T%02x%s%s", sig, tstr, wstr);

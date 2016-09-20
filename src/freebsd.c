@@ -406,7 +406,10 @@ static void check_lwplist_for_new_threads(pid_t pid) {
            * last thread in the list to the current thread.
            */
         }
-      } /* lwps loop */
+      } /* for lwps loop */
+
+      /* Mark all threads not in the lwpid list as dead. */
+      target_mark_dead_threads(lwpid_list, num_lwps);
     }
   }
 

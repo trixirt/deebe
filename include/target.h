@@ -139,6 +139,7 @@ bool target_dead_thread(pid_t tid);
 void target_all_dead_thread();
 bool target_is_alive_thread(pid_t tid);
 bool target_is_alive_process(pid_t pid);
+void target_mark_dead_threads(lwpid_t *lwpid_list, int num_lwps);
 int target_index(pid_t tid);
 bool target_is_tid(pid_t tid);
 bool target_is_pid(pid_t pid);

@@ -153,7 +153,25 @@ bool target_dead_thread(pid_t tid) {
   return ret;
 }
 
-void target_all_dead_thread(pid_t tid) {
+void target_mark_dead_threads(lwpid_t *lwpid_list, int num_lwps) {
+  /* Everything not in the list is marked dead. */
+  int index, lwp;
+  bool in_list;
+  for (index = 0; index < _target.number_processes; index++) {
+    in_list = false;
+    for (lwp = 0; lwp < num_lwps; lwp++) {
+      if (lwpid_list[lwp] == PROCESS_TID(index)) {
+	in_list = true;
+	break;
+      }
+    }
+    if (!in_list) {
+      PROCESS_STATE(index) = PRS_EXIT;
+    }
+  }
+}
+
+void target_all_dead_thread() {
   int index;
   for (index = 0; index < _target.number_processes; index++) {
     PROCESS_STATE(index) = PRS_EXIT;
@@ -164,6 +182,8 @@ bool target_is_alive_thread(pid_t tid) {
   bool ret = false;
   int index;
 
+  if (tid == PROCESS_PID(0))
+    return true;
   for (index = 0; index < _target.number_processes; index++) {
     if (tid == PROCESS_TID(index)) {
       if (PROCESS_STATE(index) != PRS_EXIT)
