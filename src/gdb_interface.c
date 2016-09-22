@@ -1453,12 +1453,6 @@ static int handle_v_command(char *const in_buf, size_t in_len, char *out_buf,
         if (in[0] == ':') {
           if (0 == _decode_thread_id(&in[1], &p, &t)) {
             target->set_gen_thread(p, t);
-            /*
-             * Sending signals to individual threads is not
-             * supported.
-             */
-            if (target_number_threads() != 1)
-              sig = 0;
           }
         }
       }
