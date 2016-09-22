@@ -183,7 +183,7 @@ bool target_is_alive_thread(pid_t tid) {
   int index;
 
   if (tid == PROCESS_PID(0))
-    return true;
+    return PROCESS_STATE(0) != PRS_EXIT;
   for (index = 0; index < _target.number_processes; index++) {
     if (tid == PROCESS_TID(index)) {
       if (PROCESS_STATE(index) != PRS_EXIT)
