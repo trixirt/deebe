@@ -35,14 +35,10 @@ version.o: version.inc
 version.inc:
 if OS_FOR_DEEBE_VERSION
 	cd $(srcdir);\
-	(git describe --tags --always --abbrev=100 || echo ) | awk ' BEGIN {} {print "#define \
-	REVISION "$$0""} END {}' > $(abs_builddir)/version.inc;\
-	(git symbolic-ref HEAD || echo ) | awk ' BEGIN {} {print "#define \
-	BRANCH "$$0""} END {}' >> $(abs_builddir)/version.inc;\
-	(date +'%Y-%m-%d' || echo 1970-01-01) | awk ' BEGIN {} {print "#define \
-	BUILD_DATE "$$0""} END {}' >> $(abs_builddir)/version.inc;\
-	(git config --get remote.origin.url || echo ) | awk ' BEGIN {} {print "#define \
-	REPO_URL \""$$0"\""} END {}' >> $(abs_builddir)/version.inc;\
+	(git describe --tags --always --abbrev=100 || echo ) | awk ' BEGIN {} {print "#define REVISION "$$0""} END {}' > $(abs_builddir)/version.inc;\
+	(git symbolic-ref HEAD || echo ) | awk ' BEGIN {} {print "#define BRANCH "$$0""} END {}' >> $(abs_builddir)/version.inc;\
+	(date +'%Y-%m-%d' || echo 1970-01-01) | awk ' BEGIN {} {print "#define BUILD_DATE "$$0""} END {}' >> $(abs_builddir)/version.inc;\
+	(git config --get remote.origin.url || echo ) | awk ' BEGIN {} {print "#define REPO_URL \""$$0"\""} END {}' >> $(abs_builddir)/version.inc;\
 	echo $(host_triplet) | awk ' BEGIN {} {print "#define DEEBE_TARGET "$$0""} END {}' >> $(abs_builddir)/version.inc
 else
 	echo "#define REVISION"      > $(abs_builddir)/version.inc
