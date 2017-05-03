@@ -66,19 +66,19 @@ powerpc-*-freebsd*)
 powerpc-*-linux*)
 	# ppc 32 bit linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-ppc.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-ppc.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
 i686-*-linux-*)
 	# x86 32 bit linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-x86.$(OBJEXT) linux-common-x86.$(OBJEXT) linux.$(OBJEXT) x86.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-x86.$(OBJEXT) linux-common-x86.$(OBJEXT) linux.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
 x86_64-*-linux-*)
 	# x86 64 bit linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-x86_64.$(OBJEXT) linux-common-x86.$(OBJEXT) linux.$(OBJEXT) x86.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-x86_64.$(OBJEXT) linux-common-x86.$(OBJEXT) linux.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
 i386-*-freebsd*)
@@ -95,20 +95,20 @@ amd64-*-freebsd*|x86_64-*-freebsd*)
 
 aarch64-*-linux-*)
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-aarch64.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-aarch64.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 	
 
 armel*-*-linux-*)
 	# arm 32 little endian bit linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-arm.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-arm.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
 arm*-*-linux-*)
 	# arm 32 big endian bit linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-arm.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-arm.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
 arm*-*-freebsd*)
@@ -130,13 +130,13 @@ x86_64-apple-darwin*)
 mipsel-*-linux-*)
 	# mips 32 bit little endian linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-mips.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-mips.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
 mips-*-linux-*)
 	# mips 32 bit big endian linux
 	os=linux
-	TD_SRC='target_ptrace.$(OBJEXT) linux-mips.$(OBJEXT) linux.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) linux-thread_db.$(OBJEXT) linux-mips.$(OBJEXT) linux.$(OBJEXT)'
 	;;
 
 *)
