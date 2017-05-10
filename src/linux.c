@@ -91,7 +91,7 @@ bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig) {
 
 void ptrace_os_option_set_thread(pid_t pid) {
 #ifdef PTRACE_O_TRACECLONE
-  if (0 != ptrace(PTRACE_SETOPTIONS, CURRENT_PROCESS_TID, NULL,
+  if (0 != ptrace(PTRACE_SETOPTIONS, pid, NULL,
                   PTRACE_O_TRACECLONE)) {
     DBG_PRINT("error setting PTRACE_O_TRACECLONE\n");
   }
