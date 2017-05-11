@@ -90,10 +90,10 @@ bool ptrace_os_check_syscall(pid_t pid, int *in_out_sig) {
 }
 
 void ptrace_os_option_set_thread(pid_t pid) {
-#ifdef PTRACE_O_TRACECLONE
+#ifdef PTRACE_O_TRACEEXEC
   if (0 != ptrace(PTRACE_SETOPTIONS, pid, NULL,
-                  PTRACE_O_TRACECLONE)) {
-    DBG_PRINT("error setting PTRACE_O_TRACECLONE\n");
+                  PTRACE_O_TRACEEXEC)) {
+    DBG_PRINT("error setting PTRACE_O_TRACEEXEC\n");
   }
 #endif
 }
@@ -666,7 +666,7 @@ pid_t ptrace_os_get_wait_tid(pid_t pid) {
     int status;
     unsigned long new_tid = 0;
     status = ptrace(PTRACE_GETEVENTMSG, pid, 0, &new_tid);
-    if (0 == status) {
+    if (0 == status && new_tid != 0) {
 	ret = new_tid;
     }
 #endif
