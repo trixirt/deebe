@@ -51,7 +51,8 @@ AC_CHECK_SIZEOF(unsigned long)
 AC_FUNC_FORK
 AC_FUNC_SELECT_ARGTYPES
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([gethostbyname memmove memset select socket strchr strdup strtol timer_create timer_settime])
+AC_CHECK_FUNCS([gethostbyname memmove memset select socket strchr strdup strtol])
+AC_CHECK_LIB(rt, timer_create)
 
 ti_src="cmdline.c main.c ptrace.c network.c gdb_interface.c target_skeleton.c watchdog.c lldb_interface.c"
 

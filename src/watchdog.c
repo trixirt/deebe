@@ -48,7 +48,7 @@ static bool watchdog = false;
 void watchdog_cleanup() { signal_sigrtmin_off(); }
 bool watchdog_init(long sec) {
   bool ret = false;
-#ifdef HAVE_TIMER_CREATE
+#ifdef HAVE_LIBRT
 /*
  * Netbsd (7) does not export SIGRTMIN yet
  * so check if this is also defined.
