@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016, Juniper Networks, Inc.
+ * Copyright (c) 2012-2018, Juniper Networks, Inc.
  * All rights reserved.
  *
  * You may distribute under the terms of :
@@ -45,7 +45,8 @@
 
 int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
 {
-  int ret;
+  int ret = RET_ERR;
+#ifdef __FreeBSD__
   ret = td_init ();
   if (ret != TD_OK)
     return RET_ERR;
@@ -71,12 +72,15 @@ int initialize_thread_db(pid_t pid, struct gdb_target_s *t)
       _target.ph.target = NULL;
       return RET_ERR;
     }
-  return RET_OK;
+#endif
+  return ret;
 }
 
 int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
 			      uintptr_t *tlsaddr)
 {
+  int ret = RET_ERR;
+#ifdef __FreeBSD__
   td_err_e err;
   td_thrhandle_t th;
   psaddr_t addr = 0;
@@ -92,8 +96,9 @@ int thread_db_get_tls_address(int64_t thread, uint64_t lm, uint64_t offset,
   if (err)
     return RET_ERR;
   *tlsaddr = (uintptr_t) addr;
-
-  return RET_OK;
+  ret = RET_OK;
+#endif
+  return ret;
 }
 
 #endif /* HAVE_THREAD_DB_H */

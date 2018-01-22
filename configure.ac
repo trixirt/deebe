@@ -60,7 +60,7 @@ case ${target} in
 powerpc-*-freebsd*)
 	# powerpc freebsd
 	os=freebsd
-	TD_SRC='target_ptrace.$(OBJEXT) freebsd-ppc.$(OBJEXT) freebsd.$(OBJEXT) '
+	TD_SRC='target_ptrace.$(OBJEXT) freebsd-ppc.$(OBJEXT) freebsd-proc.$(OBJEXT) freebsd.$(OBJEXT) '
 	;;
 
 powerpc-*-linux*)
@@ -84,13 +84,13 @@ x86_64-*-linux-*)
 i386-*-freebsd*)
 	# x86 freebsd
 	os=freebsd
-	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd-proc.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
 amd64-*-freebsd*|x86_64-*-freebsd*)
 	# x64 freebsd
 	os=freebsd
-	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86_64.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) freebsd-x86_64.$(OBJEXT) freebsd-common-x86.$(OBJEXT) freebsd-proc.$(OBJEXT) freebsd.$(OBJEXT) x86.$(OBJEXT)'
 	;;
 
 aarch64-*-linux-*)
@@ -113,7 +113,7 @@ arm*-*-linux-*)
 
 arm*-*-freebsd*)
 	os=freebsd
-	TD_SRC='target_ptrace.$(OBJEXT) bsd-arm.$(OBJEXT) freebsd-arm.$(OBJEXT) freebsd.$(OBJEXT)'
+	TD_SRC='target_ptrace.$(OBJEXT) bsd-arm.$(OBJEXT) freebsd-arm.$(OBJEXT) freebsd-proc.$(OBJEXT) freebsd.$(OBJEXT)'
 	;;
 
 arm*-*-netbsd*)
