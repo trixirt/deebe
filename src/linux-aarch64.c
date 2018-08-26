@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Tom Rix
  * Copyright (c) 2015, Juniper Networks, Inc.
  * All rights reserved.
  *
@@ -215,3 +216,16 @@ bool ptrace_arch_hit_hardware_breakpoint(pid_t tid, unsigned long pc) {
   bool ret = false;
   return ret;
 }
+
+bool ptrace_arch_read_auxv(char *out_buff, size_t out_buf_size, size_t offset,
+                           size_t *size) {
+  return ptrace_os_read_auxv(out_buff, out_buf_size, offset, size);
+}
+
+const char *ptrace_arch_get_xml_register_string() {
+  static char *str = "aarch64";
+  return str;
+}
+
+size_t ptrace_arch_swbrk_rollback() { return 0; }
+
